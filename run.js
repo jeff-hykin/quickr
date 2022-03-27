@@ -1,8 +1,9 @@
-const { readableStreamFromReader, writableStreamFromWriter } = await import(`https://deno.land/std@0.121.0/streams/conversion.ts`)
-const { zipReadableStreams, mergeReadableStreams } = await import("https://deno.land/std@0.121.0/streams/merge.ts")
-const { StringReader } = await import("https://deno.land/std@0.128.0/io/mod.ts")
-const Path = await import("https://deno.land/std@0.117.0/path/mod.ts")
-const { debugValueAsString } = await import("https://deno.land/x/good@0.3.9/debug.js")
+import { FileSystem } from "./file_system.js"
+import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
+import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
+import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
+import Path from "https://deno.land/std@0.117.0/path/mod.ts"
+import { debugValueAsString } from "https://deno.land/x/good@0.3.9/debug.js"
 
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
@@ -13,11 +14,11 @@ const stderrSymbol       = Symbol("stderr")
 const stdoutAndErrSymbol = Symbol("stdoutAndErr")
 const overwriteSymbol    = Symbol("overwrite")
 const appendSymbol       = Symbol("append")
+const asString  = Symbol("asString") // TODO: integrate this as a feature (returns { stdout: "blh", stderr: "bal", output: "blhbal" })
 export const throwIfFails = Symbol("throwIfFails")
 export const zipInto        = Symbol("zipInto")
 export const mergeInto      = Symbol("mergeInto")
 export const returnAsString = Symbol("returnAsString")
-const asString  = Symbol("asString") // TODO: integrate this as a feature (returns { stdout: "blh", stderr: "bal", output: "blhbal" })
 export const Timeout   = ({gentlyBy, waitBeforeUsingForce})=>[timeoutSymbol, {gentlyBy, waitBeforeUsingForce}]
 export const Env       = (envVars)=>[envSymbol, envVars]
 export const Cwd       = (newDirectory)=>[cwdSymbol, newDirectory]
@@ -60,40 +61,6 @@ const streamToString = async (stream) => {
 // TODO: add this once deno supports it
 // export const hasCommand = async (commandName) => {
 // }
-
-const FileSystem = {
-    info: async (fileOrFolder) => {
-        const result1 = await Deno.lstat(fileOrFolder).catch(()=>({doesntExist: true}))
-        result1.exists = !result1.doesntExist
-        if (result1.exists) {
-            const result2 = await Deno.stat(fileOrFolder).catch(()=>({doesntExist: true}))
-            result1.isFile = result2.isFile
-            result1.isDirectory = result2.isDirectory
-        }
-        return result1
-    },
-    remove: (fileOrFolder) => Deno.remove(path,{recursive: true}).catch(()=>false),
-    clearAPathFor: async (path)=>{
-        const parentPath = Path.dirname(path)
-        // dont need to clear a path for the root folder
-        if (parentPath == path) {
-            return
-        } else {
-            // we do need to clear a path for the parent of this folder
-            await FileSystem.clearAPathFor(parentPath)
-        }
-        const { exists, isDirectory } = await FileSystem.info(parentPath)
-        // if a folder is in the way, delete it
-        if (exists && !isDirectory) {
-            await FileSystem.remove(parentPath)
-        }
-        const parentPathInfo = await Deno.lstat(parentPath).catch(()=>({doesntExist: true}))
-        // if no folder was there, create one
-        if (!parentPathInfo.exists) {
-            Deno.mkdir(Path.dirname(parentPath),{ recursive: true })
-        }
-    },
-}
 
 // 
 // 
