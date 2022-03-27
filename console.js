@@ -307,6 +307,13 @@ export const greyBackground         = createCrayon(styleObjects.greyBackground)
 export const lightGrayBackground    = createCrayon(styleObjects.lightGrayBackground)
 export const lightGreyBackground    = createCrayon(styleObjects.lightGreyBackground)
 
+// const ansiRegexPattern = new RegExp(
+//     [
+//         '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
+//         '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))'
+//     ].join('|'),
+//     'g'
+// )
 export function clearStylesFrom(string) {
     // https://stackoverflow.com/questions/17998978/removing-colors-from-output
     return string.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "")
