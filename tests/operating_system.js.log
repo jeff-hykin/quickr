@@ -1,0 +1,9 @@
+{
+  commonChecks: { isMac: true, isWindows: false, isLinux: false },
+  commonName: "MacOS",
+  kernel: { commonName: "darwin" },
+  architecture: undefined,
+  username: [Getter],
+  home: [Getter],
+  _getOwnerOf: [AsyncFunction: _getOwnerOf]
+}

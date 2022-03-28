@@ -1,4 +1,4 @@
-import Path from "https://deno.land/std@0.128.0/path/mod.ts"
+import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
 import { OperatingSystem } from "./operating_system.js"
 
