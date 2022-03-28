@@ -3,7 +3,7 @@ import { readableStreamFromReader, writableStreamFromWriter } from "https://deno
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import Path from "https://deno.land/std@0.117.0/path/mod.ts"
-import { debugValueAsString } from "https://deno.land/x/good@0.3.9/debug.js"
+import { debugValueAsString } from "https://deno.land/x/good@0.4.1/debug.js"
 
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
