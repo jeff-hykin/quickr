@@ -1,4 +1,4 @@
-import { chalk } from "./dependencies/chalk.js"
+import { chalk } from "../dependencies/chalk.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
