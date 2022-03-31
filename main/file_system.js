@@ -253,6 +253,7 @@ export const FileSystem = {
             return Deno.cwd()
         }
     },
+    parentPath: Path.dirname,
     dirname: Path.dirname,
     basename: Path.basename,
     extname: Path.extname,
