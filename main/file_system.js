@@ -390,7 +390,7 @@ export const FileSystem = {
         Deno.close(target.rid)
         return result
     },
-    async relativeLink({existingItem, newItem}) {
+    async relativeLink({existingItem, newItem, force=true}) {
         existingItem = existingItem.path || existingItem
         newItem = newItem.path || newItem // if given ItemInfo object
         
@@ -399,20 +399,13 @@ export const FileSystem = {
         if (existingItemDoesntExist) {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
         } else {
-            await FileSystem.clearAPathFor(newItem)
-            await FileSystem.remove(newItem)
+            if (force) {
+                await FileSystem.remove(newItem)
+                await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
+            }
+            const pathFromNewToExisting = Path.relative(newItem, existingItem).replace(/^\.\.\//,"")
+            return Deno.symlink(pathFromNewToExisting, newItem)
         }
-
-        const pwd = FileSystem.pwd
-        newItem = FileSystem.makeRelativePath({from:pwd, to:newItem})
-        existingItem = FileSystem.makeRelativePath({from:pwd, to:existingItem})
-        
-        if (force) {
-            await FileSystem.remove(newItem)
-            await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
-        }
-
-        return Deno.symlink(existingItem, newItem)
     },
     async pathPieces(path) {
         path = path.path || path // if given ItemInfo object
