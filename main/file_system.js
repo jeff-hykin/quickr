@@ -213,7 +213,7 @@ class ItemInfo {
 
 export const FileSystem = {
     get home() {
-        return OS.home
+        return OperatingSystem.home
     },
     get currentFolder() {
         return Deno.cwd()
