@@ -1,5 +1,6 @@
 import { run } from "./run.js"
 
+const cache = {}
 export const OperatingSystem = {
     commonChecks: {
         isMac: Deno.build.os=="darwin",
