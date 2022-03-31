@@ -40,7 +40,7 @@ class ItemInfo {
         this._data = null
     }
     get lstat() {
-        if (this._lstat) {
+        if (!this._lstat) {
             try {
                 this._lstat = Deno.lstatSync(this.path)
             } catch (error) {
@@ -61,8 +61,9 @@ class ItemInfo {
             // if symlink
             } else {
                 try {
-                    this._stat = Deno.statSync(this.path)
+                    this._stat = Deno.statSync(this.path) 
                 } catch (error) {
+                    this._stat = {}
                     if (error.message.match(/^Too many levels of symbolic links/)) {
                         this._stat.isBrokenLink = true
                         this._stat.isLoopOfLinks = true
