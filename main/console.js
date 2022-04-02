@@ -123,7 +123,6 @@ globalThis.console = new Proxy(originalThing, {
             return (...args)=>{
                 realConsole.log(
                     ...args.map(each=>{
-                        console.debug(`each[symbolForConsoleLog] is:`,each[symbolForConsoleLog])
                         if (each instanceof Object && each[symbolForConsoleLog] instanceof Function) {
                             return each[symbolForConsoleLog]()
                         }
