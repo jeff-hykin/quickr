@@ -1,0 +1,23 @@
+#!/usr/bin/env -S deno run --allow-all
+
+import { FileSystem, Console } from "https://deno.land/x/file_system_js@0.3.4/main/deno.js"
+import { run, Timeout, Env, Cwd, Stdin, Stdout, Stderr, Out, Overwrite, AppendTo, throwIfFails, returnAsString, zipInto, mergeInto } from "https://deno.land/x/sprinter@0.4.2/index.js"
+
+const whichVersion = Deno.args[0]
+if (!whichVersion) {
+    console.log("please give the version of babel-standalone that you'd like to try to download as the first argument")
+}
+
+const workspaceFolder = `./temp.ignore/${whichVersion}`
+const fileToBundle = `${workspaceFolder}/babel.js`
+const dependencyFile = `dependencies/babel@${whichVersion}.js`
+await FileSystem.ensureIsFolder(workspaceFolder)
+await FileSystem.write({
+    data: `
+        import Babel from 'https://cdn.skypack.dev/@babel/standalone@v7.13.8'
+        export default Babel
+    `,
+    path: fileToBundle,
+})
+
+await run("deno", "bundle", fileToBundle, Stdout(Overwrite(dependencyFile)))

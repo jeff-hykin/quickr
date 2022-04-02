@@ -21,6 +21,7 @@ import { OperatingSystem } from "./operating_system.js"
     // tempfolder
     // readBytes
     // readStream
+    // username with Deno.getUid()
 
 const cache = {}
 
