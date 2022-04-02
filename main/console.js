@@ -26,10 +26,11 @@ if (typeof Deno != 'undefined') {
         },
         set(original, key, value) {
             if (typeof key === 'symbol') {
-                return undefined
+                undefined
             } else {
-                return Deno.env.set(key, value)
+                Deno.env.set(key, value)
             }
+            return true
         },
         deleteProperty(original, key) {
             if (typeof key === 'symbol') {
@@ -66,6 +67,7 @@ if (typeof Deno != 'undefined') {
                     object[key] = newValue
                 }
                 parent[updateSymbol]()
+                return true
             },
         })
     }
@@ -92,6 +94,7 @@ if (typeof Deno != 'undefined') {
         set(coreObject, key, newValue) {
             coreObject[key] = newValue
             localStorage.setItem(key, JSON.stringify(newValue))
+            return true
         },
     })
 }
