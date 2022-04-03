@@ -3,7 +3,8 @@
   commonName: "MacOS",
   kernel: { commonName: "darwin" },
   architecture: undefined,
+  versionArray: [ 10, 13, 6 ],
   username: [Getter],
   home: [Getter],
-  _getOwnerOf: [AsyncFunction: _getOwnerOf]
+  idForUsername: [AsyncFunction: idForUsername]
 }

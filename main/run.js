@@ -58,6 +58,20 @@ const streamToString = async (stream) => {
     return string
 }
 
+export const hasCommand = async (commandName) => {
+    const spliter = (Deno.build.os == "windows") ? ";" : ":"
+    const paths = Deno.env.get("PATH").split(spliter)
+    for (const eachFolder of paths) {
+        const info = await FileSystem.info(`${eachFolder}/${commandName}`)
+        // TODO: FileSystem needs an "isExecutable", which needs to get the user's UID, which is not a stable Deno api yet
+        // (so once that is added use it)
+        if (info.isFile) {
+            return true
+        }
+    }
+    return false
+}
+
 // TODO: add this once deno supports it
 // export const hasCommand = async (commandName) => {
 // }

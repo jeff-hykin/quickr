@@ -1,3 +1,5 @@
+hasCommand(`echo`) is: true
+hasCommand(`blah`) is: false
 hello
 hello
 hello

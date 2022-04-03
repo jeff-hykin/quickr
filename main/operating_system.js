@@ -1,5 +1,15 @@
 import { run } from "./run.js"
 
+// must be done at the top to prevent other things from being async
+let versionArray = []
+if (Deno.build.os === "windows") {
+    const windowsVersionString = await run("pwsh", "-Command", `[System.Environment]::OSVersion.Version`, run.Stdout(run.returnAsString))
+    versionArray = windowsVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+} else if (Deno.build.os === "darwin") {
+    const macVersionString = await run("sw_vers","-productVersion", run.Stdout(run.returnAsString))
+    versionArray = macVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+}
+
 const cache = {}
 export const OperatingSystem = {
     commonChecks: {
@@ -16,6 +26,7 @@ export const OperatingSystem = {
         commonName: Deno.build.os
     },
     architecture: Deno.build.architecture,
+    versionArray,
     get username() {
         if (!cache.username) {
             if (!OperatingSystem.commonChecks.isWindows) {
@@ -38,7 +49,7 @@ export const OperatingSystem = {
         }
         return cache.home
     },
-    async _getOwnerOf(path) {
+    async idForUsername(username) {
         if (Deno.build.os === "darwin") {
             if (!cache.macOsUserToUid) {
                 const userListString = await run("dscl",".", "-list", "/Users", "UniqueID", run.Stdout(run.returnAsString))
@@ -55,11 +66,11 @@ export const OperatingSystem = {
                 cache.macOsUserToUid = Object.fromEntries(userNamesAndIds)
                 cache.macOsUidToUser = Object.fromEntries(idsAndUsernames)
             }
-        } else {
-            // FIXME
-            throw Error(`Unsupported system`)
-            // for linux look at:
-            // getent passwd {1000..6000}
+            return cache.macOsUserToUid[username]
+        } else if (Deno.build.os === "windows") {
+            return await run('pwsh', '-Command', `Get-ADUser -Identity '${username.replace(/'/,"''")}' | select SID`, run.Stdout(run.returnAsString))
+        } else if (Deno.build.os === "linux") {
+            return await run('id', '-u', OperatingSystem.username, run.Stdout(run.returnAsString))
         }
-    }
+    },
 }

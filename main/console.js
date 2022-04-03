@@ -1,103 +1,45 @@
 import { chalk } from "../dependencies/chalk.js"
+import { OperatingSystem } from "./operating_system.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
 
-let Env
-if (typeof Deno != 'undefined') {
-    Env = new Proxy({}, {
-        // Object.keys
-        ownKeys(target) {
-            return Object.keys(Deno.env.toObject())
-        },
-        has(original, key) {
-            if (typeof key === 'symbol') {
-                return false
-            } else {
-                return Deno.env.get(key) !== undefined
-            }
-        },
-        get(original, key) {
-            if (typeof key === 'symbol') {
-                return undefined
-            } else {
-                return Deno.env.get(key)
-            }
-        },
-        set(original, key, value) {
-            if (typeof key === 'symbol') {
-                undefined
-            } else {
-                Deno.env.set(key, value)
-            }
-            return true
-        },
-        deleteProperty(original, key) {
-            if (typeof key === 'symbol') {
-                return undefined
-            } else {
-                return Deno.env.delete(key)
-            }
-        },
-    })
-} else if (isBrowserContext) {
-    const localStorage = window.localStorage
-    const coreObject = {}
-    const updateSymbol = Symbol()
-    const parentSymbol = Symbol()
-    const createInnerElement = (object, parent) => {
-        object[parentSymbol] = parent
-        return new Proxy(object, {
-            has(object, key) {
-                return key in object
-            },
-            get(object, key) {
-                // if child says to update, tell parent to update
-                if (key == updateSymbol) {
-                    parent[updateSymbol]()
-                }
-                return object[key]
-            },
-            set(object, key, newValue) {
-                if (newValue instanceof Object) {
-                    object[key] = createInnerElement(newValue, object)
-                    // recursive
-                    Object.assign(object[key],newValue)
-                } else {
-                    object[key] = newValue
-                }
-                parent[updateSymbol]()
-                return true
-            },
-        })
-    }
-    Env = new Proxy(coreObject, {
-        get(coreObject, key) {
-            if (key == updateSymbol) {
-                localStorage.setItem(key, JSON.stringify(coreObject))
-            } else {
-                let rawValue
-                try {
-                    rawValue = localStorage.getItem(key)
-                    let value = JSON.parse(rawValue)
-                    if (value instanceof Object) {
-                        const newObject = createInnerElement(value, this)
-                        // convert all the children to proxys
-                        Object.assign(newObject,value)
-                    }
-                    return newObject
-                } catch (error) {
-                    return rawValue
-                }
-            }
-        },
-        set(coreObject, key, newValue) {
-            coreObject[key] = newValue
-            localStorage.setItem(key, JSON.stringify(newValue))
-            return true
-        },
-    })
-}
+const env = new Proxy({}, {
+    // Object.keys
+    ownKeys(target) {
+        return Object.keys(Deno.env.toObject())
+    },
+    has(original, key) {
+        if (typeof key === 'symbol') {
+            return false
+        } else {
+            return Deno.env.get(key) !== undefined
+        }
+    },
+    get(original, key) {
+        if (typeof key === 'symbol') {
+            return undefined
+        } else {
+            return Deno.env.get(key)
+        }
+    },
+    set(original, key, value) {
+        if (typeof key === 'symbol') {
+            undefined
+        } else {
+            Deno.env.set(key, value)
+        }
+        return true
+    },
+    deleteProperty(original, key) {
+        if (typeof key === 'symbol') {
+            return undefined
+        } else {
+            return Deno.env.delete(key)
+        }
+    },
+})
+
         
 
 // 
@@ -240,6 +182,11 @@ const createCrayon = (styleObject, parent)=>{
         }
         stringToStyle += strings.slice(-1)[0]
         
+        // if color is turned off for one reason or another
+        if (!Console.colorSupport.hasAnsi || Console.disableColorIfNonIteractive && !Deno.isatty()) {
+            return stringToStyle
+        }
+
         let styler = chalk
         let attributeBuffer = [...output.attributeBuffer]
         while (attributeBuffer.length > 0) {
@@ -309,19 +256,22 @@ export const greyBackground         = createCrayon(styleObjects.greyBackground)
 export const lightGrayBackground    = createCrayon(styleObjects.lightGrayBackground)
 export const lightGreyBackground    = createCrayon(styleObjects.lightGreyBackground)
 
-// const ansiRegexPattern = new RegExp(
-//     [
-//         '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?\\u0007)',
-//         '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))'
-//     ].join('|'),
-//     'g'
-// )
+// from chalk.js
+const ansiRegexPattern = /[\u001B\u009B][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?\u0007)|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))/g
 export function clearStylesFrom(string) {
-    // https://stackoverflow.com/questions/17998978/removing-colors-from-output
-    return string.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "")
+    return `${string}`.replace(ansiRegexPattern, "")
 }
 
+const colorSupportCache = {
+    hasAnsi: null,
+    has256: null,
+    has16m: null,
+}
 export const Console = {
+    // TODO: add signal handler
+        // Deno.addSignalListener("SIGINT", (...args)=>{
+        //     console.debug(`args is:`,args)
+        // })
     log(...args) {
         if (args.length == 0) {
             console.log()
@@ -347,7 +297,8 @@ export const Console = {
         }
         return Console
     },
-    env: Env,
+    env: env,
+    disableColorIfNonIteractive: true,
     askFor: {
         line(question) {
             return prompt(question)
@@ -373,31 +324,108 @@ export const Console = {
             }
         },
     },
-    // tui: {
-    //     // TODO: error
-    //     // TODO: warning
-    //     // TODO: note
-    //     wrap({string, width, padEnd=""}) {
-    //         return string.split("\n").map(each=>{
-    //             const peices = []
-    //             while (true) {
-    //                 var [ firstPart, each ] = [ each.slice(0, width), each.slice(width) ]
-    //                 if (firstPart.length) {
-    //                     if (padEnd) {
-    //                         const additionalLength = firstPart.length - firstPart.replace(ansiRegexPattern, "").length
-    //                         firstPart = firstPart.padEnd(width+additionalLength, padEnd)
-    //                     }
-    //                     peices.push(firstPart)
-    //                 } else {
-    //                     break
-    //                 }
-    //             }
-    //             if (peices.length == 0) {
-    //                 return [" ".padEnd(width, padEnd) ]
-    //             } else {
-    //                 return peices
-    //             }
-    //         }).flat()
-    //     },
-    // },
+    get colorSupport() {
+        if (colorSupportCache.hasAnsi != null) {
+            return colorSupportCache
+        }
+        // 
+        // OS Support
+        // 
+        let osSupport
+        if (Deno.build.os === "windows") {
+            // build 1909 is the first Windows release that supports ansi color
+            // build 10586 is the first Windows release that supports 256 colors.
+            // build 14931 is the first release that supports 16m/TrueColor.
+            const [major, minor, build] = OperatingSystem.versionArray
+            const colors = {
+                hasAnsi: build >= 1909,
+                has256: build >= 10586,
+                has16m: build >= 14931,
+            }
+            
+        } else {
+            osSupport = {
+                hasAnsi: true,
+                has256: true,
+                has16m: true,
+            }
+        }
+
+        //
+        // terminal support
+        //
+        let terminalSupport
+        if ('TERM_PROGRAM' in env) {
+            const version = Number.parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10)
+            if (env.TERM_PROGRAM == 'iTerm.app') {
+                if (version >= 3) {
+                    terminalSupport = {
+                        hasAnsi: true,
+                        has256: true,
+                        has16m: true,
+                    }
+                } else {
+                    terminalSupport = {
+                        hasAnsi: true,
+                        has256: true,
+                        has16m: false,
+                    }
+                }
+            } else if (env.TERM_PROGRAM == 'Apple_Terminal') {
+                terminalSupport = {
+                    hasAnsi: true,
+                    has256: true,
+                    has16m: false,
+                }
+            }
+        }
+        if (env.TERM === 'dumb') {
+            terminalSupport = {
+                hasAnsi: false,
+                has256: false,
+                has16m: false,
+            }
+        } else if ('CI' in env) {
+            terminalSupport = {
+                hasAnsi: ['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE', 'DRONE'].some(sign => sign in env) || env.CI_NAME === 'codeship',
+                has256: false,
+                has16m: false,
+            }
+        } else if (env.COLORTERM === 'truecolor') {
+            terminalSupport = {
+                hasAnsi: true,
+                has256: true,
+                has16m: true,
+            }
+        } else if (/-256(color)?$/i.test(env.TERM)) {
+            terminalSupport = {
+                hasAnsi: true,
+                has256: true,
+                has16m: false,
+            }
+        } else if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+            terminalSupport = {
+                hasAnsi: true,
+                has256: false,
+                has16m: false,
+            }
+        } else if ('COLORTERM' in env) {
+            terminalSupport = {
+                hasAnsi: true,
+                has256: false,
+                has16m: false,
+            }
+        } else {
+            terminalSupport = {
+                hasAnsi: false,
+                has256: false,
+                has16m: false,
+            }
+        }
+
+        colorSupportCache.hasAnsi = osSupport.hasAnsi && terminalSupport.hasAnsi
+        colorSupportCache.has256  = osSupport.has256  && terminalSupport.has256
+        colorSupportCache.has16m  = osSupport.has16m  && terminalSupport.has16m
+        return colorSupportCache
+    },
 }

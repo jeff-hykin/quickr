@@ -1,6 +1,10 @@
 #!/usr/bin/env -S deno run --allow-all
 const { run, Timeout, Env, Cwd, Stdin, Stdout, Stderr, Out, Overwrite, AppendTo, zipInto, mergeInto, returnAsString, throwIfFails, hasCommand } = await import(`../main/run.js`)
 
+console.debug(`hasCommand(\`echo\`) is:`, await hasCommand(`echo`))
+console.debug(`hasCommand(\`blah\`) is:`, await hasCommand(`blah`))
+
+
 // runs async
 run("echo", "hello")
 

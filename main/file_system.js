@@ -1,6 +1,5 @@
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
-import { OperatingSystem } from "./operating_system.js"
 import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
 
 // TODO:
@@ -221,7 +220,15 @@ export const FileSystem = {
     extname: Path.extname,
     join: Path.join,
     get home() {
-        return OperatingSystem.home
+        if (!cache.home) {
+            if (!OperatingSystem.commonChecks.isWindows) {
+                cache.home = Deno.env.get("HOME")
+            } else {
+                // untested
+                cache.home = Deno.env.get("HOMEPATH")
+            }
+        }
+        return cache.home
     },
     get currentFolder() {
         return Deno.cwd()
