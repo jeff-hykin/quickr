@@ -4,6 +4,18 @@ import { OperatingSystem } from "./operating_system.js"
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
 
+
+// TODO: add some stdin helpers:
+    // import { readLines } from "https://deno.land/std@0.100.0/io/mod.ts";
+    // (async function() {
+    //   for await (const line of readLines(Deno.stdin)) {
+    //     switch (line) {
+    //       case "help":
+    //         help();
+    //         break;
+    //     }
+    //   }
+
 const env = new Proxy({}, {
     // Object.keys
     ownKeys(target) {
