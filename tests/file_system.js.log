@@ -1,1 +1,114 @@
-[]
+FileSystem.currentFile is: /Users/jeffhykin/repos/quickr/tests/file_system.js
+FileSystem.currenFolder is: /Users/jeffhykin/repos/quickr/tests
+[
+  ItemInfo {
+    path: "main/console.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 20599,
+      mtime: 2022-04-03T21:43:22.244Z,
+      atime: 2022-04-03T21:43:23.412Z,
+      birthtime: 2022-03-27T19:42:08.433Z,
+      dev: 16777220,
+      ino: 4386435838,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4194304,
+      blocks: 48
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
+    path: "main/run.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 28963,
+      mtime: 2022-04-03T21:34:51.109Z,
+      atime: 2022-04-03T22:16:51.373Z,
+      birthtime: 2022-03-27T23:28:51.644Z,
+      dev: 16777220,
+      ino: 4386456251,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4194304,
+      blocks: 64
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
+    path: "main/bundle.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 4560,
+      mtime: 2022-03-30T21:59:10.432Z,
+      atime: 2022-04-03T21:50:49.520Z,
+      birthtime: 2022-03-30T20:13:42.734Z,
+      dev: 16777220,
+      ino: 4387312887,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4194304,
+      blocks: 16
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
+    path: "main/file_system.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 26878,
+      mtime: 2022-04-03T22:16:37.373Z,
+      atime: 2022-04-03T22:16:51.414Z,
+      birthtime: 2022-03-27T23:33:08.841Z,
+      dev: 16777220,
+      ino: 4386456709,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4194304,
+      blocks: 56
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
+    path: "main/operating_system.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 2450,
+      mtime: 2022-04-03T21:36:17.225Z,
+      atime: 2022-04-03T22:16:51.373Z,
+      birthtime: 2022-03-27T23:34:39.312Z,
+      dev: 16777220,
+      ino: 4386456871,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4194304,
+      blocks: 8
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  }
+]

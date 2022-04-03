@@ -1,6 +1,7 @@
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
 import { OperatingSystem } from "./operating_system.js"
+import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
 
 // TODO:
     // add move command
@@ -213,6 +214,12 @@ class ItemInfo {
 }
 
 export const FileSystem = {
+    denoExecutablePath: Deno.execPath(),
+    parentPath: Path.dirname,
+    dirname: Path.dirname,
+    basename: Path.basename,
+    extname: Path.extname,
+    join: Path.join,
     get home() {
         return OperatingSystem.home
     },
@@ -226,39 +233,42 @@ export const FileSystem = {
     set cwd(value) { return FileSystem.currentFolder = value },
     get pwd() { return FileSystem.cwd },
     set pwd(value) { return FileSystem.cwd = value },
-    __filename__() {
+    get currentFilePath() {
         const err = new Error()
         // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
-        const pathToCaller = err.stack.split(/\n    at ([\w\W]*?)(?::\d+:\d+|$)/g)[2]
+        const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
         
         // if valid file
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-        if (Deno.lstatSync(pathToCaller).isFile) {
-            return pathToCaller
-        // if in an interpreter 
-        } else {
-            return null
+        if (filePaths[1]) {
+            try {
+                if (Deno.lstatSync(filePaths[1]).isFile) {
+                    return filePaths[1]
+                }
+            } catch (error) {
+            }
         }
+        // if in an interpreter
+        return ':<interpreter>:'
     },
-    __dirname__() {
+    get currentFolderPath() {
         const err = new Error()
         // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
-        const pathToCaller = err.stack.split(/\n    at ([\w\W]*?)(?::\d+:\d+|$)/g)[2]
+        const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
         
         // if valid file
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-        if (Deno.lstatSync(pathToCaller).isFile) {
-            return Path.dirname(pathToCaller)
-        // if in an interpreter 
-        } else {
-            return Deno.cwd()
+        if (filePaths[1]) {
+            try {
+                if (Deno.lstatSync(filePaths[1]).isFile) {
+                    return Path.dirname(filePaths[1])
+                }
+            } catch (error) {
+            }
         }
+        // if in an interpreter
+        return Deno.cwd()
     },
-    parentPath: Path.dirname,
-    dirname: Path.dirname,
-    basename: Path.basename,
-    extname: Path.extname,
-    join: Path.join,
     async read(path) {
         try {
             return await Deno.readTextFile(path)
