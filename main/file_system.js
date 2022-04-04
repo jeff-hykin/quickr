@@ -428,7 +428,7 @@ export const FileSystem = {
             throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
         }
         if (force) {
-            await FileSystem.clearAPathFor(to)
+            await FileSystem.clearAPathFor(to, { overwrite: force })
             FileSystem.remove(to)
         }
         const source = await Deno.open(from, { read: true })
@@ -713,7 +713,7 @@ export const FileSystem = {
     },
     async write({path, data, force=true}) {
         if (force) {
-            await FileSystem.clearAPathFor(path)
+            await FileSystem.clearAPathFor(path, { overwrite: force })
             const info = FileSystem.info(path)
             if (info.isDirectory) {
                 FileSystem.remove(path)
@@ -729,7 +729,7 @@ export const FileSystem = {
     },
     async append({path, data, force=true}) {
         if (force) {
-            await FileSystem.clearAPathFor(path)
+            await FileSystem.clearAPathFor(path, { overwrite: force })
             const info = FileSystem.info(path)
             if (info.isDirectory) {
                 FileSystem.remove(path)

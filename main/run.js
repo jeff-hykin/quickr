@@ -330,7 +330,7 @@ export const run = (...args) => {
                     } else if (symbol === appendSymbol) {
                         if (typeof value == 'string') {
                             // ensure parent folders exist
-                            await FileSystem.clearAPathFor(value)
+                            await FileSystem.ensureIsFolder(FileSystem.parentPath(value))
                             // convert string to a folder
                             value = await Deno.open(value, {write: true, create: true})
                             // FIXME: this file never gets closed! it needs to be, but only if it was opened here
