@@ -386,7 +386,13 @@ export const run = (...args) => {
         // start the process
         // 
         // 
-        const process = Deno.run(runArg)
+        let process = {}
+        try {
+            process = Deno.run(runArg)
+        } catch (error) {
+            const rejection = new Promise((resolve, reject)=>reject(error))
+            return [ rejection, rejection, rejection ]
+        }
         if (commandMetaData.timeout.gentlyBy) {
             // create a outcome check
             let outcome = false
@@ -552,7 +558,7 @@ export const run = (...args) => {
     const asyncPartPromise = asyncPart()
     const processPromise     = asyncPartPromise.then(([process, processFinishedValue, statusPromise]) => process).catch((err)=>err)
     const statusPromise      = asyncPartPromise.then(([process, processFinishedValue, statusPromise]) => statusPromise).catch((err)=>err)
-    const returnValuePromise = asyncPartPromise.then(([process, processFinishedValue, statusPromise]) => processFinishedValue)
+    const returnValuePromise = asyncPartPromise.then(([process, processFinishedValue, statusPromise]) => processFinishedValue).catch((err)=>err)
     Object.defineProperties(returnValuePromise, {
         status:     { get(){ return syncStatus      } },
         isDone:     { get(){ return syncStatus.done } },
