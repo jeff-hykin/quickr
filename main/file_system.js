@@ -387,7 +387,7 @@ export const FileSystem = {
             }
         }
         await FileSystem.ensureIsFolder(Path.dirname(originalPath))
-        return path
+        return originalPath
     },
     async moveOutOfTheWay(path, ext=".old") {
         const {move} = await import("https://deno.land/std@0.133.0/fs/mod.ts")
