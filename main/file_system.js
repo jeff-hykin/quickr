@@ -230,17 +230,17 @@ export const FileSystem = {
         }
         return cache.home
     },
-    get currentFolder() {
+    get workingDirectory() {
         return Deno.cwd()
     },
-    set currentFolder(value) {
+    set workingDirectory(value) {
         Deno.chdir(value)
     },
-    get cwd() { return FileSystem.currentFolder },
-    set cwd(value) { return FileSystem.currentFolder = value },
+    get cwd() { return FileSystem.workingDirectory },
+    set cwd(value) { return FileSystem.workingDirectory = value },
     get pwd() { return FileSystem.cwd },
     set pwd(value) { return FileSystem.cwd = value },
-    get currentFilePath() {
+    get thisFile() {
         const err = new Error()
         // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
@@ -258,7 +258,7 @@ export const FileSystem = {
         // if in an interpreter
         return ':<interpreter>:'
     },
-    get currentFolderPath() {
+    get thisFolder() {
         const err = new Error()
         // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])

@@ -2,9 +2,10 @@
 const { FileSystem } = await import(`../main/file_system.js`)
 
 
-console.debug(`FileSystem.currentFile is:`,FileSystem.currentFilePath)
-console.debug(`FileSystem.currenFolder is:`,FileSystem.currentFolderPath)
+console.debug(`FileSystem.thisFile is:`,FileSystem.thisFile)
+console.debug(`FileSystem.thisFolder is:`,FileSystem.thisFolder)
+console.debug(`FileSystem.workingDirectory is:`,FileSystem.workingDirectory)
 
-await FileSystem.clearAPathFor(`${FileSystem.currentFolderPath}/run.errors.log`)
+await FileSystem.clearAPathFor(`${FileSystem.thisFolder}/run.errors.log`)
 
 console.log(await FileSystem.listFileItemsIn(`./main/`))
