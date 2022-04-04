@@ -5,6 +5,9 @@ import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
 import { debugValueAsString } from "https://deno.land/x/good@0.4.1/debug.js"
 
+// TODO:
+    // fix hasCommand: on windows it doesnt take into account commands that windows auto-hides the .bat or .ps1 from
+
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
 const cwdSymbol          = Symbol("cwd")
