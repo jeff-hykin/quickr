@@ -369,7 +369,6 @@ export const FileSystem = {
     },
     async clearAPathFor(path, options={overwrite:false, extension:".old"}) {
         const {overwrite, extension} = {overwrite:false, extension:".old", ...options }
-
         const originalPath = path
         const paths = []
         while (Path.dirname(path) !== path) {

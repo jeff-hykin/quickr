@@ -313,7 +313,7 @@ export const run = (...args) => {
                     if (symbol === overwriteSymbol) {
                         if (typeof value == 'string') {
                             // ensure parent folders exist
-                            await FileSystem.clearAPathFor(value)
+                            await FileSystem.clearAPathFor(value, {overwrite: true})
                             // convert string to a folder
                             value = await Deno.open(value, {write: true, truncate: true, create: true})
                         }
