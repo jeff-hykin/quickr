@@ -3,11 +3,19 @@ import { run } from "./run.js"
 // must be done at the top to prevent other things from being async
 let versionArray = []
 if (Deno.build.os === "windows") {
-    const windowsVersionString = await run("pwsh", "-Command", `[System.Environment]::OSVersion.Version`, run.Stdout(run.returnAsString))
-    versionArray = windowsVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+    try {
+        const windowsVersionString = await run("pwsh", "-Command", `[System.Environment]::OSVersion.Version`, run.Stdout(run.returnAsString))
+        versionArray = windowsVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+    } catch (error) {
+        console.warn(`unable to get version string for Windows: ${error.message}`)
+    }
 } else if (Deno.build.os === "darwin") {
-    const macVersionString = await run("sw_vers","-productVersion", run.Stdout(run.returnAsString))
-    versionArray = macVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+    try {
+        const macVersionString = await run("/usr/bin/sw_vers","-productVersion", run.Stdout(run.returnAsString))
+        versionArray = macVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+    } catch (error) {
+        console.warn(`unable to get version string for MacOS: ${error.message}`)
+    }
 }
 
 const cache = {}
