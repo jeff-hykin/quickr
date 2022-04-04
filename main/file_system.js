@@ -367,7 +367,7 @@ export const FileSystem = {
         // finally create the folder
         return Deno.mkdir(path, { recursive: true })
     },
-    async clearAPathFor(path, overwrite, extension=".old") {
+    async clearAPathFor(path, {overwrite=false, extension=".old"}) {
         const originalPath = path
         const paths = []
         while (Path.dirname(path) !== path) {
@@ -382,20 +382,21 @@ export const FileSystem = {
                 if (overwrite) {
                     await FileSystem.remove(eachPath)
                 } else {
-                    await FileSystem.moveOutOfTheWay(eachPath, extension)
+                    await FileSystem.moveOutOfTheWay(eachPath, {extension})
                 }
             }
         }
         await FileSystem.ensureIsFolder(Path.dirname(originalPath))
         return originalPath
     },
-    async moveOutOfTheWay(path, ext=".old") {
+    async moveOutOfTheWay(path, {extension=".old"}) {
         const {move} = await import("https://deno.land/std@0.133.0/fs/mod.ts")
         const info = await FileSystem.info(path)
         if (info.exists) {
             // make sure nothing is in the way of what I'm about to move
-            await FileSystem.moveOutOfTheWay(path+ext, ext)
-            await move(path, path+ext)
+            const newPath = path+extension
+            await FileSystem.moveOutOfTheWay(newPath, {extension})
+            await move(path, newPath)
         }
     },
     async walkUpUntil(fileToFind, startPath=null){
