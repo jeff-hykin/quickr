@@ -367,9 +367,35 @@ export const FileSystem = {
         // finally create the folder
         return Deno.mkdir(path, { recursive: true })
     },
-    async clearAPathFor(path) {
-        const parentPath = Path.dirname(path)
-        return FileSystem.ensureIsFolder(parentPath)
+    async clearAPathFor(path, overwrite, extension=".old") {
+        const originalPath = path
+        const paths = []
+        while (Path.dirname(path) !== path) {
+            paths.push(path)
+            path = Path.dirname(path)
+        }
+        for (const eachPath of paths.reverse()) {
+            const info = await FileSystem.info(eachPath)
+            if (!info.exists) {
+                break
+            } else if (info.isFile) {
+                if (overwrite) {
+                    await FileSystem.remove(eachPath)
+                } else {
+                    await FileSystem.moveOutOfTheWay(eachPath, extension)
+                }
+            }
+        }
+        return FileSystem.ensureIsFolder(Path.dirname(originalPath))
+    },
+    async moveOutOfTheWay(path, ext=".old") {
+        const {move} = await import("https://deno.land/std@0.133.0/fs/mod.ts")
+        const info = await FileSystem.info(path)
+        if (info.exists) {
+            // make sure nothing is in the way of what I'm about to move
+            await FileSystem.moveOutOfTheWay(path+ext, ext)
+            await move(path, path+ext)
+        }
     },
     async walkUpUntil(fileToFind, startPath=null){
         let here = startPath || Deno.cwd()

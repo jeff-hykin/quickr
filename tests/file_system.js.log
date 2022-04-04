@@ -1,5 +1,13 @@
 FileSystem.currentFile is: /Users/jeffhykin/repos/quickr/tests/file_system.js
 FileSystem.currenFolder is: /Users/jeffhykin/repos/quickr/tests
+paths is: [
+  "/Users/jeffhykin/repos/quickr/tests/run.errors.log",
+  "/Users/jeffhykin/repos/quickr/tests",
+  "/Users/jeffhykin/repos/quickr",
+  "/Users/jeffhykin/repos",
+  "/Users/jeffhykin",
+  "/Users"
+]
 [
   ItemInfo {
     path: "main/console.js",
@@ -7,9 +15,9 @@ FileSystem.currenFolder is: /Users/jeffhykin/repos/quickr/tests
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 19419,
-      mtime: 2022-04-03T23:41:51.595Z,
-      atime: 2022-04-03T23:51:14.508Z,
+      size: 19738,
+      mtime: 2022-04-03T23:56:11.380Z,
+      atime: 2022-04-03T23:56:24.747Z,
       birthtime: 2022-03-27T19:42:08.433Z,
       dev: 16777220,
       ino: 4386435838,
@@ -31,7 +39,7 @@ FileSystem.currenFolder is: /Users/jeffhykin/repos/quickr/tests
       isSymlink: false,
       size: 28963,
       mtime: 2022-04-03T21:34:51.109Z,
-      atime: 2022-04-03T23:51:14.764Z,
+      atime: 2022-04-03T23:51:26.921Z,
       birthtime: 2022-03-27T23:28:51.644Z,
       dev: 16777220,
       ino: 4386456251,
@@ -51,9 +59,9 @@ FileSystem.currenFolder is: /Users/jeffhykin/repos/quickr/tests
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 27075,
-      mtime: 2022-04-03T23:34:25.340Z,
-      atime: 2022-04-03T23:51:21.617Z,
+      size: 28114,
+      mtime: 2022-04-04T00:22:12.896Z,
+      atime: 2022-04-04T00:22:18.218Z,
       birthtime: 2022-03-27T23:33:08.841Z,
       dev: 16777220,
       ino: 4386456709,
@@ -75,7 +83,7 @@ FileSystem.currenFolder is: /Users/jeffhykin/repos/quickr/tests
       isSymlink: false,
       size: 3105,
       mtime: 2022-04-03T22:39:24.462Z,
-      atime: 2022-04-03T23:51:14.508Z,
+      atime: 2022-04-03T23:51:26.921Z,
       birthtime: 2022-03-27T23:34:39.312Z,
       dev: 16777220,
       ino: 4386456871,
