@@ -267,7 +267,7 @@ export const FileSystem = {
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
         if (filePaths[1]) {
             try {
-                if (Deno.lstatSync(filePaths[1]).isFile) {
+                if (Deno.statSync(filePaths[1]).isFile) {
                     return Path.dirname(filePaths[1])
                 }
             } catch (error) {
