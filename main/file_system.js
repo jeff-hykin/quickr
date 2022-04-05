@@ -242,7 +242,6 @@ export const FileSystem = {
     set pwd(value) { return FileSystem.cwd = value },
     get thisFile() {
         const err = new Error()
-        // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
         
         // if valid file
@@ -261,7 +260,6 @@ export const FileSystem = {
     },
     get thisFolder() {
         const err = new Error()
-        // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
         
         // if valid file
