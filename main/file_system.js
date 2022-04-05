@@ -262,12 +262,17 @@ export const FileSystem = {
         const err = new Error()
         // element 0 is "Error", element 1 is the path to this file, element 2 should be the path to the caller
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
+        console.debug(`filePaths is:`,filePaths)
+        console.debug(`err is:`,err)
         
         // if valid file
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
         if (filePaths[1]) {
             try {
+                console.debug(`filePaths[1] is:`,filePaths[1])
+                console.debug(`Deno.statSync(filePaths[1]).isFile is:`,Deno.statSync(filePaths[1]).isFile)
                 if (Deno.statSync(filePaths[1]).isFile) {
+                    console.debug(`Path.dirname(filePaths[1]) is:`,Path.dirname(filePaths[1]))
                     return Path.dirname(filePaths[1])
                 }
             } catch (error) {
