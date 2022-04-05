@@ -266,7 +266,7 @@ export const FileSystem = {
         
         // if valid file
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-        const firstPath = filePaths[1]
+        const firstPath = filePaths[0]
         if (firstPath) {
             try {
                 if (Deno.statSync(firstPath).isFile) {
