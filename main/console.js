@@ -340,6 +340,14 @@ export const Console = {
         if (colorSupportCache.hasAnsi != null) {
             return colorSupportCache
         }
+        // the Deno option for disabling color
+        if ("NO_COLOR" in Console.env) {
+            return {
+                hasAnsi: false,
+                has256: false,
+                has16m: false,
+            }
+        }
         // 
         // OS Support
         // 

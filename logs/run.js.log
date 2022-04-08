@@ -1,5 +1,5 @@
-hasCommand(`echo`) is: [33mtrue[39m
-hasCommand(`blah`) is: [33mfalse[39m
+hasCommand(`echo`) is: true
+hasCommand(`blah`) is: false
 hello
 hello
 hello
@@ -11,8 +11,8 @@ pathToGrep is: /usr/bin/grep
 miscOutput is: hi1
 bye
 
-process.isDone? is: [33mfalse[39m
-process.isDone? is: [33mfalse[39m
-process.isDone? is: [33mfalse[39m
-process.isDone? is: [33mfalse[39m
-process.isDone? is: [33mtrue[39m
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: true
