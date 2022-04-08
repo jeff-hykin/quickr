@@ -5,7 +5,7 @@
 
 import { FileSystem } from "https://deno.land/x/quickr@0.3.10/main/file_system.js"
 import { Console, bold, lightRed, yellow } from "https://deno.land/x/quickr@0.3.10/main/console.js"
-import { run, Timeout, Env, Cwd, Stdin, Stdout, Stderr, Out, Overwrite, AppendTo, throwIfFails, returnAsString, zipInto, mergeInto } from "https://deno.land/x/quickr@0.3.10/main/run.js"
+import { run, Timeout, Env, Cwd, Stdin, Stdout, Stderr, Out, Overwrite, AppendTo, throwIfFails, returnAsString, zipInto, mergeInto } from "https://deno.land/x/quickr@0.3.12/main/run.js"
 
 const argsWereGiven = Deno.args.length > 0
 
@@ -19,6 +19,10 @@ Deno.chdir(logsFolder)
 console.log("\nRunning tests")
 for (const each of await FileSystem.recursivelyListItemsIn(testsFolder)) {
     if (each.isFile) {
+        // if one is mentioned, only run mentioned ones
+        if (argsWereGiven && !(Deno.args.includes(each.name) || Deno.args.includes(each.basename))) {
+            continue
+        }
         const relativePart = FileSystem.makeRelativePath({ from: testsFolder, to: each.path })
         const logPath = `${logsFolder}/${relativePart}.log`
         const logRelativeToProject = FileSystem.makeRelativePath({ from: `${testsFolder}/..`, to: logPath })

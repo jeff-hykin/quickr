@@ -1,0 +1,10 @@
+{
+  commonChecks: { isMac: [33mtrue[39m, isWindows: [33mfalse[39m, isLinux: [33mfalse[39m },
+  commonName: [32m"MacOS"[39m,
+  kernel: { commonName: [32m"darwin"[39m },
+  architecture: [90mundefined[39m,
+  versionArray: [ [33m10[39m, [33m13[39m, [33m6[39m ],
+  username: [Getter],
+  home: [Getter],
+  idForUsername: [36m[AsyncFunction: idForUsername][39m
+}

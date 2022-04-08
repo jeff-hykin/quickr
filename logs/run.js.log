@@ -1,0 +1,18 @@
+hasCommand(`echo`) is: [33mtrue[39m
+hasCommand(`blah`) is: [33mfalse[39m
+hello
+hello
+hello
+Bang
+Bang Bang
+Bang Bang
+pathToGrep is: /usr/bin/grep
+
+miscOutput is: hi1
+bye
+
+process.isDone? is: [33mfalse[39m
+process.isDone? is: [33mfalse[39m
+process.isDone? is: [33mfalse[39m
+process.isDone? is: [33mfalse[39m
+process.isDone? is: [33mtrue[39m

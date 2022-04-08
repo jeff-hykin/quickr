@@ -369,8 +369,8 @@ export const run = (...args) => {
                 return output
             }
         })
-        const stdoutWritables = await Promise.all(convertArgsToWritables(...commandMetaData.stdout))
-        const stderrWritables = await Promise.all(convertArgsToWritables(...commandMetaData.stderr))
+        const stdoutWritables = await Promise.all(convertArgsToWritables(...(commandMetaData.stdout||[])))
+        const stderrWritables = await Promise.all(convertArgsToWritables(...(commandMetaData.stderr||[])))
         
         
         
