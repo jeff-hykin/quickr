@@ -1,4 +1,5 @@
 import { FileSystem } from "./file_system.js"
+import { keyify } from "https://deno.land/x/good@0.5.1/map.js"
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
@@ -74,10 +75,6 @@ export const hasCommand = async (commandName) => {
     }
     return false
 }
-
-// TODO: add this once deno supports it
-// export const hasCommand = async (commandName) => {
-// }
 
 // 
 // 
@@ -360,24 +357,20 @@ export const run = (...args) => {
             }
         }
         // stdin, stdout seperatly
-        let alreadyComputed = new Map()
-        for (const eachStream of outStreamNames) {
-            if (commandMetaData[eachStream] instanceof Array) {
-                commandMetaData[eachStream] = commandMetaData[eachStream].map(eachArg=>{
-                    if (alreadyComputed.has(eachArg)) {
-                        return alreadyComputed.get(eachArg)
-                    } else {
-                        return convertReturnStreamArg(eachArg)
-                    }
-                })
-                // wait on all the promises
-                for (const eachIndex in commandMetaData[eachStream]) {
-                    commandMetaData[eachStream][eachIndex] = await commandMetaData[eachStream][eachIndex]
-                }
+        const alreadyComputed = new Map()
+        const convertArgsToWritables = (...args) => args.map(eachArg=>{
+            const key = keyify(eachArg)
+            // do not duplicate work (because of files/streams)
+            if (alreadyComputed.has(key)) {
+                return alreadyComputed.get(key)
+            } else {
+                const output = convertReturnStreamArg(eachArg)
+                alreadyComputed.set(key, output)
+                return output
             }
-        }
-        let stdoutArgs = commandMetaData.stdout || []
-        let stderrArgs = commandMetaData.stderr || []
+        })
+        const stdoutWritables = await Promise.all(convertArgsToWritables(...commandMetaData.stdout))
+        const stderrWritables = await Promise.all(convertArgsToWritables(...commandMetaData.stderr))
         
         
         
@@ -429,13 +422,13 @@ export const run = (...args) => {
             const neededByStdout = new Map()
             const neededByStderr = new Map()
             // what needs stdout
-            for (const each of stdoutArgs) {
+            for (const each of stdoutWritables) {
                 // init to set if doesnt exist
                 neededByStdout.set(each, true)
                 neededByStderr.set(each, false)
             }
             // what needs stderr
-            for (const each of stderrArgs) {
+            for (const each of stderrWritables) {
                 neededByStderr.set(each, true)
                 if (!neededByStdout.has(each)) {
                     neededByStdout.set(each, false)
@@ -450,17 +443,17 @@ export const run = (...args) => {
             const stdoutStreamSplitQue = []
             const stderrStreamSplitQue = []
             // the initial ones are edgecases
-            if (stdoutArgs.length > 0) {
+            if (stdoutWritables.length > 0) {
                 stdoutStreamSplitQue.push(readableStreamFromReader(process.stdout))
             }
-            if (stderrArgs.length > 0) {
+            if (stderrWritables.length > 0) {
                 stderrStreamSplitQue.push(readableStreamFromReader(process.stderr))
             }
-            while (stdoutStreamSplitQue.length < stdoutArgs.length) {
+            while (stdoutStreamSplitQue.length < stdoutWritables.length) {
                 // take off the front of the que (back of the list), create two more items (tee) put them at the back of the que (front of the list)
                 stdoutStreamSplitQue = stdoutStreamSplitQue.pop().tee().concat(stdoutStreamSplitQue)
             }
-            while (stderrStreamSplitQue.length < stderrArgs.length) {
+            while (stderrStreamSplitQue.length < stderrWritables.length) {
                 // take off the front of the que (back of the list), create two more items put them at the back of the que (front of the list)
                 stderrStreamSplitQue = stderrStreamSplitQue.pop().tee().concat(stderrStreamSplitQue)
             }
@@ -471,7 +464,7 @@ export const run = (...args) => {
             // 
             // convert/connect all to streams
             // 
-            for (const eachStreamArg of [...new Set(stdoutArgs.concat(stderrArgs))]) {
+            for (const eachStreamArg of [...new Set(stdoutWritables.concat(stderrWritables))]) {
                 let sourceStream
                 const wasNeededByStdout = neededByStdout.get(eachStreamArg)
                 // needs one of: [both, stdout, or stderr]
