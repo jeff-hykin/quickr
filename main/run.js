@@ -81,7 +81,26 @@ export const hasCommand = async (commandName) => {
 // Main function!
 // 
 // 
-export const run = (...args) => {
+export const run = (maybeStrings, ...args) => {
+    // 
+    // add template support
+    // 
+    let newArgs = []
+    if (maybeStrings instanceof Array) {
+        const lastString = maybeStrings.pop()
+        for (const each of maybeStrings) {
+            const innerArgs = each.split(/( |\t)+/)
+            for (const each of innerArgs) {
+                newArgs.push(each)
+            }
+            newArgs.push(args.shift())
+        }
+        lastString.split(/( |\t)+/).map(each=>newArgs.push(each))
+        args = newArgs
+    } else {
+        args = [ maybeStrings, ...args ]
+    }
+    
     // 
     // parse args
     // 
