@@ -1,5 +1,6 @@
 import { chalk } from "../dependencies/chalk.js"
 import { OperatingSystem } from "./operating_system.js"
+import { toString } from "https://deno.land/x/good@0.5.5/string.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
@@ -180,23 +181,22 @@ const createCrayon = (styleObject, parent)=>{
         }
     }
     const output = (strings, ...values)=>{
-        let stringToStyle = ""
-        for (const index in values) {
-            let value = values[index]
-            let string = strings[index].toString()
-            if (value == null) {
-                value = `${value}`
-            }
-            if (string == null) {
-                string = `${string}`
-            }
-            stringToStyle += string.toString() + value.toString()
+        // if called as a normal function instead of a template
+        if (typeof strings == "string") {
+            strings = [strings, ...values.map(each=>"")]
         }
-        stringToStyle += strings.slice(-1)[0]
+
+        let singleCombinedString = ""
+        for (const index in values) {
+            const value = values[index]
+            const string = toString(strings[index])
+            singleCombinedString += string + toString(value)
+        }
+        singleCombinedString += strings.slice(-1)[0]
         
         // if color is turned off for one reason or another
         if (!Console.colorSupport.hasAnsi || Console.disableColorIfNonIteractive && !Deno.isatty()) {
-            return stringToStyle
+            return singleCombinedString
         }
 
         let styler = chalk
@@ -204,7 +204,7 @@ const createCrayon = (styleObject, parent)=>{
         while (attributeBuffer.length > 0) {
             styler = styler[attributeBuffer.shift()]
         }
-        output.styledStringBuffer.push(styler(stringToStyle))
+        output.styledStringBuffer.push(styler(singleCombinedString))
         return output
     }
     // attach all the color properties
