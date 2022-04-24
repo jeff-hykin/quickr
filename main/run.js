@@ -87,6 +87,7 @@ export const run = (maybeStrings, ...args) => {
     // 
     let newArgs = []
     if (maybeStrings instanceof Array) {
+        maybeStrings = [...maybeStrings] // for some reason the original one is non-editable so make a copy
         const lastString = maybeStrings.pop()
         for (const each of maybeStrings) {
             const innerArgs = each.split(/( |\t)+/)
