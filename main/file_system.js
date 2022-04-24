@@ -221,7 +221,7 @@ export const FileSystem = {
     join: Path.join,
     get home() {
         if (!cache.home) {
-            if (!OperatingSystem.commonChecks.isWindows) {
+            if (Deno.build.os!="windows") {
                 cache.home = Deno.env.get("HOME")
             } else {
                 // untested

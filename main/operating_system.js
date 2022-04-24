@@ -37,7 +37,7 @@ export const OperatingSystem = {
     versionArray,
     get username() {
         if (!cache.username) {
-            if (!OperatingSystem.commonChecks.isWindows) {
+            if (Deno.build.os!="windows") {
                 cache.username = Deno.env.get("USER")
             } else {
                 // untested
@@ -48,7 +48,7 @@ export const OperatingSystem = {
     },
     get home() {
         if (!cache.home) {
-            if (!OperatingSystem.commonChecks.isWindows) {
+            if (Deno.build.os!="windows") {
                 cache.home = Deno.env.get("HOME")
             } else {
                 // untested
