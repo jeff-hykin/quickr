@@ -1,3 +1,4 @@
+import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
 import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
