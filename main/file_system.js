@@ -670,7 +670,7 @@ export const FileSystem = {
         if (!(Object.keys(permissions.owner).length === Object.keys(permissions.group).length === Object.keys(permissions.others).length === 3)) {
             fileInfo = await FileSystem.info(path)
             // just grab the last 9 binary digits of the mode number. See: https://stackoverflow.com/questions/15055634/understanding-and-decoding-the-file-mode-value-from-stat-function-output#15059931
-            permissionNumber = fileInfo.mode & 0b0000000111111111
+            permissionNumber = fileInfo.lstat.mode & 0b0000000111111111
         }
         // 
         // set bits for the corrisponding permissions
