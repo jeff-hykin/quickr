@@ -86,18 +86,27 @@ export const run = (maybeStrings, ...args) => {
     // add template support
     // 
     let newArgs = []
+    const argSplitter = /[ \t]+/
     if (maybeStrings instanceof Array) {
         maybeStrings = [...maybeStrings] // for some reason the original one is non-editable so make a copy
         const lastString = maybeStrings.pop()
         for (const each of maybeStrings) {
-            const innerArgs = each.split(/( |\t)+/)
+            const innerArgs = each.split(argSplitter)
             for (const each of innerArgs) {
                 newArgs.push(each)
             }
             newArgs.push(args.shift())
         }
-        lastString.split(/( |\t)+/).map(each=>newArgs.push(each))
+        // edgecase of last string arg
+        const endingArgsString = lastString.trim()
+        if (endingArgsString.length > 0) {
+            const endingArgs = endingArgsString.split(argSplitter)
+            for (const each of endingArgs) {
+                newArgs.push(each)
+            }
+        }
         args = newArgs
+        // return (...args)=>run(newArgs, ...args) // <- next version use this
     } else {
         args = [ maybeStrings, ...args ]
     }
