@@ -411,7 +411,7 @@ export const FileSystem = {
             let checkPath = Path.join(here, fileToFind)
             const pathInfo = await Deno.lstat(checkPath).catch(()=>({doesntExist: true}))
             if (!pathInfo.doesntExist) {
-                return checkPath
+                return here
             }
             // reached the top
             if (here == Path.dirname(here)) {
