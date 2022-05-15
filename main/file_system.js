@@ -213,6 +213,7 @@ class ItemInfo {
     }
 }
 
+const locker = {}
 export const FileSystem = {
     denoExecutablePath: Deno.execPath(),
     parentPath: Path.dirname,
@@ -278,11 +279,18 @@ export const FileSystem = {
         return Deno.cwd()
     },
     async read(path) {
-        try {
-            return await Deno.readTextFile(path)
-        } catch (error) {
-            return null
+        // busy wait till lock is removed
+        while (locker[path]) {
+            await new Promise((resolve)=>setTimeout(resolve, 70))
         }
+        locker[path] = true
+        let output
+        try {
+            output = await Deno.readTextFile(path)
+        } catch (error) {
+        }
+        delete locker[path]
+        return output
     },
     async info(fileOrFolderPath, _cachedLstat=null) {
         // compute lstat and stat before creating ItemInfo (so its async for performance)
@@ -430,7 +438,7 @@ export const FileSystem = {
         }
         if (force) {
             await FileSystem.clearAPathFor(to, { overwrite: force })
-            FileSystem.remove(to)
+            await FileSystem.remove(to)
         }
         const source = await Deno.open(from, { read: true })
         const target = await Deno.create(to)
@@ -713,27 +721,39 @@ export const FileSystem = {
         }
     },
     async write({path, data, force=true}) {
+        while (locker[path]) {
+            await new Promise((resolve)=>setTimeout(resolve, 70))
+        }
+        locker[path] = true
         if (force) {
             await FileSystem.clearAPathFor(path, { overwrite: force })
-            const info = FileSystem.info(path)
+            const info = await FileSystem.info(path)
             if (info.isDirectory) {
-                FileSystem.remove(path)
+                await FileSystem.remove(path)
             }
         }
+        let output
         // string
         if (typeof data == 'string') {
-            return Deno.writeTextFile(path, data)
+            output = await Deno.writeTextFile(path, data)
         // assuming bytes (maybe in the future, readables and pipes will be supported)
         } else {
-           return Deno.writeFile(path, data)
+           output = await Deno.writeFile(path, data)
         }
+        delete locker[path]
+        return output
     },
     async append({path, data, force=true}) {
+        while (locker[path]) {
+            await new Promise((resolve)=>setTimeout(resolve, 70))
+        }
+        locker[path] = true
+
         if (force) {
             await FileSystem.clearAPathFor(path, { overwrite: force })
-            const info = FileSystem.info(path)
+            const info = await FileSystem.info(path)
             if (info.isDirectory) {
-                FileSystem.remove(path)
+                await FileSystem.remove(path)
             }
         }
         const file = await Deno.open(path, {write: true, read:true, create: true})
@@ -748,5 +768,6 @@ export const FileSystem = {
         }
         // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
         await file.close()
+        delete locker[path]
     },
 }
