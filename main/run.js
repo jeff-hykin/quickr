@@ -90,14 +90,12 @@ export const run = (maybeStrings, ...args) => {
     if (maybeStrings instanceof Array) {
         maybeStrings = [...maybeStrings] // for some reason the original one is non-editable so make a copy
         const lastString = maybeStrings.pop()
-        for (const each of maybeStrings) {
-            const innerArgs = each.split(argSplitter)
-            const lastString = innerArgs.pop()
+        for (const eachString of maybeStrings) {
+            const innerArgs = eachString.split(argSplitter)
             for (const each of innerArgs) {
-                newArgs.push(each)
-            }
-            if (lastString.length > 0) {
-                newArgs.push(each)
+                if (each.length > 0) {
+                    newArgs.push(each)
+                }
             }
             newArgs.push(args.shift())
         }
