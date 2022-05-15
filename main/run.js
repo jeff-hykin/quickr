@@ -92,7 +92,11 @@ export const run = (maybeStrings, ...args) => {
         const lastString = maybeStrings.pop()
         for (const each of maybeStrings) {
             const innerArgs = each.split(argSplitter)
+            const lastString = innerArgs.pop()
             for (const each of innerArgs) {
+                newArgs.push(each)
+            }
+            if (lastString.length > 0) {
                 newArgs.push(each)
             }
             newArgs.push(args.shift())
