@@ -357,7 +357,7 @@ export const FileSystem = {
     async ensureIsFile(path) {
         path = path.path || path // if given ItemInfo object
         const pathInfo = await FileSystem.info(path)
-        if (thisPath.isFile && !thisPath.isDirectory) { // true for symbolic links to non-directories
+        if (pathInfo.isFile && !pathInfo.isDirectory) { // true for symbolic links to non-directories
             return path
         } else {
             await FileSystem.write({path, data:""}) // this will clear everything out of the way
@@ -378,9 +378,9 @@ export const FileSystem = {
         }
         
         // delete files in the way
-        const thisPath = await FileSystem.info(path)
-        if (thisPath.exists && !thisPath.isDirectory) {
-            await FileSystem.remove(thisPath)
+        const pathInfo = await FileSystem.info(path)
+        if (pathInfo.exists && !pathInfo.isDirectory) {
+            await FileSystem.remove(pathInfo)
         }
         
         await Deno.mkdir(path, { recursive: true })
