@@ -494,7 +494,7 @@ export const FileSystem = {
             }
             
             return Deno.symlink(
-                Path.absolutePath(existingItem).replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
+                FileSystem.makeAbsolutePath(existingItem).replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
                 newItem.replace(/\/+$/, ""),
             )
         }
