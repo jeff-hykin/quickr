@@ -442,7 +442,7 @@ export const FileSystem = {
         }
         const source = await Deno.open(from, { read: true })
         const target = await Deno.create(to)
-        result = await copy(source, target)
+        const result = await copy(source, target)
         Deno.close(source.rid)
         Deno.close(target.rid)
         return result
