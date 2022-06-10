@@ -321,6 +321,7 @@ export const FileSystem = {
         return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
     },
     remove: (fileOrFolder) => Deno.remove(fileOrFolder.path || fileOrFolder,{recursive: true}).catch(()=>false),
+    normalize: Path.normalize,
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
     makeAbsolutePath: (path)=> {
         if (!Path.isAbsolute(path)) {
