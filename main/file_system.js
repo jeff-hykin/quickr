@@ -17,7 +17,6 @@ import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
     // timeCreated
     // timeOfLastAccess
     // timeOfLastModification
-    // absoluteLink({from, to})
     // tempfile
     // tempfolder
     // readBytes
@@ -320,7 +319,14 @@ export const FileSystem = {
         }
         return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
     },
-    remove: (fileOrFolder) => Deno.remove(fileOrFolder.path || fileOrFolder,{recursive: true}).catch(()=>false),
+    remove: (fileOrFolder) => {
+        const itemInfo = FileSystem.info(fileOrFolder)
+        if (itemInfo.isFile) {
+            return Deno.remove(itemInfo.path.replace(/\/+$/,""))
+        } else if (itemInfo.exists) {
+            return Deno.remove(itemInfo.path.replace(/\/+$/,""), {recursive: true})
+        }
+    },
     normalize: Path.normalize,
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
     makeAbsolutePath: (path)=> {
@@ -460,8 +466,8 @@ export const FileSystem = {
         return result
     },
     async relativeLink({existingItem, newItem, force=true}) {
-        existingItem = existingItem.path || existingItem
-        newItem = newItem.path || newItem // if given ItemInfo object
+        existingItem = (existingItem.path || existingItem).replace(/\/+$/, "")
+        newItem = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -474,14 +480,15 @@ export const FileSystem = {
             }
             const pathFromNewToExisting = Path.relative(newItem, existingItem).replace(/^\.\.\//,"")
             return Deno.symlink(
-                pathFromNewToExisting.replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
-                newItem.replace(/\/+$/, ""),
+                pathFromNewToExisting, // remove trailing slash, because it can screw stuff up
+                newItem,
             )
         }
     },
     async absoluteLink({existingItem, newItem, force=true}) {
-        existingItem = existingItem.path || existingItem
-        newItem = newItem.path || newItem // if given ItemInfo object
+        existingItem = (existingItem.path || existingItem).replace(/\/+$/, "")
+        newItem = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
+        newItem = FileSystem.normalize(newItem)
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -489,13 +496,13 @@ export const FileSystem = {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
         } else {
             if (force) {
-                await FileSystem.remove(newItem)
                 await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
+                await FileSystem.remove(newItem)
             }
             
             return Deno.symlink(
-                FileSystem.makeAbsolutePath(existingItem).replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
-                newItem.replace(/\/+$/, ""),
+                FileSystem.makeAbsolutePath(existingItem), // remove trailing slash, because it can screw stuff up
+                newItem,
             )
         }
     },
