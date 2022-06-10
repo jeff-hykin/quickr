@@ -473,7 +473,10 @@ export const FileSystem = {
                 await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
             }
             const pathFromNewToExisting = Path.relative(newItem, existingItem).replace(/^\.\.\//,"")
-            return Deno.symlink(pathFromNewToExisting, newItem)
+            return Deno.symlink(
+                pathFromNewToExisting.replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
+                newItem.replace(/\/+$/, ""),
+            )
         }
     },
     async pathPieces(path) {
