@@ -479,27 +479,26 @@ export const FileSystem = {
             )
         }
     },
-    // function doesn't work because Deno.symlnk seems not to support absolute linking
-    // async absoluteLink({existingItem, newItem, force=true}) {
-    //     existingItem = existingItem.path || existingItem
-    //     newItem = newItem.path || newItem // if given ItemInfo object
+    async absoluteLink({existingItem, newItem, force=true}) {
+        existingItem = existingItem.path || existingItem
+        newItem = newItem.path || newItem // if given ItemInfo object
         
-    //     const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
-    //     // if the item doesnt exists
-    //     if (existingItemDoesntExist) {
-    //         throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
-    //     } else {
-    //         if (force) {
-    //             await FileSystem.remove(newItem)
-    //             await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
-    //         }
+        const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
+        // if the item doesnt exists
+        if (existingItemDoesntExist) {
+            throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
+        } else {
+            if (force) {
+                await FileSystem.remove(newItem)
+                await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
+            }
             
-    //         return Deno.symlink(
-    //             FileSystem.makeAbsolutePath(existingItem).replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
-    //             newItem.replace(/\/+$/, ""),
-    //         )
-    //     }
-    // },
+            return Deno.symlink(
+                FileSystem.makeAbsolutePath(existingItem).replace(/\/+$/, ""), // remove trailing slash, because it can screw stuff up
+                newItem.replace(/\/+$/, ""),
+            )
+        }
+    },
     async pathPieces(path) {
         path = path.path || path // if given ItemInfo object
         // const [ *folders, fileName, fileExtension ] = FileSystem.pathPieces(path)
