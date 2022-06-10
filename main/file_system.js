@@ -358,10 +358,10 @@ export const FileSystem = {
         path = path.path || path // if given ItemInfo object
         const pathInfo = await FileSystem.info(path)
         if (thisPath.isFile && !thisPath.isDirectory) { // true for symbolic links to non-directories
-            return true
+            return path
         } else {
             await FileSystem.write({path, data:""}) // this will clear everything out of the way
-            return false
+            return path
         }
     },
     async ensureIsFolder(path) {
@@ -383,8 +383,9 @@ export const FileSystem = {
             await FileSystem.remove(thisPath)
         }
         
+        await Deno.mkdir(path, { recursive: true })
         // finally create the folder
-        return Deno.mkdir(path, { recursive: true })
+        return path
     },
     async clearAPathFor(path, options={overwrite:false, extension:".old"}) {
         const {overwrite, extension} = {overwrite:false, extension:".old", ...options }
