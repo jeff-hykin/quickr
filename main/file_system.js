@@ -354,6 +354,16 @@ export const FileSystem = {
         }
         return path
     },
+    async ensureIsFile(path) {
+        path = path.path || path // if given ItemInfo object
+        const pathInfo = await FileSystem.info(path)
+        if (thisPath.isFile && !thisPath.isDirectory) { // true for symbolic links to non-directories
+            return true
+        } else {
+            await FileSystem.write({path, data:""}) // this will clear everything out of the way
+            return false
+        }
+    },
     async ensureIsFolder(path) {
         path = path.path || path // if given ItemInfo object
         const parentPath = Path.dirname(path)
