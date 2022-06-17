@@ -319,7 +319,7 @@ export const FileSystem = {
         }
         return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
     },
-    remove: (fileOrFolder) => {
+    remove: async (fileOrFolder) => {
         const itemInfo = await FileSystem.info(fileOrFolder)
         if (itemInfo.isFile) {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""))
