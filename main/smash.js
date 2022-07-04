@@ -26,7 +26,9 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
     const debuggingString = getDebuggingString(...command)
     if (!interactive) {
         var { command, stdin, stdout, stderr, out, cwd, env } = await standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
-        const writer = stdinArugmentToWriter(stdin)
+        const reader = stdinArugmentToReader(stdin, debuggingString)
+        const stdoutTargets = outOrErrToWriterTargets(stdout, debuggingString)
+        const stderrTargets = outOrErrToWriterTargets(stderr, debuggingString)
     }
 
     // interactive: {onOut, onStdout, onStderr, onFinsh}
@@ -284,7 +286,7 @@ function getDebuggingString(maybeStrings, ...args) {
 
 
 
-const methods = (thisTask, outputPromise) => ({
+const synchronousMethods = (thisTask, outputPromise) => ({
     [taskSymbol]: thisTask,
     interactive: ({ onOut, onStdout, onStderr, onFinsh, stdin, stdout, out, cwd, env, timeout })=>{
         const args = { stdin, stdout, out, cwd, env, timeout, interactive: {onOut, onStdout, onStderr, onFinsh}, }
@@ -407,6 +409,8 @@ const methods = (thisTask, outputPromise) => ({
 // stdin handling streams
 // 
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
+import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
+
 const isReadable = (obj) => obj instanceof Object && obj.read instanceof Function
 const isWritable = (obj) => obj instanceof Object && obj.write instanceof Function
 
@@ -424,10 +428,50 @@ function toReadableStream(value) {
     } else if (isReadable(value)) {
         return readableStreamFromReader(value)
     } else {
-        throw Error(`The argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${first}\n\n`)
+        throw Error(`The argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${value}\n\n`)
     }
 }
-function stdinArugmentToWriter(stdin, debugString) {
+async function toWritableStream(value, overwrite=true) {
+    // values that are alread writeable streams
+    if (value instanceof WritableStream) {
+        return value
+    // convert files/writables to writeable streams
+    } else if (isWritable(value)) {
+        return writableStreamFromWriter(value)
+    } else {
+        if (overwrite) {
+            if (typeof value == 'string') {
+                // ensure parent folders exist
+                await FileSystem.clearAPathFor(value, {overwrite: true})
+                // convert string to a folder
+                value = await Deno.open(value, {write: true, truncate: true, create: true})
+            }
+
+            if (value instanceof Deno.File) {
+                // clear the file
+                value.truncate()
+            } else {
+                throw Error(`The argument can be a string path, a file (Deno.open("./path")), or any writable object (like Deno.stdout or the .stdin of an interactive command)\nbut instead of any of those I received:\n    ${value}\n\n`)
+            }
+        } else {
+            if (typeof value == 'string') {
+                // ensure parent folders exist
+                await FileSystem.ensureIsFolder(FileSystem.parentPath(value))
+                // convert string to a folder
+                value = await Deno.open(value, {write: true, create: true})
+                // FIXME: this file never gets closed! its hard to close because if its used outside of this library too, closing it will cause an error. Need a way to check on it
+            }
+            
+            if (value instanceof Deno.File) {
+                // go to the end of a file (meaning everthing will be appended)
+                await Deno.seek(value.rid, 0, Deno.SeekMode.End)
+            } else {
+                throw Error(`The argument can be a string path, a file (Deno.open("./path")), or any writable object (like Deno.stdout or the .stdin of an interactive command)\nbut instead of any of those I received:\n    ${value}\n\n`)
+            }
+        }
+    }
+}
+function stdinArugmentToReader(stdin, debugString) {
     // remove any null's or undefined's
     let stdinSources = stdin.from
     // default value is [Deno.stdin] so empty must mean intentionally empty
@@ -435,26 +479,120 @@ function stdinArugmentToWriter(stdin, debugString) {
         stdinSources.push("")
     }
     
-    let stdinWriter
+    let stdinReader
 
     // check if all strings/bytes (this is for efficiency of throughput)
     if (stdinSources.every(each=>typeof each == 'string' || each instanceof Uint8Array)) {
         const allUint8Arrays = stdinSources.map(each=>typeof each != 'string' ? each : new TextEncoder().encode(each))
         // creates a single big Uint8 array
-        stdinWriter = concatUint8Arrays(allUint8Arrays)
+        stdinReader = concatUint8Arrays(allUint8Arrays)
     } else {
         // for all remaining args
         for (const eachSource of stdinSources) {
             try {
                 const newStream = toReadableStream(eachSource)
                 // mergeReadableStreams is kind of like concat, first one entirely then the next (the alternative is zip: take one chunk from each then repeat)
-                stdinWriter = !stdinWriter ? newStream : stdinWriter.mergeReadableStreams(stdinWriter, newStream)
+                stdinReader = !stdinReader ? newStream : stdinReader.mergeReadableStreams(stdinReader, newStream)
             } catch (error) {
                 throw Error(`${debugString}A stdin() was given, but there was a problem with one of the arguments.\n${error.message}`)
             }
         }
     }
-    return stdinWriter
+    return stdinReader
+}
+
+// create a helper that will prevent duplicates
+const streamAlreadyCreated = new Map()
+const getWritableFor = async (inputValue, debuggingString) => {
+    if (!streamAlreadyCreated.has(inputValue)) {
+        try {
+            streamAlreadyCreated.set(inputValue, await toWritableStream(eachValue))
+        } catch (error) {
+            throw Error(`${debuggingString}When processing one of the output streams (stdout, stderr, out) one of the values was a problem. ${error.message}`)
+        }
+    }
+    return streamAlreadyCreated.get(inputValue)
+}
+const outOrErrToWriterTargets = async (out, debuggingString) => {
+    return [
+        await Promise.all(
+            out.overwrite.map(each=>getWritableFor(each, debuggingString))
+        ),
+        await Promise.all(
+            out.appendTo.map(each=>getWritableFor(each, debuggingString))
+        ),
+    ].flat()
+}
+const mapOutToStreams = async (stdout, stderr, stdoutWritables, stderrWritables) => {
+    // 
+    // NOTE: this process is kind of complicated because of checking
+    //       for stderr/stdout to the same source 
+    //       and for outputing them to mulitple sources
+    // 
+
+    // 
+    // figure out how many streams are needed
+    // 
+    const neededByStdout = new Map()
+    const neededByStderr = new Map()
+    // what needs stdout
+    for (const each of stdoutWritables) {
+        // init to set if doesnt exist
+        neededByStdout.set(each, true)
+        neededByStderr.set(each, false) // will be overwritten next
+    }
+    // what needs stderr
+    for (const each of stderrWritables) {
+        neededByStderr.set(each, true)
+        if (!neededByStdout.has(each)) {
+            neededByStdout.set(each, false)
+        }
+    }
+    
+    // 
+    // generate a bunch of source copies
+    // 
+    // complicated because tee-ing a stream kind of destroys the original 
+    // and its better to tee in a branching way than in a all-on-one-side way (BFS-style not DFS-style)
+    const stdoutStreamSplitQue = []
+    const stderrStreamSplitQue = []
+    // the initial ones are edgecases
+    if (stdoutWritables.length > 0) {
+        stdoutStreamSplitQue.push(readableStreamFromReader(stdout))
+    }
+    if (stderrWritables.length > 0) {
+        stderrStreamSplitQue.push(readableStreamFromReader(stderr))
+    }
+    while (stdoutStreamSplitQue.length < stdoutWritables.length) {
+        // take off the front of the que (back of the list), create two more items (tee) put them at the back of the que (front of the list)
+        stdoutStreamSplitQue = stdoutStreamSplitQue.pop().tee().concat(stdoutStreamSplitQue)
+    }
+    while (stderrStreamSplitQue.length < stderrWritables.length) {
+        // take off the front of the que (back of the list), create two more items put them at the back of the que (front of the list)
+        stderrStreamSplitQue = stderrStreamSplitQue.pop().tee().concat(stderrStreamSplitQue)
+    }
+    // now we should have the appropriate number of streams
+    const stdoutStreams = stdoutStreamSplitQue
+    const stderrStreams = stderrStreamSplitQue
+
+    // 
+    // connect all the source copies to the correct target copies
+    // 
+    for (const eachStreamArg of [...new Set(stdoutWritables.concat(stderrWritables))]) {
+        let sourceStream
+        const wasNeededByStdout = neededByStdout.get(eachStreamArg)
+        // needs one of: [both, stdout, or stderr]
+        if (wasNeededByStdout && neededByStderr.get(eachStreamArg)) {
+            sourceStream = zipReadableStreams(stdoutStreams.pop(), stderrStreams.pop())
+        } else if (wasNeededByStdout) {
+            sourceStream = stdoutStreams.pop()
+        } else {
+            sourceStream = stderrStreams.pop()
+        }
+
+        // every stream arg should be a writable stream by this point
+        sourceStream.pipeTo(eachStreamArg)
+    }
 }
 
 
@@ -593,9 +731,9 @@ function run(...args) {
     })
     
     // 
-    // mutate the promise output, make all methods return the promise again (chaining)
+    // mutate the promise output, make all synchronousMethods return the promise again (chaining)
     // 
-    Object.assign(outputPromise, methods(thisTask, outputPromise))
+    Object.assign(outputPromise, synchronousMethods(thisTask, outputPromise))
 
     return outputPromise
 }
