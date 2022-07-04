@@ -23,7 +23,7 @@ const taskSymbol = Symbol("task")
 async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
     const debuggingString = getDebuggingString(...command)
     if (!interactive) {
-        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
+        var { command, stdin, stdout, stderr, out, cwd, env } = await standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
     }
 
     // interactive: {onOut, onStdout, onStderr, onFinsh}
@@ -39,7 +39,7 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
 // detailed logic
 // 
 // 
-function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString }) {
+async function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString }) {
     const simplified = {
         stdin: null,
         stdout: null,
@@ -51,7 +51,7 @@ function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, d
     // 
     // command
     // 
-    command = standardizeCommandArgs(...command)
+    command = await standardizeCommandArgs(...command)
     
     // 
     // stdin
@@ -89,7 +89,16 @@ function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, d
     if (outIsGiven) {
         stdout.appendTo = stdout.appendTo.cat(out)
         stderr.appendTo = stderr.appendTo.cat(out)
+        stdout.overwrite = stdout.overwrite.cat(out)
+        stderr.overwrite = stderr.overwrite.cat(out)
     }
+    
+    // await any promise inputs automatically
+    stdin.from       = await Promise.all(stdin.from      )
+    stdout.appendTo  = await Promise.all(stdout.appendTo )
+    stdout.overwrite = await Promise.all(stdout.overwrite)
+    stderr.appendTo  = await Promise.all(stderr.appendTo )
+    stderr.overwrite = await Promise.all(stderr.overwrite)
     
     // 
     // check cwd
@@ -116,15 +125,17 @@ const partialDoubleQuotePattern = /^"(\\.|[^"\n])*($|")/
 const fullDoubleQuotePattern = /^"(\\.|[^"\n])*"/
 const partialSingleQuotePattern = /^'(\\.|[^'\n])*($|')/
 const fullSingleQuotePattern = /^'(\\.|[^'\n])*'/
-function standardizeCommandArgs(maybeStrings, ...args) {
+async function standardizeCommandArgs(maybeStrings, ...args) {
     // non-templated input
     if (!(maybeStrings instanceof Array)) {
+        const output = await Promise.all([ maybeStrings, ...args ])
         // very simple
-        return [ maybeStrings, ...args ].filter(each=>each!=null).map(toString)
+        return output.filter(each=>each!=null).map(toString)
     // templated input
     } else {
         // for some reason the original one is non-editable so make a copy
         maybeStrings = [...maybeStrings]
+        args = await Promise.all(args)
         const argsInOrder = zip(maybeStrings, args).flat()
         
         let combineWithPrevious = false
