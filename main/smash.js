@@ -1,4 +1,7 @@
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.5.14/events.js"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.5.1/events.js"
+import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.5.1/array.js"
+import { capitalize, indent, toCamelCase, numberToEnglishArray, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.5.1/string.js"
+import { OperatingSystem } from "./operating_system"
 
 const notGiven = Symbol()
 const taskSymbol = Symbol("task")
@@ -18,6 +21,10 @@ const taskSymbol = Symbol("task")
 // clean/core logic
 // 
 async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
+    if (!interactive) {
+        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env,})
+    }
+
     // interactive: {onOut, onStdout, onStderr, onFinsh}
         // success becomes a promise
         // and an interactive object is returned, with pid, moreInput, noMoreInput, stdout, stderr, signal, cancel, kill, exitCode
@@ -32,23 +39,228 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
 // 
 // 
 function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
+    const simplified = {
+        stdin: null,
+        stdout: null,
+        stderr: null,
+        cwd: null,
+        env: null,
+    }
+
+    // 
+    // command
+    // 
+    const [ strings, injections ] = command
+    let newArgs = []
+    const argSplitter = /[ \t]+/
+    if (maybeStrings instanceof Array) {
+        maybeStrings = [...maybeStrings] // for some reason the original one is non-editable so make a copy
+        const lastString = maybeStrings.pop()
+        for (const eachString of maybeStrings) {
+            const innerArgs = eachString.split(argSplitter)
+            for (const each of innerArgs) {
+                if (each.length > 0) {
+                    newArgs.push(each)
+                }
+            }
+            newArgs.push(args.shift())
+        }
+        // edgecase of last string arg
+        const endingArgsString = lastString.trim()
+        if (endingArgsString.length > 0) {
+            const endingArgs = endingArgsString.split(argSplitter)
+            for (const each of endingArgs) {
+                newArgs.push(each)
+            }
+        }
+        args = newArgs
+        // return (...args)=>run(newArgs, ...args) // <- next version use this
+    } else {
+        args = [ maybeStrings, ...args ]
+    }
+    
     // 
     // stdin
     // 
     if (stdin == notGiven) {
         stdin = {
-            fromUser: true,
+            from: [ Deno.stdin ],
+        }
+    }
+
+    // 
+    // stdout
+    // 
+    if (stdout == notGiven && out == notGiven) {
+        stdout = {
             overwrite: [],
-            appendTo: [],
+            appendTo: [ Deno.stdout ],
+        }
+    }
+    
+    // 
+    // stderr
+    // 
+    if (stderr == notGiven && out == notGiven) {
+        stderr = {
+            overwrite: [],
+            appendTo: [ Deno.stderr ],
         }
     }
 
     // 
     // out
     // 
-    // if its not a file object, ignore the overwrite vs appendTo
+    const outIsGiven = out !== notGiven
+    if (outIsGiven) {
+        stdout.appendTo = stdout.appendTo.cat(out)
+        stderr.appendTo = stderr.appendTo.cat(out)
+    }
+    
 
 
+    return {
+        stdin,
+        stdout,
+        stderr,
+        cwd,
+        env,
+    }
+}
+
+const partialDoubleQuotePattern = /^"(\\.|[^"\n])*($|")/
+const fullDoubleQuotePattern = /^"(\\.|[^"\n])*"/
+const partialSingleQuotePattern = /^'(\\.|[^'\n])*($|')/
+const fullSingleQuotePattern = /^'(\\.|[^'\n])*'/
+function standardizeArgs(maybeStrings, ...args) {
+    // non-templated input
+    if (!(maybeStrings instanceof Array)) {
+        // very simple
+        return [ maybeStrings, ...args ].filter(each=>each!=null).map(each=>`${each}`)
+    // templated input
+    } else {
+        // for some reason the original one is non-editable so make a copy
+        maybeStrings = [...maybeStrings]
+        const argsInOrder = zip(maybeStrings, args).flat()
+        
+        let combineWithPrevious = false
+        let partialArg = ""
+        const newArgs = []
+        const submitQuotesCheck = ()=>{
+            if (partialArg.match(fullDoubleQuotePattern)) {
+                newArgs.push(JSON.parse(partialArg))
+                partialArg = ""
+            } else if (partialArg.match(fullSingleQuotePattern)) {
+                const doubleQuoteStringLiteral = swapDoubleAndSingleQuotes(partialArg)
+                const outputString = JSON.parse(doubleQuoteStringLiteral)
+                const fixedArg = swapDoubleAndSingleQuotes(outputString) // back to single quotes
+                newArgs.push(fixedArg)
+                partialArg = ""
+            }
+        }
+        for (const [ eachIndex, each ] of enumerate(argsInOrder)) {
+            const isPureString = eachIndex % 2 == 0
+            if (!isPureString) {
+                // skip null/undefined inputs
+                if (each == null) {
+                    continue
+                }
+                const asString = toString(each)
+                if (!partialArg) {
+                    newArgs.push(asString)
+                } else {
+                    if (partialArg[0] == '"') {
+                        // escape the quotes by using JSON
+                        partialArg += JSON.stringify(asString).slice(1,-1) 
+                    } else if (partialArg[0] == "'") {
+                        // swap double and single quotes (which will get swapped back later)
+                        partialArg += swapDoubleAndSingleQuotes(JSON.stringify(asString).slice(1,-1))
+                    } else {
+                        partialArg += asString
+                    }
+                }
+            } else {
+                let skipTo = 0
+                const arrayOfChars = [...each]
+                for (let [ index, eachChar ] of enumerate(arrayOfChars)) {
+                    if (skipTo >= arrayOfChars.length-1) {
+                        break
+                    } else if (skipTo > index) {
+                        continue
+                    }
+
+                    // when searching for next argument
+                    if (partialArg.length == 0) {
+                        // skip leading whitespace
+                        if (eachChar == " " || eachChar == "\t" || eachChar == "\n") {
+                            continue
+                        // expand tilde
+                        } else if (eachChar == "~") {
+                            eachChar = eachChar.replace("~", OperatingSystem.home)
+                        // double quote
+                        } else if (eachChar == '"') {
+                            const remaining = arrayOfChars.slice(index,).join("")
+                            // full double quote
+                            const match = remaining.match(fullDoubleQuotePattern)
+                            if (match) {
+                                partialArg = match[0]
+                                skipTo = partialArg.length-1
+                                submitQuotesCheck()
+                                continue
+                            // partial check
+                            } else {
+                                const match = remaining.match(partialDoubleQuotePattern)
+                                partialArg = match[0]
+                                break // partial quotes will always match all remaining characters (at least when the full quote match fails)
+                            }
+                        // single quote
+                        } else if (eachChar == "'") {
+                            const remaining = arrayOfChars.slice(index,).join("")
+                            // full double quote
+                            const match = remaining.match(fullSingleQuotePattern)
+                            if (match) {
+                                partialArg = match[0]
+                                skipTo = partialArg.length-1
+                                submitQuotesCheck()
+                                continue
+                            // partial check
+                            } else {
+                                const match = remaining.match(partialSingleQuotePattern)
+                                partialArg = match[0]
+                                break // partial quotes will always match all remaining characters (at least when the full quote match fails)
+                            }
+                        }
+                        
+                        partialArg += eachChar
+                    } else if (eachChar == " " || eachChar == "\t" || eachChar == "\n") {
+                        newArgs.push(partialArg)
+                        partialArg = ""
+                    // continuing an existing string
+                    } else {
+                        partialArg += eachChar
+                        // check if this ended the quote (sometimes it doesnt because of escaping)
+                        if (eachChar == `"` || eachChar == `'`) {
+                            // submit quotes whenever they're completed
+                            submitQuotesCheck()
+                        }
+                    }
+                }
+            }
+        }
+        
+        // check for submitting last argument
+        if (partialArg.length > 0) {
+            // check for unfinished quote
+            if (partialArg[0] == '"' || partialArg[0] == "'") {
+                const debuggingString = "run`"+zip(maybeStrings, args.map(each=>`\${${toRepresentation(each)}}`)).flat().join("")+"`"
+                throw Error(`\n\n\n------------------------------------\nerror/warning\n------------------------------------\n\nI was given a run command that probably looks like: \n    ${debuggingString}\n\nIt seems you have either an unfinished singlequote or doublequote somewhere in there. If you want to literally have a single/double quote as an argument, then do it like this:\n    run\` echo \${\`this arg ends with a literal quote: "\`} \` \n\n\n`)
+            } else {
+                // submit final quote
+                newArgs.push(partialArg)
+                partialArg = ""
+            }
+        }
+    }
 }
 
 
@@ -342,6 +554,8 @@ const isWritable = (obj) => obj instanceof Object && obj.write instanceof Functi
 const concatUint8Arrays = (arrays) => new Uint8Array( // simplified from: https://stackoverflow.com/questions/49129643/how-do-i-merge-an-array-of-uint8arrays
         arrays.reduce((acc, curr) => (acc.push(...curr),acc), [])
     )
+
+const swapDoubleAndSingleQuotes = (string)=> string.replace(/'|"/g, (group0)=>group0==`"` ? `'` : `"`)
 
 const streamToString = async (stream) => {
     const returnReader = stream.getReader()
