@@ -1,7 +1,8 @@
 import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.5.1/events.js"
 import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.5.1/array.js"
 import { capitalize, indent, toCamelCase, numberToEnglishArray, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.5.1/string.js"
-import { OperatingSystem } from "./operating_system"
+import { OperatingSystem } from "./operating_system.js"
+import { intersection, subtract } from "https://deno.land/x/good@0.5.15/set.js"
 
 const notGiven = Symbol()
 const taskSymbol = Symbol("task")
@@ -408,69 +409,8 @@ const synchronousMethods = (thisTask, outputPromise) => ({
 // 
 // stdin handling streams
 // 
-import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
-import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
+import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "./stream_tools.js"
 
-const isReadable = (obj) => obj instanceof Object && obj.read instanceof Function
-const isWritable = (obj) => obj instanceof Object && obj.write instanceof Function
-
-function toReadableStream(value) {
-    // string to readable stream
-    if (typeof value == 'string') {
-        return readableStreamFromReader(new StringReader(value))
-    // Uint8 (raw data) to readable stream
-    } else if (value instanceof Uint8Array) {
-        return readableStreamFromReader(new Buffer(value))
-    // check for readable stream itself
-    } else if (value instanceof ReadableStream) {
-        return value
-    // readable thing to readable stream
-    } else if (isReadable(value)) {
-        return readableStreamFromReader(value)
-    } else {
-        throw Error(`The argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${value}\n\n`)
-    }
-}
-async function toWritableStream(value, overwrite=true) {
-    // values that are alread writeable streams
-    if (value instanceof WritableStream) {
-        return value
-    // convert files/writables to writeable streams
-    } else if (isWritable(value)) {
-        return writableStreamFromWriter(value)
-    } else {
-        if (overwrite) {
-            if (typeof value == 'string') {
-                // ensure parent folders exist
-                await FileSystem.clearAPathFor(value, {overwrite: true})
-                // convert string to a folder
-                value = await Deno.open(value, {write: true, truncate: true, create: true})
-            }
-
-            if (value instanceof Deno.File) {
-                // clear the file
-                value.truncate()
-            } else {
-                throw Error(`The argument can be a string path, a file (Deno.open("./path")), or any writable object (like Deno.stdout or the .stdin of an interactive command)\nbut instead of any of those I received:\n    ${value}\n\n`)
-            }
-        } else {
-            if (typeof value == 'string') {
-                // ensure parent folders exist
-                await FileSystem.ensureIsFolder(FileSystem.parentPath(value))
-                // convert string to a folder
-                value = await Deno.open(value, {write: true, create: true})
-                // FIXME: this file never gets closed! its hard to close because if its used outside of this library too, closing it will cause an error. Need a way to check on it
-            }
-            
-            if (value instanceof Deno.File) {
-                // go to the end of a file (meaning everthing will be appended)
-                await Deno.seek(value.rid, 0, Deno.SeekMode.End)
-            } else {
-                throw Error(`The argument can be a string path, a file (Deno.open("./path")), or any writable object (like Deno.stdout or the .stdin of an interactive command)\nbut instead of any of those I received:\n    ${value}\n\n`)
-            }
-        }
-    }
-}
 function stdinArugmentToReader(stdin, debugString) {
     // remove any null's or undefined's
     let stdinSources = stdin.from
@@ -525,73 +465,31 @@ const outOrErrToWriterTargets = async (out, debuggingString) => {
 }
 const mapOutToStreams = async (stdout, stderr, stdoutWritables, stderrWritables) => {
     // 
-    // NOTE: this process is kind of complicated because of checking
-    //       for stderr/stdout to the same source 
-    //       and for outputing them to mulitple sources
-    // 
-
-    // 
     // figure out how many streams are needed
     // 
-    const neededByStdout = new Map()
-    const neededByStderr = new Map()
-    // what needs stdout
-    for (const each of stdoutWritables) {
-        // init to set if doesnt exist
-        neededByStdout.set(each, true)
-        neededByStderr.set(each, false) // will be overwritten next
-    }
-    // what needs stderr
-    for (const each of stderrWritables) {
-        neededByStderr.set(each, true)
-        if (!neededByStdout.has(each)) {
-            neededByStdout.set(each, false)
-        }
-    }
+    const neededByStdout  = new Set(stdoutWritables)
+    const neededByStderr  = new Set(stderrWritables)
+    const neededByBoth    = new Set(intersection(neededByStdout, neededByStderr))
+    const neededByOutOnly = new Set(subtract({value: neededByBoth, from: neededByStdout }))
+    const neededByErrOnly = new Set(subtract({value: neededByBoth, from: neededByStderr }))
     
     // 
-    // generate a bunch of source copies
+    // generate a bunch of copies of the source (AFAIK copies is the only way to do it)
     // 
-    // complicated because tee-ing a stream kind of destroys the original 
-    // and its better to tee in a branching way than in a all-on-one-side way (BFS-style not DFS-style)
-    const stdoutStreamSplitQue = []
-    const stderrStreamSplitQue = []
-    // the initial ones are edgecases
-    if (stdoutWritables.length > 0) {
-        stdoutStreamSplitQue.push(readableStreamFromReader(stdout))
-    }
-    if (stderrWritables.length > 0) {
-        stderrStreamSplitQue.push(readableStreamFromReader(stderr))
-    }
-    while (stdoutStreamSplitQue.length < stdoutWritables.length) {
-        // take off the front of the que (back of the list), create two more items (tee) put them at the back of the que (front of the list)
-        stdoutStreamSplitQue = stdoutStreamSplitQue.pop().tee().concat(stdoutStreamSplitQue)
-    }
-    while (stderrStreamSplitQue.length < stderrWritables.length) {
-        // take off the front of the que (back of the list), create two more items put them at the back of the que (front of the list)
-        stderrStreamSplitQue = stderrStreamSplitQue.pop().tee().concat(stderrStreamSplitQue)
-    }
-    // now we should have the appropriate number of streams
-    const stdoutStreams = stdoutStreamSplitQue
-    const stderrStreams = stderrStreamSplitQue
+    const stdoutStreams = duplicateReadableStream(stdout, neededByStdout.size)
+    const stderrStreams = duplicateReadableStream(stderr, neededByStderr.size)
 
     // 
     // connect all the source copies to the correct target copies
     // 
-    for (const eachStreamArg of [...new Set(stdoutWritables.concat(stderrWritables))]) {
-        let sourceStream
-        const wasNeededByStdout = neededByStdout.get(eachStreamArg)
-        // needs one of: [both, stdout, or stderr]
-        if (wasNeededByStdout && neededByStderr.get(eachStreamArg)) {
-            sourceStream = zipReadableStreams(stdoutStreams.pop(), stderrStreams.pop())
-        } else if (wasNeededByStdout) {
-            sourceStream = stdoutStreams.pop()
-        } else {
-            sourceStream = stderrStreams.pop()
-        }
-
-        // every stream arg should be a writable stream by this point
-        sourceStream.pipeTo(eachStreamArg)
+    for (const targetStream of neededByBoth) {
+        zipReadableStreams(stdoutStreams.pop(), stderrStreams.pop()).pipeTo(targetStream)
+    }
+    for (const each of neededByOutOnly) {
+        stdoutStreams.pop().pipeTo(targetStream)
+    }
+    for (const each of neededByErrOnly) {
+        stderrStreams.pop().pipeTo(targetStream)
     }
 }
 
