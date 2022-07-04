@@ -21,8 +21,9 @@ const taskSymbol = Symbol("task")
 // clean/core logic
 // 
 async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
+    const debuggingString = getDebuggingString(...command)
     if (!interactive) {
-        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env,})
+        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
     }
 
     // interactive: {onOut, onStdout, onStderr, onFinsh}
@@ -38,7 +39,7 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
 // detailed logic
 // 
 // 
-function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
+function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString }) {
     const simplified = {
         stdin: null,
         stdout: null,
@@ -90,6 +91,15 @@ function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, i
         stderr.appendTo = stderr.appendTo.cat(out)
     }
     
+    // 
+    // check cwd
+    // 
+    if (cwd !== undefined) {
+        const folderExists = await Deno.stat(cwd).then(({isDirectory})=>isDirectory).catch(()=>false)
+        if (!folderExists) {
+            throw Error(`${debuggingString}It was given a .with({ cwd: \n${JSON.stringify(cwd)}})\nbut that doesn't seem to be a path to a folder, so the command fails\n\n`)
+        }
+    }
 
     return {
         command,
@@ -101,6 +111,7 @@ function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, i
     }
 }
 
+
 const partialDoubleQuotePattern = /^"(\\.|[^"\n])*($|")/
 const fullDoubleQuotePattern = /^"(\\.|[^"\n])*"/
 const partialSingleQuotePattern = /^'(\\.|[^'\n])*($|')/
@@ -109,7 +120,7 @@ function standardizeCommandArgs(maybeStrings, ...args) {
     // non-templated input
     if (!(maybeStrings instanceof Array)) {
         // very simple
-        return [ maybeStrings, ...args ].filter(each=>each!=null).map(each=>`${each}`)
+        return [ maybeStrings, ...args ].filter(each=>each!=null).map(toString)
     // templated input
     } else {
         // for some reason the original one is non-editable so make a copy
@@ -225,8 +236,8 @@ function standardizeCommandArgs(maybeStrings, ...args) {
         if (partialArg.length > 0) {
             // check for unfinished quote
             if (partialArg[0] == '"' || partialArg[0] == "'") {
-                const debuggingString = "run`"+zip(maybeStrings, args.map(each=>`\${${toRepresentation(each)}}`)).flat().join("")+"`"
-                throw Error(`\n\n\n------------------------------------\nerror/warning\n------------------------------------\n\nI was given a run command that probably looks like: \n    ${debuggingString}\n\nIt seems you have either an unfinished singlequote or doublequote somewhere in there. If you want to literally have a single/double quote as an argument, then do it like this:\n    run\` echo \${\`this arg ends with a literal quote: "\`} \` \n\n\n`)
+                const debuggingString = getDebuggingString(maybeStrings, ...args)
+                throw Error(`${debuggingString}It seems you have either an unfinished singlequote or doublequote somewhere in there. If you want to literally have a single/double quote as an argument, then do it like this:\n    run\` echo \${\`this arg ends with a literal quote: "\`} \` \n\n\n`)
             } else {
                 // submit final quote
                 newArgs.push(partialArg)
@@ -235,6 +246,19 @@ function standardizeCommandArgs(maybeStrings, ...args) {
         }
 
         return newArgs
+    }
+}
+function getDebuggingString(maybeStrings, ...args) {
+    if (!(maybeStrings instanceof Array)) {
+        const argsString = indent({
+            string: [ maybeStrings, ...args ].filter(each=>each!=null).map(toRepresentation).join("\n"),
+            by: "        "
+        })
+        return `\n\n\n------------------------------------\nerror/warning\n------------------------------------\n\nI was given a run command that probably looks something like: \n    run(\n${argsString}\n    )\n\n`
+    // templated input
+    } else {
+        const debuggingString = "run`"+zip(maybeStrings, args.map(each=>`\${${toRepresentation(each)}}`)).flat().join("")+"`"
+        return `\n\n\n------------------------------------\nerror/warning\n------------------------------------\n\nI was given a run command that probably looks like: \n    ${debuggingString}\n\n`
     }
 }
 
