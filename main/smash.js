@@ -17,17 +17,22 @@ const taskSymbol = Symbol("task")
     //     run`echo great your .zshrc has a thing`
     // )
 
-// TODO: provide a zip and concat tool to allow different kinds of stdin
+// TODO:
+    // create a custom stdout/err stream that dumps all the text into a string as it comes in
+    // all of the interactive stuff
+        // incremental stdin
+        // incremental stdout
+    // provide a zip and concat tool to allow different kinds of stdin
 
 
 // 
 // clean/core logic
 // 
-async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
+async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive, _instantExport }) {
     const debuggingString = getDebuggingString(...command)
     if (!interactive) {
         var { command, stdin, stdout, stderr, out, cwd, env } = await standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
-        let process = Deno.run({
+        let process = _instantExport.process = Deno.run({
             cmd: command.filter(each=>(typeof each == 'string')),
             env,
             cwd,
@@ -35,6 +40,7 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
             stdout: stdout.overwrite.length && stdout.appendTo.length ? 'piped' : 'null',
             stderr: stderr.overwrite.length && stderr.appendTo.length ? 'piped' : 'null',
         })
+        
         
         // 
         // create streams
@@ -49,12 +55,42 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
         await mapOutToStreams(process.stdout, process.stderr, stdoutTargets, stderrTargets)
         await mapInToStream(process.stdin, stdinSource)
         
+        const { done, exitCode, success } = await process.status()
+
         // 
-        // interface wrapper TODO
+        // interface wrapper
         // 
         return {
-
+            success,
+            exitCode,
+            pid: process.pid,
+            rid: process.rid,
+            stdout: null, // FIXME: make these be strings
+            stderr: null, // FIXME: make these be strings
         }
+    } else {
+        // return {
+        //     pid: process.pid,
+        //     rid: process.rid,
+        //     outcome: process.status().then(interactive.onFinish||_=>0),
+        //     cancel: ()=>process.kill("SIGINT"), // "please stop"
+        //     kill: ()=>process.kill("SIGKILL"),  // *cannon blast to the head*
+        //     signal: process.signal,
+        //     stdout: null, // FIXME
+        //     stderr: null, // FIXME
+        //     moreInput(rawDataOrString) {
+        //         // TODO: ignore eveything after noMoreInput is called
+        //         if (typeof rawDataOrString == 'string') {
+        //             return process.stdin.write(new TextEncoder().encode(rawDataOrString))
+        //         // assume its raw data
+        //         } else {
+        //             return process.stdin.write(rawDataOrString)
+        //         }
+        //     },
+        //     noMoreInput(...args) {
+        //         return process.stdin.close(...args)
+        //     },
+        // }
     }
 
     // interactive: {onOut, onStdout, onStderr, onFinsh}
@@ -544,6 +580,7 @@ import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadabl
 // 
 function run(...args) {
     const thisTask = {
+        _instantExport: {},
         command: args,
         stdin: notGiven,
         stdout: notGiven,
@@ -576,7 +613,7 @@ function run(...args) {
                 }
                 thisTask.wasPrunedBy = `timeout:${thisTask.timeout}`
                 // kill the task
-                if (result.kill instanceof Function) {
+                if (thisTask._instantExport?.process?.kill instanceof Function) {
                     // if interactive, stop the input first
                     if (result.interactive) {
                         if (result.noMoreInput instanceof Function) {
@@ -585,7 +622,7 @@ function run(...args) {
                     }
 
                     try {
-                        result.kill()
+                        thisTask._instantExport.process.kill("SIGKILL")
                     } catch (error) {
                         
                     }
