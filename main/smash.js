@@ -50,34 +50,7 @@ function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, i
     // 
     // command
     // 
-    const [ strings, injections ] = command
-    let newArgs = []
-    const argSplitter = /[ \t]+/
-    if (maybeStrings instanceof Array) {
-        maybeStrings = [...maybeStrings] // for some reason the original one is non-editable so make a copy
-        const lastString = maybeStrings.pop()
-        for (const eachString of maybeStrings) {
-            const innerArgs = eachString.split(argSplitter)
-            for (const each of innerArgs) {
-                if (each.length > 0) {
-                    newArgs.push(each)
-                }
-            }
-            newArgs.push(args.shift())
-        }
-        // edgecase of last string arg
-        const endingArgsString = lastString.trim()
-        if (endingArgsString.length > 0) {
-            const endingArgs = endingArgsString.split(argSplitter)
-            for (const each of endingArgs) {
-                newArgs.push(each)
-            }
-        }
-        args = newArgs
-        // return (...args)=>run(newArgs, ...args) // <- next version use this
-    } else {
-        args = [ maybeStrings, ...args ]
-    }
+    command = standardizeCommandArgs(...command)
     
     // 
     // stdin
@@ -118,8 +91,8 @@ function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, i
     }
     
 
-
     return {
+        command,
         stdin,
         stdout,
         stderr,
@@ -132,7 +105,7 @@ const partialDoubleQuotePattern = /^"(\\.|[^"\n])*($|")/
 const fullDoubleQuotePattern = /^"(\\.|[^"\n])*"/
 const partialSingleQuotePattern = /^'(\\.|[^'\n])*($|')/
 const fullSingleQuotePattern = /^'(\\.|[^'\n])*'/
-function standardizeArgs(maybeStrings, ...args) {
+function standardizeCommandArgs(maybeStrings, ...args) {
     // non-templated input
     if (!(maybeStrings instanceof Array)) {
         // very simple
@@ -260,6 +233,8 @@ function standardizeArgs(maybeStrings, ...args) {
                 partialArg = ""
             }
         }
+
+        return newArgs
     }
 }
 
