@@ -3,12 +3,12 @@ import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.5.14
 // 
 // clean/core logic
 // 
-async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive, timeout, softTimeout }) {
+async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
     // interactive: {onOut, onStdout, onStderr, onFinsh}
         // success becomes a promise
-        // and an interactive object is returned, with pid, moreInput, noMoreInput, stdout, stderr, signal, cancel, die, exitCode
+        // and an interactive object is returned, with pid, moreInput, noMoreInput, stdout, stderr, signal, cancel, kill, exitCode
 
-    // return needs to include {interactive, success}
+    // return needs to include {interactive, success, cancel, kill}
 }
 
 
@@ -37,9 +37,41 @@ function run(...args) {
     
     // wraps simpleRun, and is only executed once we actually want to send the command to the OS
     thisTask.function = async ()=>{
+        let result = {}
+        let finished = false
+
+        if (thisTask.timeout) {
+            setTimeout(()=>{
+                // do nothing if already done
+                if (finished) {
+                    return
+                }
+                thisTask.wasPrunedBy = `timeout:${thisTask.timeout}`
+                // kill the task
+                if (result.kill instanceof Function) {
+                    // if interactive, stop the input first
+                    if (result.interactive) {
+                        if (result.noMoreInput instanceof Function) {
+                            result.noMoreInput()
+                        }
+                    }
+
+                    try {
+                        result.kill()
+                    } catch (error) {
+                        
+                    }
+                }
+                // make the promise return
+                thisTask.resolve({
+                    success: false,
+                    reason: `killed by timeout of ${thisTask.timeout}`
+                })
+            }, thisTask.timeout)
+        }
+
         // needs to call thisTask.resolve and/or thisTask.reject
         // uses thisTask as input
-        let result
         try {
             result = await simpleRun(thisTask)
             if (result.interactive) {
@@ -53,6 +85,12 @@ function run(...args) {
         } catch (error) {
             result = error
             result.success = false
+        }
+        finished = true
+
+        // if pruned, do nothing (resolve/reject was already called)
+        if (thisTask.wasPrunedBy) {
+            return
         }
         
         // 
@@ -110,12 +148,12 @@ function run(...args) {
     // 
     Object.assign(outputPromise, {
         taskSymbol: thisTask,
-        interactive: ({ onOut, onStdout, onStderr, onFinsh, stdin, stdout, out, cwd, env })=>{
-            Object.assign(thisTask, { stdin, stdout, out, cwd, env, interactive: {onOut, onStdout, onStderr, onFinsh} })
+        interactive: ({ onOut, onStdout, onStderr, onFinsh, stdin, stdout, out, cwd, env, timeout })=>{
+            Object.assign(thisTask, { stdin, stdout, out, cwd, env, timeout, interactive: {onOut, onStdout, onStderr, onFinsh}, })
             return outputPromise
         },
-        with: ({ stdin, stdout, out, cwd, env })=>{
-            Object.assign(thisTask, { stdin, stdout, out, cwd, env })
+        with: ({ stdin, stdout, out, cwd, env, timeout })=>{
+            Object.assign(thisTask, { stdin, stdout, out, cwd, env, timeout })
             return outputPromise
         },
         and: (otherPromise)=>{
@@ -163,6 +201,12 @@ function run(...args) {
     return outputPromise
 }
 
+
+// 
+// 
+// helpers
+// 
+// 
 
 
 // for arguments that can either be a value or an array
