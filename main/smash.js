@@ -16,6 +16,8 @@ const taskSymbol = Symbol("task")
     //     run`echo great your .zshrc has a thing`
     // )
 
+// TODO: provide a zip and concat tool to allow different kinds of stdin
+
 
 // 
 // clean/core logic
@@ -24,6 +26,7 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
     const debuggingString = getDebuggingString(...command)
     if (!interactive) {
         var { command, stdin, stdout, stderr, out, cwd, env } = await standardizeArguments({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
+        const writer = stdinArugmentToWriter(stdin)
     }
 
     // interactive: {onOut, onStdout, onStderr, onFinsh}
@@ -93,13 +96,13 @@ async function standardizeArguments({ command, stdin, stdout, stderr, out, cwd, 
         stderr.overwrite = stderr.overwrite.cat(out)
     }
     
-    // await any promise inputs automatically
-    stdin.from       = await Promise.all(stdin.from      )
-    stdout.appendTo  = await Promise.all(stdout.appendTo )
-    stdout.overwrite = await Promise.all(stdout.overwrite)
-    stderr.appendTo  = await Promise.all(stderr.appendTo )
-    stderr.overwrite = await Promise.all(stderr.overwrite)
-    
+    // await any promise inputs automatically, remove all null results
+    stdin.from       = (await Promise.all(stdin.from      )).filter(each=>each != null)
+    stdout.appendTo  = (await Promise.all(stdout.appendTo )).filter(each=>each != null)
+    stdout.overwrite = (await Promise.all(stdout.overwrite)).filter(each=>each != null)
+    stderr.appendTo  = (await Promise.all(stderr.appendTo )).filter(each=>each != null)
+    stderr.overwrite = (await Promise.all(stderr.overwrite)).filter(each=>each != null)
+
     // 
     // check cwd
     // 
@@ -155,6 +158,9 @@ async function standardizeCommandArgs(maybeStrings, ...args) {
         }
         for (const [ eachIndex, each ] of enumerate(argsInOrder)) {
             const isPureString = eachIndex % 2 == 0
+            // 
+            // ${arg}
+            // 
             if (!isPureString) {
                 // skip null/undefined inputs
                 if (each == null) {
@@ -174,6 +180,9 @@ async function standardizeCommandArgs(maybeStrings, ...args) {
                         partialArg += asString
                     }
                 }
+            // 
+            // strings inbetween any ${arg}
+            // 
             } else {
                 let skipTo = 0
                 const arrayOfChars = [...each]
@@ -289,6 +298,20 @@ const methods = (thisTask, outputPromise) => ({
         assignArgs(thisTask, args)
         return outputPromise
     },
+    stdin: ({ from })=>{
+        if (!(thisTask.stdin instanceof Object)) {
+            thisTask.stdin = {
+                from: [],
+            }
+        }
+        
+        // merge arguments with any existing ones
+        thisTask.stdin = {
+            from: thisTask.stdin.from.cat(makeArray(overwrite)),
+        }
+        
+        return outputPromise
+    },
     stdout: ({ overwrite, appendTo, })=>{
         if (!(thisTask.stdout instanceof Object)) {
             thisTask.stdout = {
@@ -378,6 +401,61 @@ const methods = (thisTask, outputPromise) => ({
         return otherPromise
     },
 })
+
+
+// 
+// stdin handling streams
+// 
+import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
+const isReadable = (obj) => obj instanceof Object && obj.read instanceof Function
+const isWritable = (obj) => obj instanceof Object && obj.write instanceof Function
+
+function toReadableStream(value) {
+    // string to readable stream
+    if (typeof value == 'string') {
+        return readableStreamFromReader(new StringReader(value))
+    // Uint8 (raw data) to readable stream
+    } else if (value instanceof Uint8Array) {
+        return readableStreamFromReader(new Buffer(value))
+    // check for readable stream itself
+    } else if (value instanceof ReadableStream) {
+        return value
+    // readable thing to readable stream
+    } else if (isReadable(value)) {
+        return readableStreamFromReader(value)
+    } else {
+        throw Error(`The argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${first}\n\n`)
+    }
+}
+function stdinArugmentToWriter(stdin, debugString) {
+    // remove any null's or undefined's
+    let stdinSources = stdin.from
+    // default value is [Deno.stdin] so empty must mean intentionally empty
+    if (stdinSources.length == 0) {
+        stdinSources.push("")
+    }
+    
+    let stdinWriter
+
+    // check if all strings/bytes (this is for efficiency of throughput)
+    if (stdinSources.every(each=>typeof each == 'string' || each instanceof Uint8Array)) {
+        const allUint8Arrays = stdinSources.map(each=>typeof each != 'string' ? each : new TextEncoder().encode(each))
+        // creates a single big Uint8 array
+        stdinWriter = concatUint8Arrays(allUint8Arrays)
+    } else {
+        // for all remaining args
+        for (const eachSource of stdinSources) {
+            try {
+                const newStream = toReadableStream(eachSource)
+                // mergeReadableStreams is kind of like concat, first one entirely then the next (the alternative is zip: take one chunk from each then repeat)
+                stdinWriter = !stdinWriter ? newStream : stdinWriter.mergeReadableStreams(stdinWriter, newStream)
+            } catch (error) {
+                throw Error(`${debugString}A stdin() was given, but there was a problem with one of the arguments.\n${error.message}`)
+            }
+        }
+    }
+    return stdinWriter
+}
 
 
 // 
@@ -557,9 +635,6 @@ const assignArgs = (object, args) => {
         }
     }
 }
-
-const isReadable = (obj) => obj instanceof Object && obj.read instanceof Function
-const isWritable = (obj) => obj instanceof Object && obj.write instanceof Function
 
 const concatUint8Arrays = (arrays) => new Uint8Array( // simplified from: https://stackoverflow.com/questions/49129643/how-do-i-merge-an-array-of-uint8arrays
         arrays.reduce((acc, curr) => (acc.push(...curr),acc), [])
