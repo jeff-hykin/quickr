@@ -1,10 +1,10 @@
 import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
+import { move as moveAndRename } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
 
 // TODO:
-    // add move command
     // add copy command (figure out how to handle symlinks)
     // globbing
     // LF vs CRLF detection
@@ -319,7 +319,17 @@ export const FileSystem = {
         }
         return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
     },
-    remove: async (fileOrFolder) => {
+    async move({ item, newParentFolder, newName, overwrite=false, force=true }) {
+        // force     => will MOVE other things out of the way until the job is done
+        // overwrite => will DELETE things out of the way until the job is done
+        const oldName = FileSystem.basename(item)
+        const targetPath = `${newParentFolder}/${newName || oldName}`
+        if (force || overwrite) {
+            await FileSystem.clearAPathFor(targetPath, { overwrite })
+        }
+        await moveAndRename(item, targetPath)
+    },
+    async remove(fileOrFolder) {
         const itemInfo = await FileSystem.info(fileOrFolder)
         if (itemInfo.isFile) {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""))
