@@ -475,8 +475,8 @@ export const FileSystem = {
         Deno.close(target.rid)
         return result
     },
-    async relativeLink({existingItem, newItem, force=true}) {
-        existingItem = (existingItem.path || existingItem).replace(/\/+$/, "")
+    async relativeLink({existingItem, newItem, force=true, overwrite=false}) {
+        existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
         newItem = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
@@ -484,13 +484,12 @@ export const FileSystem = {
         if (existingItemDoesntExist) {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
         } else {
-            if (force) {
-                await FileSystem.remove(newItem)
-                await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
+            if (force || overwrite) {
+                await FileSystem.clearAPathFor(newItem, {overwrite})
             }
             const pathFromNewToExisting = Path.relative(newItem, existingItem).replace(/^\.\.\//,"")
             return Deno.symlink(
-                pathFromNewToExisting, // remove trailing slash, because it can screw stuff up
+                pathFromNewToExisting,
                 newItem,
             )
         }
