@@ -338,6 +338,8 @@ export const FileSystem = {
         }
     },
     normalize: Path.normalize,
+    isAbsolutePath: Path.isAbsolute,
+    isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
     makeAbsolutePath: (path)=> {
         if (!Path.isAbsolute(path)) {
