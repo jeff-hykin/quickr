@@ -561,8 +561,8 @@ export const FileSystem = {
             if (force || overwrite) {
                 await FileSystem.clearAPathFor(newItemPath, {overwrite})
             }
-            const hardPathToNewItem = await makeHardPathTo(newItemPath)
-            const hardPathToExistingItem = await makeHardPathTo(existingItemPath)
+            const hardPathToNewItem = await FileSystem.makeHardPathTo(newItemPath)
+            const hardPathToExistingItem = await FileSystem.makeHardPathTo(existingItemPath)
             const pathFromNewToExisting = Path.relative(hardPathToNewItem, hardPathToExistingItem).replace(/^\.\.\//,"") // all paths should have the "../" at the begining
             return Deno.symlink(
                 pathFromNewToExisting,
