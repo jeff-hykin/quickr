@@ -5,6 +5,7 @@ import { move as moveAndRename } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
 
 // TODO:
+    // handling relative symbolic links for the move command 
     // add copy command (figure out how to handle symlinks)
     // globbing
     // LF vs CRLF detection
@@ -103,6 +104,14 @@ class ItemInfo {
     relativePathFrom(parentPath) {
         return Path.relative(parentPath, this.path)
     }
+    get link() {
+        const lstat = this.lstat
+        if (lstat.isSymlink) {
+            return Deno.readLinkSync(this.path)
+        } else {
+            return null
+        }
+    }
     get pathToNextTarget() {
         const lstat = this.lstat
         if (lstat.isSymlink) {
@@ -127,6 +136,24 @@ class ItemInfo {
     get isSymlink() {
         const lstat = this.lstat
         return !!lstat.isSymlink
+    }
+    get isRelativeSymlink() {
+        const lstat = this.lstat
+        const isNotSymlink = !lstat.isSymlink
+        if (isNotSymlink) {
+            return false
+        }
+        const relativeOrAbsolutePath = Deno.readLinkSync(this.path)
+        return !Path.isAbsolute(relativeOrAbsolutePath)
+    }
+    get isAbsoluteSymlink() {
+        const lstat = this.lstat
+        const isNotSymlink = !lstat.isSymlink
+        if (isNotSymlink) {
+            return false
+        }
+        const relativeOrAbsolutePath = Deno.readLinkSync(this.path)
+        return Path.isAbsolute(relativeOrAbsolutePath)
     }
     get isBrokenLink() {
         const stat = this.stat
@@ -327,12 +354,36 @@ export const FileSystem = {
     async move({ item, newParentFolder, newName, overwrite=false, force=true }) {
         // force     => will MOVE other things out of the way until the job is done
         // overwrite => will DELETE things out of the way until the job is done
-        const oldName = FileSystem.basename(item)
-        const targetPath = `${newParentFolder}/${newName || oldName}`
-        if (force || overwrite) {
-            await FileSystem.clearAPathFor(targetPath, { overwrite })
+        
+        const oldPath = item.path || item
+        const oldName = FileSystem.basename(oldPath)
+        const itemInfo = item instanceof Object || await FileSystem.info(oldPath)
+        const newPath = `${newParentFolder}/${newName || oldName}`
+
+        // if its a relative-linked item the the relative link will need to be adjusted after the move
+        if (itemInfo.isSymlink && !Path.isAbsolute(itemInfo.nextTarget)) {
+            const adjustedSymlinkOriginalTarget = itemInfo.nextTarget
+            await FileSystem.relativeLink({
+                existingItem: adjustedSymlinkOriginalTarget,
+                newItem: newPath,
+                force,
+                overwrite,
+            })
+            // remove the original since it was "moved"
+            await FileSystem.remove(itemInfo)
+        // normal case, just move
+        } else {
+            if (force || overwrite) {
+                await FileSystem.clearAPathFor(newPath, { overwrite })
+            }
+            // FIXME: this needs to recursively check for realtive symlinks!
+            //          if there is a relative symlink to something OUTSIDE the folder being moved, it needs to be adjusted in order to not break
+            //          if there is a relative symlink to something INSIDE the folder being moved, then it doesn't need to be adjusted
+            //          however "inside" and "outside" are difficult because folders can be symlinks.
+            //              So find the absolute path to the target, check if that hard path is external or internal
+            //          another edgecase is what if the folder contains a symlink with an absolute path of the folder being moved (or something inside of the folder being moved)
+            await moveAndRename(item, newPath)
         }
-        await moveAndRename(item, targetPath)
     },
     async remove(fileOrFolder) {
         const itemInfo = await FileSystem.info(fileOrFolder)
@@ -353,12 +404,17 @@ export const FileSystem = {
             return Path.normalize(path)
         }
     },
-    async finalTargetOf(path) {
+    async finalTargetOf(path, options={}) {
+        const { _parentsHaveBeenChecked } = { _parentsHaveBeenChecked: false , ...options }
         path = (path.path || path) // if given ItemInfo object
         let result = await Deno.lstat(path).catch(()=>({doesntExist: true}))
         if (result.doesntExist) {
             return null
         }
+        
+        // 
+        // naively follow the path chain to build up a full chain
+        // 
         const pathChain = [ FileSystem.makeAbsolutePath(path) ]
         while (result.isSymlink) {
             // get the path to the target
@@ -382,7 +438,12 @@ export const FileSystem = {
             pathChain.push(absolutePath)
         }
         
-        return path
+        if (_parentsHaveBeenChecked) {
+            return path
+        } else {
+            // this is shallow recursive 
+            return FileSystem.makeHardPathTo(path)
+        }
     },
     async ensureIsFile(path) {
         path = path.path || path // if given ItemInfo object
@@ -489,21 +550,23 @@ export const FileSystem = {
         return result
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false}) {
-        existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
-        newItem = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
+        const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
+        const newItemPath = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
         
-        const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
+        const existingItemDoesntExist = (await Deno.lstat(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
         if (existingItemDoesntExist) {
-            throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
+            throw Error(`\nTried to create a relativeLink between existingItem:${existingItemPath}, newItem:${newItemPath}\nbut existingItem didn't actually exist`)
         } else {
             if (force || overwrite) {
-                await FileSystem.clearAPathFor(newItem, {overwrite})
+                await FileSystem.clearAPathFor(newItemPath, {overwrite})
             }
-            const pathFromNewToExisting = Path.relative(newItem, existingItem).replace(/^\.\.\//,"")
+            const hardPathToNewItem = await makeHardPathTo(newItemPath)
+            const hardPathToExistingItem = await makeHardPathTo(existingItemPath)
+            const pathFromNewToExisting = Path.relative(hardPathToNewItem, hardPathToExistingItem).replace(/^\.\.\//,"") // all paths should have the "../" at the begining
             return Deno.symlink(
                 pathFromNewToExisting,
-                newItem,
+                hardPathToNewItem,
             )
         }
     },
@@ -834,5 +897,33 @@ export const FileSystem = {
         // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
         await file.close()
         delete locker[path]
+    },
+    async makeHardPathTo(path) {
+        // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
+        const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
+        let topDownPath = ``
+        for (const eachFolderName of folders) {
+            topDownPath += `/${eachFolderName}`
+            const info = await FileSystem.info(topDownPath)
+            if (info.isSymlink) {
+                const absolutePathToIntermediate = await FileSystem.finalTargetOf(info, {_parentsHaveBeenChecked: true})
+                // shouldn't be true/possible outside of a race condition, but good to handle it anyways
+                if (absolutePathToIntermediate == null) {
+                    return null
+                }
+                // remove the path to the syslink parent folder + the slash
+                topDownPath = topDownPath.slice(0, -(eachFolderName.length+1))
+
+                const relativePath = FileSystem.makeRelativePath({
+                    from: topDownPath,
+                    to: absolutePathToIntermediate,
+                })
+                // replace it with the real intermediate path
+                topDownPath += `/${relativePath}`
+            }
+        }
+
+        // now all parents are verified as real folders 
+        return `${topDownPath}/${name}${extension}`
     },
 }
