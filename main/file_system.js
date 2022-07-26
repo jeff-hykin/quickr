@@ -106,7 +106,12 @@ class ItemInfo {
     get pathToNextTarget() {
         const lstat = this.lstat
         if (lstat.isSymlink) {
-            return Deno.readLinkSync(this.path)
+            const relativeOrAbsolutePath = Deno.readLinkSync(this.path)
+            if (Path.isAbsolute(relativeOrAbsolutePath)) {
+                return relativeOrAbsolutePath
+            } else {
+                return `${FileSystem.parentPath(this.path)}/${relativeOrAbsolutePath}`
+            }
         } else {
             return this.path
         }
@@ -114,7 +119,7 @@ class ItemInfo {
     get nextTarget() {
         const lstat = this.lstat
         if (lstat.isSymlink) {
-            return new ItemInfo({path:Deno.readLinkSync(this.path)})
+            return new ItemInfo({path:this.pathToNextTarget})
         } else {
             return this
         }
@@ -345,11 +350,11 @@ export const FileSystem = {
         if (!Path.isAbsolute(path)) {
             return Path.normalize(Path.join(Deno.cwd(), path))
         } else {
-            return path
+            return Path.normalize(path)
         }
     },
-    async finalTargetPathOf(path) {
-        path = path.path || path // if given ItemInfo object
+    async finalTargetOf(path) {
+        path = (path.path || path) // if given ItemInfo object
         let result = await Deno.lstat(path).catch(()=>({doesntExist: true}))
         if (result.doesntExist) {
             return null
@@ -357,20 +362,26 @@ export const FileSystem = {
         const pathChain = [ FileSystem.makeAbsolutePath(path) ]
         while (result.isSymlink) {
             // get the path to the target
-            path = Path.relative(path, await Deno.readLink(path))
+            const relativeOrAbsolutePath = await Deno.readLink(path)
+            if (Path.isAbsolute(relativeOrAbsolutePath)) {
+                path = relativeOrAbsolutePath
+            } else {
+                path = `${FileSystem.parentPath(path)}/${relativeOrAbsolutePath}`
+            }
             result = await Deno.lstat(path).catch(()=>({doesntExist: true}))
             // check if target exists
             if (result.doesntExist) {
                 return null
             }
-            // check for infinite loops
+            // check for infinite loops (normalizes and makes absolute)
             const absolutePath = FileSystem.makeAbsolutePath(path)
             if (pathChain.includes(absolutePath)) {
                 // circular loop of links
                 return null
             }
-            pathChain.push(FileSystem.makeAbsolutePath(path))
+            pathChain.push(absolutePath)
         }
+        
         return path
     },
     async ensureIsFile(path) {
@@ -518,19 +529,20 @@ export const FileSystem = {
         }
     },
     pathPieces(path) {
+        // const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(path)
         path = (path.path || path) // if given ItemInfo object
-        // const [ *folders, fileName, fileExtension ] = FileSystem.pathPieces(path)
         const result = Path.parse(path)
         const folderList = []
         let dirname = result.dir
         while (true) {
-            folderList.push(dirname)
+            folderList.push(Path.basename(dirname))
             // if at the top 
             if (dirname == result.root) {
                 break
             }
             dirname = Path.dirname(dirname)
         }
+        folderList.reverse()
         return [ folderList, result.name, result.ext ]
     },
     async listPathsIn(pathOrFileInfo){
