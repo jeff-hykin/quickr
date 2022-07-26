@@ -517,8 +517,8 @@ export const FileSystem = {
             )
         }
     },
-    async pathPieces(path) {
-        path = path.path || path // if given ItemInfo object
+    pathPieces(path) {
+        path = (path.path || path) // if given ItemInfo object
         // const [ *folders, fileName, fileExtension ] = FileSystem.pathPieces(path)
         const result = Path.parse(path)
         const folderList = []
@@ -531,7 +531,7 @@ export const FileSystem = {
             }
             dirname = Path.dirname(dirname)
         }
-        return [...folderList, result.name, result.ext ]
+        return [ folderList, result.name, result.ext ]
     },
     async listPathsIn(pathOrFileInfo){
         const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
