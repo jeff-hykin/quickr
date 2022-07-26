@@ -361,29 +361,32 @@ export const FileSystem = {
         const newPath = `${newParentFolder}/${newName || oldName}`
 
         // if its a relative-linked item the the relative link will need to be adjusted after the move
-        if (itemInfo.isSymlink && !Path.isAbsolute(itemInfo.nextTarget)) {
-            const adjustedSymlinkOriginalTarget = itemInfo.nextTarget
-            await FileSystem.relativeLink({
-                existingItem: adjustedSymlinkOriginalTarget,
-                newItem: newPath,
-                force,
-                overwrite,
-            })
-            // remove the original since it was "moved"
-            await FileSystem.remove(itemInfo)
-        // normal case, just move
-        } else {
-            if (force || overwrite) {
-                await FileSystem.clearAPathFor(newPath, { overwrite })
+        // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
+        if (itemInfo.isSymlink && !item.isBrokenLink) {
+            const link = Deno.readLinkSync(itemInfo.path)
+            if (!Path.isAbsolute(link)) {
+                const linkTargetBeforeMove = `${FileSystem.parentPath(itemInfo.path)}/${link}`
+                await FileSystem.FileSystem.relativeLink({
+                    existingItem: linkTargetBeforeMove,
+                    newItem: newPath,
+                    force,
+                    overwrite,
+                })
+                // remove the original since it was "moved"
+                await FileSystem.remove(itemInfo)
             }
-            // FIXME: this needs to recursively check for realtive symlinks!
-            //          if there is a relative symlink to something OUTSIDE the folder being moved, it needs to be adjusted in order to not break
-            //          if there is a relative symlink to something INSIDE the folder being moved, then it doesn't need to be adjusted
-            //          however "inside" and "outside" are difficult because folders can be symlinks.
-            //              So find the absolute path to the target, check if that hard path is external or internal
-            //          another edgecase is what if the folder contains a symlink with an absolute path of the folder being moved (or something inside of the folder being moved)
-            await moveAndRename(item, newPath)
         }
+        
+        if (force || overwrite) {
+            await FileSystem.clearAPathFor(newPath, { overwrite })
+        }
+        // FIXME: this needs to recursively check for realtive symlinks!
+        //          if there is a relative symlink to something OUTSIDE the folder being moved, it needs to be adjusted in order to not break
+        //          if there is a relative symlink to something INSIDE the folder being moved, then it doesn't need to be adjusted
+        //          however "inside" and "outside" are difficult because folders can be symlinks.
+        //              So find the absolute path to the target, check if that hard path is external or internal
+        //          another edgecase is what if the folder contains a symlink with an absolute path of the folder being moved (or something inside of the folder being moved)
+        await moveAndRename(item, newPath)
     },
     async remove(fileOrFolder) {
         const itemInfo = await FileSystem.info(fileOrFolder)
