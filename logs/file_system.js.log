@@ -96,9 +96,9 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 37937,
-      mtime: 2022-07-28T19:25:44.576Z,
-      atime: 2022-07-28T19:25:54.261Z,
+      size: 38085,
+      mtime: 2022-07-28T19:38:45.131Z,
+      atime: 2022-07-28T19:38:48.626Z,
       birthtime: 2022-03-27T23:33:08.841Z,
       dev: 16777220,
       ino: 4386456709,
@@ -230,13 +230,13 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../.git/objects/bb",
   "../.git/objects/d7",
   "../.git/objects/d0",
+  "../.git/objects/be",
   "../.git/objects/b3",
   "../.git/objects/df",
   "../.git/objects/da",
   "../.git/objects/b4",
   "../.git/objects/a2",
-  "../.git/objects/a5",
-  ... 859 more items
+  ... 872 more items
 ]
 [
   "../.DS_Store",
@@ -339,5 +339,5 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../.git/objects/35",
   "../.git/objects/35/66347ab23b29edea9a6a9f51ce2663c34bdea1",
   "../.git/objects/35/b293fbb401dd823e2ee748597d41888f49032e",
-  ... 859 more items
+  ... 872 more items
 ]

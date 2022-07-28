@@ -697,9 +697,9 @@ export const FileSystem = {
     async listFolderBasenamesIn(pathOrFileInfo, options={ignoreSymlinks:false}) {
         return (await FileSystem.listItemsIn(pathOrFileInfo, options)).map(each=>each.basename)
     },
-    async * recursivelyIteratePathsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch'}) {
+    async * recursivelyIteratePathsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity }) {
         // merge defaults
-        options = { exclude: [], onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', ...options }
+        options = { exclude: [], onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
         options.searchOrder = options.searchOrder || 'breadthFirstSearch' // allow null/undefined to equal the default
         // setup args
         const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
@@ -715,12 +715,13 @@ export const FileSystem = {
         }
         
         // note: exclude includes already-searched paths in the recursive case
-        if (info.isFolder && !exclude.has(path)) {
-            
+        if (options.maxDepth > 0 && info.isFolder && !exclude.has(path)) {
             const absolutePathVersion = FileSystem.makeAbsolutePath(path)
             exclude.add(absolutePathVersion)
+            options.maxDepth -= 1
+
             const searchAfterwords = []
-            const shouldFollowSymlinkToDirectory = async (entry, eachPath)=>followSymlinks && entry.isSymlink && (await FileSystem.info(eachPath)).isDirectory
+            const isSymlinkedToDirectory = async (entry, eachPath)=>entry.isSymlink && (await FileSystem.info(eachPath)).isDirectory
             for await (const entry of Deno.readDir(path)) {
                 const eachPath = Path.join(path, entry.name)
                 // add the folder
@@ -729,7 +730,7 @@ export const FileSystem = {
                 }
                 
                 // schedule children
-                if (entry.isDirectory || await shouldFollowSymlinkToDirectory(entry, eachPath)) {
+                if (entry.isDirectory || (followSymlinks && await isSymlinkedToDirectory(entry, eachPath))) {
                     if (useBreadthFirstSearch) {
                         searchAfterwords.push(eachPath)
                     } else {
@@ -749,14 +750,14 @@ export const FileSystem = {
             }
         }
     },
-    async recursivelyListPathsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch'}) {
+    async recursivelyListPathsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity}) {
         const listOutput = []
         for await (const each of FileSystem.recursivelyIteratePathsIn(pathOrFileInfo, options)) {
             listOutput.push(each)
         }
         return listOutput
     },
-    async recursivelyListItemsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false}) {
+    async recursivelyListItemsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity}) {
         const paths = await FileSystem.recursivelyListPathsIn(pathOrFileInfo, options)
         return Promise.all(paths.map(each=>FileSystem.info(each)))
     },
