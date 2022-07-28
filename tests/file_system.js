@@ -8,4 +8,6 @@ console.debug(`FileSystem.workingDirectory is:`,FileSystem.workingDirectory)
 
 await FileSystem.clearAPathFor(`${FileSystem.thisFolder}/run.errors.log`)
 
-console.log(await FileSystem.listFileItemsIn(`./main/`))
+console.log(await FileSystem.listFileItemsIn(`../main/`))
+
+console.log(await FileSystem.recursivelyListPathsIn(`..`))
