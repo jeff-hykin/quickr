@@ -11,3 +11,5 @@ await FileSystem.clearAPathFor(`${FileSystem.thisFolder}/run.errors.log`)
 console.log(await FileSystem.listFileItemsIn(`../main/`))
 
 console.log(await FileSystem.recursivelyListPathsIn(`..`))
+
+console.log(await FileSystem.recursivelyListPathsIn(`..`, { searchOrder: 'depthFirstSearch' }))
