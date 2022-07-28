@@ -273,6 +273,12 @@ export const FileSystem = {
     set cwd(value) { return FileSystem.workingDirectory = value },
     get pwd() { return FileSystem.cwd },
     set pwd(value) { return FileSystem.cwd = value },
+    cd(path) {
+        Deno.chdir(path)
+    },
+    changeDirectory(path) {
+        Deno.chdir(path)
+    },
     get thisFile() {
         const err = new Error()
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
