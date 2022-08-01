@@ -1,7 +1,7 @@
 import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
-import { move as moveAndRename } from "https://deno.land/std@0.133.0/fs/mod.ts"
+import { move as moveAndRename, moveSync as moveAndRenameSync } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
 
 // TODO:
@@ -372,7 +372,7 @@ export const FileSystem = {
             const link = Deno.readLinkSync(itemInfo.path)
             if (!Path.isAbsolute(link)) {
                 const linkTargetBeforeMove = `${FileSystem.parentPath(itemInfo.path)}/${link}`
-                await FileSystem.FileSystem.relativeLink({
+                await FileSystem.relativeLink({
                     existingItem: linkTargetBeforeMove,
                     newItem: newPath,
                     force,
@@ -384,7 +384,7 @@ export const FileSystem = {
         }
         
         if (force || overwrite) {
-            await FileSystem.clearAPathFor(newPath, { overwrite })
+            FileSystem.sync.clearAPathFor(newPath, { overwrite })
         }
         // FIXME: this needs to recursively check for realtive symlinks!
         //          if there is a relative symlink to something OUTSIDE the folder being moved, it needs to be adjusted in order to not break
@@ -395,6 +395,7 @@ export const FileSystem = {
         await moveAndRename(item, newPath)
     },
     async remove(fileOrFolder) {
+        fileOrFolder = fileOrFolder.path || fileOrFolder
         const itemInfo = await FileSystem.info(fileOrFolder)
         if (itemInfo.isFile) {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""))
@@ -466,6 +467,7 @@ export const FileSystem = {
     },
     async ensureIsFolder(path) {
         path = path.path || path // if given ItemInfo object
+        path = FileSystem.makeAbsolutePath(path)
         const parentPath = Path.dirname(path)
         // root is always a folder
         if (parentPath == path) {
@@ -474,13 +476,13 @@ export const FileSystem = {
         // make sure parent is a folder
         const parent = await FileSystem.info(parentPath)
         if (!parent.isDirectory) {
-            await FileSystem.ensureIsFolder(parentPath)
+            FileSystem.sync.ensureIsFolder(parentPath)
         }
         
         // delete files in the way
-        const pathInfo = await FileSystem.info(path)
+        let pathInfo = FileSystem.sync.info(path)
         if (pathInfo.exists && !pathInfo.isDirectory) {
-            await FileSystem.remove(pathInfo)
+            FileSystem.sync.remove(path)
         }
         
         await Deno.mkdir(path, { recursive: true })
@@ -548,11 +550,11 @@ export const FileSystem = {
             throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
         }
         if (force) {
-            await FileSystem.clearAPathFor(to, { overwrite: force })
-            await FileSystem.remove(to)
+            FileSystem.sync.clearAPathFor(to, { overwrite: force })
+            FileSystem.sync.remove(to)
         }
-        const source = await Deno.open(from, { read: true })
         const target = await Deno.create(to)
+        const source = await Deno.open(from, { read: true })
         const result = await copy(source, target)
         Deno.close(source.rid)
         Deno.close(target.rid)
@@ -567,12 +569,12 @@ export const FileSystem = {
         if (existingItemDoesntExist) {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItemPath}, newItem:${newItemPath}\nbut existingItem didn't actually exist`)
         } else {
-            if (force || overwrite) {
-                await FileSystem.clearAPathFor(newItemPath, {overwrite})
-            }
             const hardPathToNewItem = await FileSystem.makeHardPathTo(newItemPath)
             const hardPathToExistingItem = await FileSystem.makeHardPathTo(existingItemPath)
             const pathFromNewToExisting = Path.relative(hardPathToNewItem, hardPathToExistingItem).replace(/^\.\.\//,"") // all paths should have the "../" at the begining
+            if (force || overwrite) {
+                FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite})
+            }
             return Deno.symlink(
                 pathFromNewToExisting,
                 hardPathToNewItem,
@@ -783,35 +785,35 @@ export const FileSystem = {
         }
     },
     /**
-     * Add/set file permissions
-     *
-     * @param {String} args.path - 
-     * @param {Object|Boolean} args.recursively - 
-     * @param {Object} args.permissions - 
-     * @param {Object} args.permissions.owner - 
-     * @param {Boolean} args.permissions.owner.canRead - 
-     * @param {Boolean} args.permissions.owner.canWrite - 
-     * @param {Boolean} args.permissions.owner.canExecute - 
-     * @param {Object} args.permissions.group - 
-     * @param {Boolean} args.permissions.group.canRead - 
-     * @param {Boolean} args.permissions.group.canWrite - 
-     * @param {Boolean} args.permissions.group.canExecute - 
-     * @param {Object} args.permissions.others - 
-     * @param {Boolean} args.permissions.others.canRead - 
-     * @param {Boolean} args.permissions.others.canWrite - 
-     * @param {Boolean} args.permissions.others.canExecute - 
-     * @return {null} 
-     *
-     * @example
-     *  await FileSystem.addPermissions({
-     *      path: fileOrFolderPath,
-     *      permissions: {
-     *          owner: {
-     *              canExecute: true,
-     *          },
-     *      }
-     *  })
-     */
+    * Add/set file permissions
+    *
+    * @param {String} args.path - 
+    * @param {Object|Boolean} args.recursively - 
+    * @param {Object} args.permissions - 
+    * @param {Object} args.permissions.owner - 
+    * @param {Boolean} args.permissions.owner.canRead - 
+    * @param {Boolean} args.permissions.owner.canWrite - 
+    * @param {Boolean} args.permissions.owner.canExecute - 
+    * @param {Object} args.permissions.group - 
+    * @param {Boolean} args.permissions.group.canRead - 
+    * @param {Boolean} args.permissions.group.canWrite - 
+    * @param {Boolean} args.permissions.group.canExecute - 
+    * @param {Object} args.permissions.others - 
+    * @param {Boolean} args.permissions.others.canRead - 
+    * @param {Boolean} args.permissions.others.canWrite - 
+    * @param {Boolean} args.permissions.others.canExecute - 
+    * @return {null} 
+    *
+    * @example
+    *  await FileSystem.addPermissions({
+    *      path: fileOrFolderPath,
+    *      permissions: {
+    *          owner: {
+    *              canExecute: true,
+    *          },
+    *      }
+    *  })
+    */
     async addPermissions({path, permissions={owner:{}, group:{}, others:{}}, recursively=false}) {
         // just ensure the names exist
         permissions = { owner:{}, group:{}, others:{}, ...permissions }
@@ -869,7 +871,7 @@ export const FileSystem = {
         }
         locker[path] = true
         if (force) {
-            await FileSystem.clearAPathFor(path, { overwrite: force })
+            FileSystem.sync.clearAPathFor(path, { overwrite: force })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -881,7 +883,7 @@ export const FileSystem = {
             output = await Deno.writeTextFile(path, data)
         // assuming bytes (maybe in the future, readables and pipes will be supported)
         } else {
-           output = await Deno.writeFile(path, data)
+        output = await Deno.writeFile(path, data)
         }
         delete locker[path]
         return output
@@ -893,7 +895,7 @@ export const FileSystem = {
         locker[path] = true
 
         if (force) {
-            await FileSystem.clearAPathFor(path, { overwrite: force })
+            FileSystem.sync.clearAPathFor(path, { overwrite: force })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -941,4 +943,113 @@ export const FileSystem = {
         // now all parents are verified as real folders 
         return `${topDownPath}/${name}${extension}`
     },
+    sync: {
+        info(fileOrFolderPath, _cachedLstat=null) {
+            // compute lstat and stat before creating ItemInfo (so its async for performance)
+            let lstat = _cachedLstat
+            try {
+                lstat = Deno.lstatSync(fileOrFolderPath)
+            } catch (error) {
+                lstat = {doesntExist: true}
+            }
+
+            let stat = {}
+            if (!lstat.isSymlink) {
+                stat = {
+                    isBrokenLink: false,
+                    isLoopOfLinks: false,
+                }
+            // if symlink
+            } else {
+                try {
+                    stat = Deno.statSync(fileOrFolderPath)
+                } catch (error) {
+                    if (error.message.match(/^Too many levels of symbolic links/)) {
+                        stat.isBrokenLink = true
+                        stat.isLoopOfLinks = true
+                    } else if (error.message.match(/^No such file or directory/)) {
+                        stat.isBrokenLink = true
+                    } else {
+                        // probably a permission error
+                        // TODO: improve how this is handled
+                        throw error
+                    }
+                }
+            }
+            return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
+        },
+        remove(fileOrFolder) {
+            fileOrFolder = fileOrFolder.path || fileOrFolder
+            let exists = false
+            let item
+            try {
+                item = Deno.lstatSync(fileOrFolder)
+                exists = true
+            } catch (error) {}
+            if (exists) {
+                if (item.isFile || item.isSymlink) {
+                    return Deno.removeSync(fileOrFolder.replace(/\/+$/,""))
+                } else {
+                    return Deno.removeSync(fileOrFolder.replace(/\/+$/,""), {recursive: true})
+                }
+            }
+        },
+        moveOutOfTheWay(path, options={extension:".old"}) {
+            const {overwrite, extension} = { extension:".old", ...options }
+            const info = FileSystem.sync.info(path)
+            if (info.exists) {
+                // make sure nothing is using the new-name I just picked
+                const newPath = path+extension
+                FileSystem.sync.moveOutOfTheWay(newPath, {extension})
+                moveAndRenameSync(path, newPath)
+            }
+        },
+        ensureIsFolder(path) {
+            path = path.path || path // if given ItemInfo object
+            path = FileSystem.makeAbsolutePath(path)
+            const parentPath = Path.dirname(path)
+            // root is always a folder
+            if (parentPath == path) {
+                return
+            } 
+            // make sure parent is a folder
+            const parent = FileSystem.sync.info(parentPath)
+            if (!parent.isDirectory) {
+                FileSystem.sync.ensureIsFolder(parentPath)
+            }
+            
+            // delete files in the way
+            let pathInfo = FileSystem.sync.info(path)
+            if (pathInfo.exists && !pathInfo.isDirectory) {
+                FileSystem.sync.remove(path)
+            }
+            
+            Deno.mkdirSync(path, { recursive: true })
+            // finally create the folder
+            return path
+        },
+        clearAPathFor(path, options={overwrite:false, extension:".old"}) {
+            const {overwrite, extension} = {overwrite:false, extension:".old", ...options }
+            const originalPath = path
+            const paths = []
+            while (Path.dirname(path) !== path) {
+                paths.push(path)
+                path = Path.dirname(path)
+            }
+            for (const eachPath of paths.reverse()) {
+                const info = FileSystem.sync.info(eachPath)
+                if (!info.exists) {
+                    break
+                } else if (info.isFile) {
+                    if (overwrite) {
+                        FileSystem.sync.remove(eachPath)
+                    } else {
+                        FileSystem.sync.moveOutOfTheWay(eachPath, {extension})
+                    }
+                }
+            }
+            FileSystem.sync.ensureIsFolder(Path.dirname(originalPath))
+            return originalPath
+        },
+    }
 }
