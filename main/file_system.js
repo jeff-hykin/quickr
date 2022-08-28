@@ -611,7 +611,7 @@ export const FileSystem = {
         while (true) {
             folderList.push(Path.basename(dirname))
             // if at the top 
-            if (dirname == result.root) {
+            if (dirname == Path.basename(dirname)) {
                 break
             }
             dirname = Path.dirname(dirname)
