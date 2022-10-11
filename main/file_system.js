@@ -449,10 +449,10 @@ export const FileSystem = {
         }
         
         if (_parentsHaveBeenChecked) {
-            return path
+            return FileSystem.normalize(path)
         } else {
             // this is shallow recursive 
-            return FileSystem.makeHardPathTo(path)
+            return FileSystem.normalize(FileSystem.makeHardPathTo(path))
         }
     },
     async ensureIsFile(path) {
