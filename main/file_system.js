@@ -452,12 +452,7 @@ export const FileSystem = {
             return FileSystem.normalize(path)
         } else {
             // this is shallow recursive 
-            const result = FileSystem.makeHardPathTo(path)
-            if (typeof result == 'string') {
-                return FileSystem.normalize(result)
-            } else {
-                return result
-            }
+            return await FileSystem.makeHardPathTo(path)
         }
     },
     async ensureIsFile(path) {
@@ -946,7 +941,7 @@ export const FileSystem = {
         }
 
         // now all parents are verified as real folders 
-        return `${topDownPath}/${name}${extension}`
+        return Path.normalize(`${topDownPath}/${name}${extension}`)
     },
     sync: {
         info(fileOrFolderPath, _cachedLstat=null) {
