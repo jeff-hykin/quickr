@@ -452,7 +452,12 @@ export const FileSystem = {
             return FileSystem.normalize(path)
         } else {
             // this is shallow recursive 
-            return FileSystem.normalize(FileSystem.makeHardPathTo(path))
+            const result = FileSystem.makeHardPathTo(path)
+            if (typeof result == 'string') {
+                return FileSystem.normalize(result)
+            } else {
+                return result
+            }
         }
     },
     async ensureIsFile(path) {
