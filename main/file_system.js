@@ -403,7 +403,7 @@ export const FileSystem = {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""), {recursive: true})
         }
     },
-    normalize: Path.normalize,
+    normalize: (path)=>Path.normalize(path.path||path),
     isAbsolutePath: Path.isAbsolute,
     isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
