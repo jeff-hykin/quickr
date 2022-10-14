@@ -688,10 +688,10 @@ export const FileSystem = {
         }
     },
     async listFilePathsIn(pathOrFileInfo, options={treatAllSymlinksAsFiles:false}) {
-        return (await FileSystem.listItemsIn(pathOrFileInfo, options)).map(each=>each.path)
+        return (await FileSystem.listFileItemsIn(pathOrFileInfo, options)).map(each=>each.path)
     },
     async listFileBasenamesIn(pathOrFileInfo, options={treatAllSymlinksAsFiles:false}) {
-        return (await FileSystem.listItemsIn(pathOrFileInfo, options)).map(each=>each.basename)
+        return (await FileSystem.listFileItemsIn(pathOrFileInfo, options)).map(each=>each.basename)
     },
     
     async listFolderItemsIn(pathOrFileInfo, options={ignoreSymlinks:false}) {
@@ -704,10 +704,10 @@ export const FileSystem = {
         }
     },
     async listFolderPathsIn(pathOrFileInfo, options={ignoreSymlinks:false}) {
-        return (await FileSystem.listItemsIn(pathOrFileInfo, options)).map(each=>each.path)
+        return (await FileSystem.listFolderItemsIn(pathOrFileInfo, options)).map(each=>each.path)
     },
     async listFolderBasenamesIn(pathOrFileInfo, options={ignoreSymlinks:false}) {
-        return (await FileSystem.listItemsIn(pathOrFileInfo, options)).map(each=>each.basename)
+        return (await FileSystem.listFolderItemsIn(pathOrFileInfo, options)).map(each=>each.basename)
     },
     async * recursivelyIterateItemsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity }) {
         // merge defaults
