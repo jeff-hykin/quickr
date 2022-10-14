@@ -112,27 +112,6 @@ class ItemInfo {
             return null
         }
     }
-    get pathToNextTarget() {
-        const lstat = this.lstat
-        if (lstat.isSymlink) {
-            const relativeOrAbsolutePath = Deno.readLinkSync(this.path)
-            if (Path.isAbsolute(relativeOrAbsolutePath)) {
-                return relativeOrAbsolutePath
-            } else {
-                return `${FileSystem.parentPath(this.path)}/${relativeOrAbsolutePath}`
-            }
-        } else {
-            return this.path
-        }
-    }
-    get nextTarget() {
-        const lstat = this.lstat
-        if (lstat.isSymlink) {
-            return new ItemInfo({path:this.pathToNextTarget})
-        } else {
-            return this
-        }
-    }
     get isSymlink() {
         const lstat = this.lstat
         return !!lstat.isSymlink
@@ -230,7 +209,6 @@ class ItemInfo {
             extension: this.extension,
             basename: this.basename,
             parentPath: this.parentPath,
-            pathToNextTarget: this.pathToNextTarget,
             isSymlink: this.isSymlink,
             isBrokenLink: this.isBrokenLink,
             isLoopOfLinks: this.isLoopOfLinks,
@@ -403,7 +381,7 @@ export const FileSystem = {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""), {recursive: true})
         }
     },
-    normalize: Path.normalize,
+    normalize: (path)=>Path.normalize(path.path||path),
     isAbsolutePath: Path.isAbsolute,
     isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
@@ -415,23 +393,27 @@ export const FileSystem = {
         }
     },
     async finalTargetOf(path, options={}) {
-        const { _parentsHaveBeenChecked } = { _parentsHaveBeenChecked: false , ...options }
+        const { _parentsHaveBeenChecked, cache } = { _parentsHaveBeenChecked: false , cache: {}, ...options }
+        const originalWasItem = path instanceof ItemInfo
         path = (path.path || path) // if given ItemInfo object
         let result = await Deno.lstat(path).catch(()=>({doesntExist: true}))
         if (result.doesntExist) {
             return null
         }
-        
+    
         // 
         // naively follow the path chain to build up a full chain
         // 
-        const pathChain = [ FileSystem.makeAbsolutePath(path) ]
+        path = await FileSystem.makeHardPathTo(path, {cache})
+        const pathChain = []
         while (result.isSymlink) {
             // get the path to the target
             const relativeOrAbsolutePath = await Deno.readLink(path)
             if (Path.isAbsolute(relativeOrAbsolutePath)) {
+                // absolute
                 path = relativeOrAbsolutePath
             } else {
+                // relative
                 path = `${FileSystem.parentPath(path)}/${relativeOrAbsolutePath}`
             }
             result = await Deno.lstat(path).catch(()=>({doesntExist: true}))
@@ -439,20 +421,48 @@ export const FileSystem = {
             if (result.doesntExist) {
                 return null
             }
-            // check for infinite loops (normalizes and makes absolute)
-            const absolutePath = FileSystem.makeAbsolutePath(path)
-            if (pathChain.includes(absolutePath)) {
+            // regardless of if absolute or relative, we need to re-harden
+            path = await FileSystem.makeHardPathTo(path, {cache})
+            if (pathChain.includes(path)) {
                 // circular loop of links
                 return null
             }
-            pathChain.push(absolutePath)
+            pathChain.push(path)
         }
-        
-        if (_parentsHaveBeenChecked) {
-            return path
+
+        path = FileSystem.normalize(path)
+        if (originalWasItem) {
+            return new ItemInfo({path})
         } else {
-            // this is shallow recursive 
-            return FileSystem.makeHardPathTo(path)
+            return path
+        }
+    },
+    async nextTargetOf(path, options={}) {
+        const originalWasItem = path instanceof ItemInfo
+        const item = originalWasItem ? path : new ItemInfo({path})
+        const lstat = item.lstat
+        if (lstat.isSymlink) {
+            const relativeOrAbsolutePath = Deno.readLinkSync(item.path)
+            if (Path.isAbsolute(relativeOrAbsolutePath)) {
+                if (originalWasItem) {
+                    return new ItemInfo({path:relativeOrAbsolutePath})
+                } else {
+                    return relativeOrAbsolutePath
+                }
+            } else {
+                const path = `${await FileSystem.makeHardPathTo(Path.dirname(item.path))}/${relativeOrAbsolutePath}`
+                if (originalWasItem) {
+                    return new ItemInfo({path})
+                } else {
+                    return path
+                }
+            }
+        } else {
+            if (originalWasItem) {
+                return item
+            } else {
+                return item.path
+            }
         }
     },
     async ensureIsFile(path) {
@@ -967,15 +977,24 @@ export const FileSystem = {
         await file.close()
         delete locker[path]
     },
-    async makeHardPathTo(path) {
+    async makeHardPathTo(path, options={}) {
+        var { cache } = { cache:{}, ...options}
+        if (cache[path]) {
+            return cache[path]
+        }
         // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
         const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
         let topDownPath = ``
         for (const eachFolderName of folders) {
             topDownPath += `/${eachFolderName}`
+            if (cache[topDownPath]) {
+                topDownPath = cache[topDownPath]
+                continue
+            }
+            const unchangedPath = topDownPath
             const info = await FileSystem.info(topDownPath)
             if (info.isSymlink) {
-                const absolutePathToIntermediate = await FileSystem.finalTargetOf(info, {_parentsHaveBeenChecked: true})
+                const absolutePathToIntermediate = await FileSystem.finalTargetOf(info.path, {_parentsHaveBeenChecked: true, cache })
                 // shouldn't be true/possible outside of a race condition, but good to handle it anyways
                 if (absolutePathToIntermediate == null) {
                     return null
@@ -989,11 +1008,15 @@ export const FileSystem = {
                 })
                 // replace it with the real intermediate path
                 topDownPath += `/${relativePath}`
+                topDownPath = Path.normalize(topDownPath)
             }
+            cache[unchangedPath] = topDownPath
         }
-
+        const hardPath = Path.normalize(`${topDownPath}/${name}${extension}`)
+        cache[path] = hardPath
+        
         // now all parents are verified as real folders 
-        return `${topDownPath}/${name}${extension}`
+        return hardPath
     },
     sync: {
         info(fileOrFolderPath, _cachedLstat=null) {
