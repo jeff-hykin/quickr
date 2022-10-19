@@ -3,6 +3,8 @@ import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
+import { pooledMap } from "https://deno.land/std@0.159.0/async/mod.ts?s=pooledMap";
+import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.3/iterable.js"
 
 // TODO:
     // handling relative symbolic links for the move command 
@@ -24,6 +26,7 @@ import { findAll } from "https://deno.land/x/good@0.5.1/string.js"
     // readStream
     // username with Deno.getUid()
 
+const emptyIterator = (async function *() {})()
 const cache = {}
 
 class ItemInfo {
@@ -629,34 +632,29 @@ export const FileSystem = {
         folderList.reverse()
         return [ folderList, result.name, result.ext ]
     },
-    async listPathsIn(pathOrFileInfo){
+    async * iteratePathsIn(pathOrFileInfo){
         const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
-        // if not folder (includes if it doesn't exist)
-        if (!info.isFolder) {
-            return []
+        // if file or doesnt exist
+        if (info.isFolder) {
+            for await (const each of Deno.readDir(pathOrFileInfo.path)) {
+                yield Path.join(pathOrFileInfo.path, dirEntry.name)
+            }
         }
-
-        const path = info.path
-        const results = []
-        for await (const dirEntry of Deno.readDir(path)) {
-            const eachPath = Path.join(path, dirEntry.name)
-            results.push(eachPath)
-        }
-        return results
     },
-    async listBasenamesIn(pathOrFileInfo){
+    listPathsIn(pathOrFileInfo){
+        return asyncIteratorToList(FileSystem.iteratePathsIn(pathOrFileInfo))
+    },
+    async * iterateBasenamesIn(pathOrFileInfo){
         const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
-        // if not folder (includes if it doesn't exist)
-        if (!info.isFolder) {
-            return []
+        // if file or doesnt exist
+        if (info.isFolder) {
+            for await (const each of Deno.readDir(pathOrFileInfo.path)) {
+                yield dirEntry.name
+            }
         }
-
-        const path = info.path
-        const results = []
-        for await (const dirEntry of Deno.readDir(path)) {
-            results.push(dirEntry.name)
-        }
-        return results
+    },
+    listBasenamesIn(pathOrFileInfo) {
+        return asyncIteratorToList(FileSystem.iterateBasenamesIn(pathOrFileInfo))
     },
     // TODO: make iteratePathsIn() that returns an async generator
     //       and make all these listing methods way more efficient in the future
