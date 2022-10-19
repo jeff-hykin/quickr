@@ -1,6 +1,6 @@
 import { chalk } from "../dependencies/chalk.js"
 import { OperatingSystem } from "./operating_system.js"
-import { toString } from "https://deno.land/x/good@0.5.7/string.js"
+import { toString } from "https://deno.land/x/good@0.7.6/string.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'

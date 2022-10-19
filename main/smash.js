@@ -1,8 +1,8 @@
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.5.1/events.js"
-import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.5.1/array.js"
-import { capitalize, indent, toCamelCase, numberToEnglishArray, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.5.1/string.js"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.6/events.js"
+import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.7.6/array.js"
+import { capitalize, indent, toCamelCase, numberToEnglishArray, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.7.6/string.js"
 import { OperatingSystem } from "./operating_system.js"
-import { intersection, subtract } from "https://deno.land/x/good@0.5.15/set.js"
+import { intersection, subtract } from "https://deno.land/x/good@0.7.65/set.js"
 
 const notGiven = Symbol()
 const taskSymbol = Symbol("task")
