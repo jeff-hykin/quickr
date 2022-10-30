@@ -375,7 +375,7 @@ export const FileSystem = {
     async remove(fileOrFolder) {
         fileOrFolder = fileOrFolder.path || fileOrFolder
         const itemInfo = await FileSystem.info(fileOrFolder)
-        if (itemInfo.isFile) {
+        if (itemInfo.isFile || itemInfo.isSymlink) {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""))
         } else if (itemInfo.exists) {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""), {recursive: true})
