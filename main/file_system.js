@@ -612,7 +612,9 @@ export const FileSystem = {
         if (existingItemDoesntExist) {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItemPath}, newItem:${newItemPath}\nbut existingItem didn't actually exist`)
         } else {
-            const hardPathToNewItem = await FileSystem.makeHardPathTo(newItemPath)
+            const parentOfNewItem = FileSystem.parentPath(newItemPath)
+            await FileSystem.ensureIsFolder(parentOfNewItem)
+            const hardPathToNewItem = `${await FileSystem.makeHardPathTo(parentOfNewItem)}/${FileSystem.basename(newItemPath)}`
             const hardPathToExistingItem = await FileSystem.makeHardPathTo(existingItemPath)
             const pathFromNewToExisting = Path.relative(hardPathToNewItem, hardPathToExistingItem).replace(/^\.\.\//,"") // all paths should have the "../" at the begining
             if (force || overwrite) {
