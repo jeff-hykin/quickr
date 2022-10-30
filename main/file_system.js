@@ -370,7 +370,7 @@ export const FileSystem = {
         //          however "inside" and "outside" are difficult because folders can be symlinks.
         //              So find the absolute path to the target, check if that hard path is external or internal
         //          another edgecase is what if the folder contains a symlink with an absolute path of the folder being moved (or something inside of the folder being moved)
-        await moveAndRename(item, newPath)
+        await moveAndRename(oldPath, newPath)
     },
     async remove(fileOrFolder) {
         fileOrFolder = fileOrFolder.path || fileOrFolder
@@ -869,7 +869,7 @@ export const FileSystem = {
     // includes symlinks if they link to files and pipes
     async listFileItemsIn(pathOrFileInfo, options={treatAllSymlinksAsFiles:false}) {
         const { treatAllSymlinksAsFiles } = {treatAllSymlinksAsFiles:false, ...options}
-        const items = await FileSystem.listItemsIn(pathOrFileInfo)
+        const items = await FileSystem.listItemsIn(pathOrFileInfo, options)
         if (treatAllSymlinksAsFiles) {
             return items.filter(eachItem=>(eachItem.isFile || (treatAllSymlinksAsFiles && eachItem.isSymlink)))
         } else {
@@ -884,7 +884,7 @@ export const FileSystem = {
     },
     async listFolderItemsIn(pathOrFileInfo, options={ignoreSymlinks:false}) {
         const { ignoreSymlinks } = {ignoreSymlinks:false, ...options}
-        const items = await FileSystem.listItemsIn(pathOrFileInfo)
+        const items = await FileSystem.listItemsIn(pathOrFileInfo, options)
         if (ignoreSymlinks) {
             return items.filter(eachItem=>(eachItem.isFolder && !eachItem.isSymlink))
         } else {
