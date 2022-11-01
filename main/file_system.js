@@ -1003,15 +1003,15 @@ export const FileSystem = {
         // 
         // set bits for the corrisponding permissions
         // 
-        if (permissions.owner.canRead    ) { permissionNumber = permissionNumber | 0b0100000000 }
-        if (permissions.owner.canWrite   ) { permissionNumber = permissionNumber | 0b0010000000 }
-        if (permissions.owner.canExecute ) { permissionNumber = permissionNumber | 0b0001000000 }
-        if (permissions.group.canRead    ) { permissionNumber = permissionNumber | 0b0000100000 }
-        if (permissions.group.canWrite   ) { permissionNumber = permissionNumber | 0b0000010000 }
-        if (permissions.group.canExecute ) { permissionNumber = permissionNumber | 0b0000001000 }
-        if (permissions.others.canRead   ) { permissionNumber = permissionNumber | 0b0000000100 }
-        if (permissions.others.canWrite  ) { permissionNumber = permissionNumber | 0b0000000010 }
-        if (permissions.others.canExecute) { permissionNumber = permissionNumber | 0b0000000001 }
+        if (permissions.owner.canRead     != null ) { if (permissions.owner.canRead)     { permissionNumber |= 0b0100000000 } else { permissionNumber &= 0b1011111111 } }
+        if (permissions.owner.canWrite    != null ) { if (permissions.owner.canWrite)    { permissionNumber |= 0b0010000000 } else { permissionNumber &= 0b1101111111 } }
+        if (permissions.owner.canExecute  != null ) { if (permissions.owner.canExecute)  { permissionNumber |= 0b0001000000 } else { permissionNumber &= 0b1110111111 } }
+        if (permissions.group.canRead     != null ) { if (permissions.group.canRead)     { permissionNumber |= 0b0000100000 } else { permissionNumber &= 0b1111011111 } }
+        if (permissions.group.canWrite    != null ) { if (permissions.group.canWrite)    { permissionNumber |= 0b0000010000 } else { permissionNumber &= 0b1111101111 } }
+        if (permissions.group.canExecute  != null ) { if (permissions.group.canExecute)  { permissionNumber |= 0b0000001000 } else { permissionNumber &= 0b1111110111 } }
+        if (permissions.others.canRead    != null ) { if (permissions.others.canRead)    { permissionNumber |= 0b0000000100 } else { permissionNumber &= 0b1111111011 } }
+        if (permissions.others.canWrite   != null ) { if (permissions.others.canWrite)   { permissionNumber |= 0b0000000010 } else { permissionNumber &= 0b1111111101 } }
+        if (permissions.others.canExecute != null ) { if (permissions.others.canExecute) { permissionNumber |= 0b0000000001 } else { permissionNumber &= 0b1111111110 } }
         
         // 
         // actually set the permissions
