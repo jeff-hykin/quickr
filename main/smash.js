@@ -3,6 +3,8 @@ import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "htt
 import { capitalize, indent, toCamelCase, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.7.8/string.js"
 import { OperatingSystem } from "./operating_system.js"
 import { intersection, subtract } from "https://deno.land/x/good@0.7.8/set.js"
+import { allKeys } from "https://deno.land/x/good@0.7.8/object.js"
+import { FlowingString, toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "./stream_tools.js"
 
 const notGiven = Symbol()
 const taskSymbol = Symbol("task")
@@ -28,19 +30,21 @@ const taskSymbol = Symbol("task")
 // 
 // clean/core logic
 // 
-export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive}) {
+export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive, onPartialOutput }) {
     console.debug("simpleRun called with", { command, stdin, stdout, stderr, out, cwd, env, interactive })
     const debuggingString = getDebuggingString(...command) // for making error messages more helpful
     if (!interactive) {
-        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
+        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString, onPartialOutput })
         console.debug("simpleRun standardizedInputs", { command, stdin, stdout, stderr, out, cwd, env })
+        const stdoutIsNull = !(stdout?.overwrite?.length || stdout?.appendTo?.length)
+        const stderrIsNull = !(stderr?.overwrite?.length || stderr?.appendTo?.length)
         let process  = Deno.run({
             cmd: command.filter(each=>(typeof each == 'string')),
             env,
             cwd,
             stdin: stdin.from.length ? 'piped' : 'null',
-            stdout: stdout.overwrite.length || stdout.appendTo.length ? 'piped' : 'null',
-            stderr: stderr.overwrite.length || stderr.appendTo.length ? 'piped' : 'null',
+            stdout: stdoutIsNull ? 'null' : 'piped',
+            stderr: stderrIsNull ? 'null' : 'piped',
         })
         
         // 
@@ -55,12 +59,15 @@ export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, inter
         // 
         mapOutToStreams(process.stdout, process.stderr, stdoutTargets, stderrTargets)
         mapInToStream(process.stdin, stdinSource)
+        
+        // FIXME: stdin control for process
 
-        process.result = process.status().then((value)=>({
+        // FIXME test Deno.stdout to see if it causes a problem (see if it tries to close Deno.stdout)
+        process.result = process.status().then(async (value)=>({
             ...process,
             ...value,
-            stdout: null, // FIXME: make these be strings
-            stderr: null, // FIXME: make these be strings
+            stdoutString: stdoutIsNull ? null : await stdoutTargets.slice(-1)[0].string,
+            stderrString: stderrIsNull ? null : await stderrTargets.slice(-1)[0].string,
         }))
         
         return process
@@ -220,15 +227,7 @@ const synchronousMethods = (thisTask, outputPromise) => ({
 // details
 // 
 // 
-    function standardizeInputs({ command=notGiven, stdin=notGiven, stdout=notGiven, stderr=notGiven, out=notGiven, cwd=notGiven, env=notGiven, debuggingString=notGiven }) {
-        const simplified = {
-            stdin: null,
-            stdout: null,
-            stderr: null,
-            cwd: null,
-            env: null,
-        }
-
+    function standardizeInputs({ command=notGiven, stdin=notGiven, stdout=notGiven, stderr=notGiven, out=notGiven, cwd=notGiven, env=notGiven, debuggingString=notGiven, onPartialOutput=()=>0 }) {
         // 
         // command
         // 
@@ -249,8 +248,13 @@ const synchronousMethods = (thisTask, outputPromise) => ({
         if (stdout == notGiven && out == notGiven) {
             stdout = {
                 overwrite: [],
-                appendTo: [ Deno.stdout ],
+                appendTo: [ new FlowingString({ onWrite: onPartialOutput }) ],
             }
+        // always add a listener stream
+        } else if (stdout?.appendTo?.length > 0) {
+            stdout.appendTo.push(
+                new FlowingString({ onWrite: onPartialOutput })
+            )
         }
         
         // 
@@ -259,8 +263,13 @@ const synchronousMethods = (thisTask, outputPromise) => ({
         if (stderr == notGiven && out == notGiven) {
             stderr = {
                 overwrite: [],
-                appendTo: [ Deno.stderr ],
+                appendTo: [ new FlowingString({ onWrite: onPartialOutput }) ],
             }
+        // always add a listener stream
+        } else if (stderr?.appendTo?.length > 0) {
+            stderr.appendTo.push(
+                new FlowingString({ onWrite: onPartialOutput })
+            )
         }
 
         // 
@@ -478,7 +487,6 @@ const synchronousMethods = (thisTask, outputPromise) => ({
 // streams
 // 
 // 
-import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "./stream_tools.js"
 
     // 
     // stdin 

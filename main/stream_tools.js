@@ -1,6 +1,8 @@
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
+import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async/mod.ts"
 
+// TODO: move this whole file to good-js
 
 export {
     zipReadableStreams as zipReadableStreams,
@@ -70,6 +72,42 @@ export function toWritableStream(value, overwrite=true) {
     }
 }
 
+export class FlowingString extends WritableStream {
+    constructor(arg={ onWrite:null, onError:null, onClose:null }) {
+        super(
+            {
+                write: (chunk) => {
+                    if (!(chunk instanceof Uint8Array)) {
+                        const view = new Uint8Array(new ArrayBuffer(1))
+                        view[0] = chunk
+                        chunk = view
+                    }
+                    console.debug(`chunk is:`,chunk)
+                    console.debug(`chunk is:${chunk}`,)
+                    const decoded = this._decoder.decode(chunk, { stream: true })
+                    this._string += decoded
+                    arg.onWrite && arg.onWrite(decoded, this._string, chunk)
+                },
+                close: () => {
+                    this.string.resolve(this._string)
+                    arg.onClose && arg.onClose(this._string)
+                },
+                abort(err) {
+                    this.string.reject(err)
+                    if (!arg.onError || !arg.onError(err)) {
+                        throw err
+                    }
+                }
+            },
+            new CountQueuingStrategy({ highWaterMark: 1 }),
+        )
+        
+        this._string = ""
+        this._decoder = new TextDecoder("utf-8")
+        this.string = deferredPromise()
+    }
+}
+
 export function duplicateReadableStream({stream, numberOfDuplicates}) {
     // slightly complicated because tee-ing a stream kind of destroys the original 
     // and its better to tee in a branching way than in a all-on-one-side way (BFS-style not DFS-style)
@@ -83,7 +121,6 @@ export function duplicateReadableStream({stream, numberOfDuplicates}) {
         // take off the front of the que (back of the list), create two more items (tee) put them at the back of the que (front of the list)
         streamSplitterQue = streamSplitterQue.pop().tee().concat(streamSplitterQue)
     }
-    console.debug(`streamSplitterQue is:`,streamSplitterQue)
     // now we should have the appropriate number of streams
     return streamSplitterQue
 }
