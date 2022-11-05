@@ -2,8 +2,8 @@ import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync } from "https://deno.land/std@0.133.0/fs/mod.ts"
-import { findAll } from "https://deno.land/x/good@0.7.6/string.js"
-import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.6/iterable.js"
+import { findAll } from "https://deno.land/x/good@0.7.8/string.js"
+import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.8/iterable.js"
 
 // TODO:
     // handling relative symbolic links for the move command 

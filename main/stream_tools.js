@@ -73,7 +73,6 @@ export async function toWritableStream(value, overwrite=true) {
 export function duplicateReadableStream({stream, numberOfDuplicates}) {
     // slightly complicated because tee-ing a stream kind of destroys the original 
     // and its better to tee in a branching way than in a all-on-one-side way (BFS-style not DFS-style)
-    const duplicates = []
     let streamSplitterQue = []
     // init the que
     if (numberOfDuplicates > 0) {
@@ -84,6 +83,7 @@ export function duplicateReadableStream({stream, numberOfDuplicates}) {
         // take off the front of the que (back of the list), create two more items (tee) put them at the back of the que (front of the list)
         streamSplitterQue = streamSplitterQue.pop().tee().concat(streamSplitterQue)
     }
+    console.debug(`streamSplitterQue is:`,streamSplitterQue)
     // now we should have the appropriate number of streams
     return streamSplitterQue
 }
