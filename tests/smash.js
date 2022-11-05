@@ -1,8 +1,10 @@
 #!/usr/bin/env -S deno run --allow-all
-const { run, } = await import(`../main/smash.js`)
+const { run, simpleRun } = await import(`../main/smash.js`)
 
 // runs async
-run("echo", "hello")
+var process = simpleRun({command: ["echo", "hello"]})
+console.debug(`process is:`,process)
+console.debug(`await process is:`,await process.result)
 
 // // wait for a command
 // await run("echo", "hello")

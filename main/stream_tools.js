@@ -29,7 +29,7 @@ export function toReadableStream(value) {
         throw Error(`The argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${value}\n\n`)
     }
 }
-export async function toWritableStream(value, overwrite=true) {
+export function toWritableStream(value, overwrite=true) {
     // values that are alread writeable streams
     if (value instanceof WritableStream) {
         return value
@@ -40,9 +40,9 @@ export async function toWritableStream(value, overwrite=true) {
         if (overwrite) {
             if (typeof value == 'string') {
                 // ensure parent folders exist
-                await FileSystem.clearAPathFor(value, {overwrite: true})
+                FileSystem.sync.clearAPathFor(value, {overwrite: true})
                 // convert string to a folder
-                value = await Deno.open(value, {write: true, truncate: true, create: true})
+                value = Deno.openSync(value, {write: true, truncate: true, create: true})
             }
 
             if (value instanceof Deno.File) {
@@ -54,15 +54,15 @@ export async function toWritableStream(value, overwrite=true) {
         } else {
             if (typeof value == 'string') {
                 // ensure parent folders exist
-                await FileSystem.ensureIsFolder(FileSystem.parentPath(value))
+                FileSystem.sync.ensureIsFolder(FileSystem.parentPath(value))
                 // convert string to a folder
-                value = await Deno.open(value, {write: true, create: true})
-                // FIXME: this file never gets closed! its hard to close because if its used outside of this library too, closing it will cause an error. Need a way to check on it
+                value = Deno.openSync(value, {write: true, create: true})
+                // FIXME: this file never gets closed! its hard to close because if it was opened outside of this library, then closing after the command would close it early and cause an error. Need a way to check on it
             }
             
             if (value instanceof Deno.File) {
                 // go to the end of a file (meaning everthing will be appended)
-                await Deno.seek(value.rid, 0, Deno.SeekMode.End)
+                Deno.seekSync(value.rid, 0, Deno.SeekMode.End)
             } else {
                 throw Error(`The argument can be a string path, a file (Deno.open("./path")), or any writable object (like Deno.stdout or the .stdin of an interactive command)\nbut instead of any of those I received:\n    ${value}\n\n`)
             }
