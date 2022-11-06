@@ -42,7 +42,7 @@ export const OperatingSystem = {
     },
     architecture: Deno.build.architecture,
     get versionArray() {
-        return new Promise((resolve, reject)=>{
+        return new Promise(async (resolve, reject)=>{
             let versionArray = []
             if (OperatingSystem.commonChecks.isWindows) {
                 try {
