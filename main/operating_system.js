@@ -1,29 +1,36 @@
-import { run } from "./run.js"
+const cache = {}
 
-// must be done at the top to prevent other things from being async
-let versionArray = []
-if (Deno.build.os === "windows") {
-    try {
-        const windowsVersionString = await run("pwsh", "-Command", `[System.Environment]::OSVersion.Version`, run.Stdout(run.returnAsString))
-        versionArray = windowsVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
-    } catch (error) {
-        console.warn(`unable to get version string for Windows: ${error.message}`)
-    }
-} else if (Deno.build.os === "darwin") {
-    try {
-        const macVersionString = await run("/usr/bin/sw_vers","-productVersion", run.Stdout(run.returnAsString))
-        versionArray = macVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
-    } catch (error) {
-        console.warn(`unable to get version string for MacOS: ${error.message}`)
-    }
+const stdoutRun = async (args)=>{
+    const process = Deno.run({cmd: args, stdout: 'piped', stderr: 'piped'})
+    const output = await process.output()
+    return (new TextDecoder()).decode(output).replace(/\n$/,"")
 }
 
-const cache = {}
 export const OperatingSystem = {
     commonChecks: {
         isMac: Deno.build.os=="darwin",
         isWindows: Deno.build.os=="windows",
         isLinux: Deno.build.os=="linux",
+        get isWsl() {
+            if (cache.isWsl != null) {
+                return cache.isWsl
+            }
+            // if Linux or other
+            if (!(OperatingSystem.commonChecks.isMac || OperatingSystem.commonChecks.isWindows)) {
+                // this is not always set, but its probably the fastest way to check
+                if (Deno.env.get("WSLENV")) {
+                    return cache.isWsl = true
+                }
+                try {
+                    // check for C drive, NOTE: this is not an extremely rigorous test
+                    // however a more rigorous test would require running Deno.run, which is async, and would make this whole getter async
+                    const { isFile } = Deno.lstatSync("/mnt/c")
+                    return cache.isWsl = true
+                // => /mnt/c didnt exist
+                } catch (error) {}
+            }
+            return cache.isWsl = false
+        }
     },
     commonName: ({
         "darwin": "MacOS",
@@ -34,7 +41,33 @@ export const OperatingSystem = {
         commonName: Deno.build.os
     },
     architecture: Deno.build.architecture,
-    versionArray,
+    get versionArray() {
+        return new Promise((resolve, reject)=>{
+            let versionArray = []
+            if (OperatingSystem.commonChecks.isWindows) {
+                try {
+                    const windowsVersionString = await stdoutRun([ "pwsh", "-Command", `[System.Environment]::OSVersion.Version` ])
+                    versionArray = windowsVersionString.replace(/^[\w\W]*?(\d+\.\d+\.\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+                } catch (error) {
+                    console.warn(`unable to get version string for Windows: ${error.message}`)
+                }
+            } else if (OperatingSystem.commonChecks.isMac) {
+                try {
+                    const macVersionString = await stdoutRun([ "/usr/bin/sw_vers","-productVersion" ])
+                    versionArray = macVersionString.replace(/^[\w\W]*?(\d+\.\d+(\.\d+)?)[\w\W]*/,"$1").split('.').map(each=>each-0)
+                } catch (error) {
+                    console.warn(`unable to get version string for MacOS: ${error.message}`)
+                }
+            } else {
+                try {
+                    const outputString = await stdoutRun([ "uname","-r" ])
+                    versionArray = outputString.replace(/^[\w\W]*?((\d+\.)+\d+)[\w\W]*/,"$1").split('.').map(each=>each-0)
+                } catch (error) {
+                    console.warn(`unable to get version string for Linux: ${error.message}`)
+                }
+            }
+        })
+    },
     get username() {
         if (!cache.username) {
             if (Deno.build.os!="windows") {
@@ -58,9 +91,9 @@ export const OperatingSystem = {
         return cache.home
     },
     async idForUsername(username) {
-        if (Deno.build.os === "darwin") {
+        if (OperatingSystem.commonChecks.isMac) {
             if (!cache.macOsUserToUid) {
-                const userListString = await run("dscl",".", "-list", "/Users", "UniqueID", run.Stdout(run.returnAsString))
+                const userListString = await stdoutRun(["dscl",".", "-list", "/Users", "UniqueID"])
                 const userList = userListString.split(/\n/)
                 const userNamesAndIds = userList.map(each=>{
                     const match = each.match(/(.+?)(-?\d+)$/,"$1")
@@ -75,10 +108,10 @@ export const OperatingSystem = {
                 cache.macOsUidToUser = Object.fromEntries(idsAndUsernames)
             }
             return cache.macOsUserToUid[username]
-        } else if (Deno.build.os === "windows") {
-            return await run('pwsh', '-Command', `Get-ADUser -Identity '${username.replace(/'/,"''")}' | select SID`, run.Stdout(run.returnAsString))
-        } else if (Deno.build.os === "linux") {
-            return await run('id', '-u', OperatingSystem.username, run.Stdout(run.returnAsString))
+        } else if (OperatingSystem.commonChecks.isWindows) {
+            return await stdoutRun(['pwsh', '-Command', `Get-ADUser -Identity '${username.replace(/'/,"''")}' | select SID`])
+        } else if (OperatingSystem.commonChecks.isLinux) {
+            return await stdoutRun(['id', '-u', OperatingSystem.username,])
         }
     },
 }
