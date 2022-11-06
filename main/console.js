@@ -318,6 +318,7 @@ export const Console = {
     env: env,
     disableColorIfNonIteractive: true,
     askFor: {
+        // in the future once Deno.setRaw is stable, add a askFor.password using: https://github.com/caspervonb/deno-prompts
         line(question) {
             return prompt(question)
         },
