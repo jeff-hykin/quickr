@@ -1,6 +1,7 @@
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async/mod.ts"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
 
 // TODO: move this whole file to good-js
 
@@ -82,19 +83,17 @@ export class FlowingString extends WritableStream {
                         view[0] = chunk
                         chunk = view
                     }
-                    console.debug(`chunk is:`,chunk)
-                    console.debug(`chunk is:${chunk}`,)
                     const decoded = this._decoder.decode(chunk, { stream: true })
+                    trigger(this.writeEvent, decoded, chunk, this).catch(error=>console.error(`There was an error when a FlowingString called a callback for the write event.\nThe error was this error: ${error.message}\nThe callback was one of these functions: ${[...this.writeEvent].map(each=>each.toString()).join("\n\n")}`))
                     this._string += decoded
-                    arg.onWrite && arg.onWrite(decoded, this._string, chunk)
                 },
                 close: () => {
+                    trigger(this.closeEvent, this._string, this).catch(error=>console.error(`There was an error when a FlowingString called a callback for the close event.\nThe error was this error: ${error.message}\nThe callback was one of these functions: ${[...this.closeEvent].map(each=>each.toString()).join("\n\n")}`))
                     this.string.resolve(this._string)
-                    arg.onClose && arg.onClose(this._string)
                 },
                 abort(err) {
-                    this.string.reject(err)
-                    if (!arg.onError || !arg.onError(err)) {
+                    trigger(this.errorEvent, err).catch(error=>console.error(`There was an error when a FlowingString called a callback for the error event.\nHowever the callback itself threw an error: ${error.message}\nThe callback was one of these functions: ${[...this.errorEvent].map(each=>each.toString()).join("\n\n")}`))
+                    if (!this.onError || !this.onError(err)) {
                         throw err
                     }
                 }
@@ -102,6 +101,9 @@ export class FlowingString extends WritableStream {
             new CountQueuingStrategy({ highWaterMark: 1 }),
         )
         
+        this.writeEvent = new Event(arg.onWrite ? [ arg.onWrite ] :  [])
+        this.closeEvent = new Event(arg.onClose ? [ arg.onClose ] :  [])
+        this.errorEvent = new Event(arg.onError ? [ arg.onError ] :  [])
         this._string = ""
         this._decoder = new TextDecoder("utf-8")
         this.string = deferredPromise()

@@ -30,11 +30,11 @@ const taskSymbol = Symbol("task")
 // 
 // clean/core logic
 // 
-export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive, onPartialOutput }) {
+export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
     console.debug("simpleRun called with", { command, stdin, stdout, stderr, out, cwd, env, interactive })
     const debuggingString = getDebuggingString(...command) // for making error messages more helpful
     if (!interactive) {
-        var { command, stdin, stdout, stderr, out, cwd, env } = standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString, onPartialOutput })
+        var { command, stdin, stdout, stderr, out, cwd, env, stdoutFlow, stderrFlow, outFlow } = standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString, })
         console.debug("simpleRun standardizedInputs", { command, stdin, stdout, stderr, out, cwd, env })
         const stdoutIsNull = !(stdout?.overwrite?.length || stdout?.appendTo?.length)
         const stderrIsNull = !(stderr?.overwrite?.length || stderr?.appendTo?.length)
@@ -61,13 +61,26 @@ export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, inter
         mapInToStream(process.stdin, stdinSource)
         
         // FIXME: stdin control for process
-
+        // FIXME: allow stdoutFlow to be the stdin of another process
+        process.out = outFlow
+        process.stdout = stdoutFlow
+        process.stderr = stderrFlow
+        // FIXME: signals
+        // FIXME: for stdin, add a listener to stdout, 
+            // call 
+            // p.stdout.stat()
+            // Promise {
+            // <rejected> BadResource: Bad resource ID
+            //     at async fstat (deno:runtime/js/30_fs.js:210:26)
+            // }
+        
         // FIXME test Deno.stdout to see if it causes a problem (see if it tries to close Deno.stdout)
         process.result = process.status().then(async (value)=>({
             ...process,
             ...value,
-            stdoutString: stdoutIsNull ? null : await stdoutTargets.slice(-1)[0].string,
-            stderrString: stderrIsNull ? null : await stderrTargets.slice(-1)[0].string,
+            outString: await outFlow?.string,
+            stdoutString: await stdoutFlow?.string,
+            stderrString: await stderrFlow?.string,
         }))
         
         return process
@@ -227,7 +240,7 @@ const synchronousMethods = (thisTask, outputPromise) => ({
 // details
 // 
 // 
-    function standardizeInputs({ command=notGiven, stdin=notGiven, stdout=notGiven, stderr=notGiven, out=notGiven, cwd=notGiven, env=notGiven, debuggingString=notGiven, onPartialOutput=()=>0 }) {
+    function standardizeInputs({ command=notGiven, stdin=notGiven, stdout=notGiven, stderr=notGiven, out=notGiven, cwd=notGiven, env=notGiven, debuggingString=notGiven, }) {
         // 
         // command
         // 
@@ -242,18 +255,27 @@ const synchronousMethods = (thisTask, outputPromise) => ({
             }
         }
 
+        let outFlow, stdoutFlow, stderrFlow
+
         // 
         // stdout
         // 
         if (stdout == notGiven && out == notGiven) {
+            outFlow = new FlowingString({})
+            stdoutFlow = new FlowingString({})
             stdout = {
                 overwrite: [],
-                appendTo: [ new FlowingString({ onWrite: onPartialOutput }) ],
+                appendTo: [ outFlow, stdoutFlow ],
             }
         // always add a listener stream
         } else if (stdout?.appendTo?.length > 0) {
+            outFlow = new FlowingString({})
+            stdoutFlow = new FlowingString({})
             stdout.appendTo.push(
-                new FlowingString({ onWrite: onPartialOutput })
+                outFlow,
+            )
+            stdout.appendTo.push(
+                stdoutFlow
             )
         }
         
@@ -261,14 +283,21 @@ const synchronousMethods = (thisTask, outputPromise) => ({
         // stderr
         // 
         if (stderr == notGiven && out == notGiven) {
+            outFlow = outFlow || new FlowingString({})
+            stderrFlow = new FlowingString({})
             stderr = {
                 overwrite: [],
-                appendTo: [ new FlowingString({ onWrite: onPartialOutput }) ],
+                appendTo: [ outFlow, stderrFlow, ],
             }
         // always add a listener stream
         } else if (stderr?.appendTo?.length > 0) {
+            outFlow = outFlow || new FlowingString({})
+            stderrFlow = new FlowingString({})
             stderr.appendTo.push(
-                new FlowingString({ onWrite: onPartialOutput })
+                outFlow
+            )
+            stderr.appendTo.push(
+                stderrFlow
             )
         }
 
@@ -313,6 +342,9 @@ const synchronousMethods = (thisTask, outputPromise) => ({
             stderr,
             cwd,
             env,
+            stdoutFlow,
+            stderrFlow,
+            outFlow,
         }
     }
 
