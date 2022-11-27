@@ -1,8 +1,10 @@
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.6/events.js"
-import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.7.6/array.js"
-import { capitalize, indent, toCamelCase, numberToEnglishArray, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.7.6/string.js"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
+import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.7.8/array.js"
+import { capitalize, indent, toCamelCase, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.7.8/string.js"
 import { OperatingSystem } from "./operating_system.js"
-import { intersection, subtract } from "https://deno.land/x/good@0.7.65/set.js"
+import { intersection, subtract } from "https://deno.land/x/good@0.7.8/set.js"
+import { allKeys } from "https://deno.land/x/good@0.7.8/object.js"
+import { FlowingString, toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "./stream_tools.js"
 
 const notGiven = Symbol()
 const taskSymbol = Symbol("task")
@@ -28,19 +30,22 @@ const taskSymbol = Symbol("task")
 // 
 // clean/core logic
 // 
-async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive, _instantExport }) {
-    const debuggingString = getDebuggingString(...command)
+export function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, interactive }) {
+    console.debug("simpleRun called with", { command, stdin, stdout, stderr, out, cwd, env, interactive })
+    const debuggingString = getDebuggingString(...command) // for making error messages more helpful
     if (!interactive) {
-        var { command, stdin, stdout, stderr, out, cwd, env } = await standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString})
-        let process = _instantExport.process = Deno.run({
+        var { command, stdin, stdout, stderr, out, cwd, env, stdoutFlow, stderrFlow, outFlow } = standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString, })
+        console.debug("simpleRun standardizedInputs", { command, stdin, stdout, stderr, out, cwd, env })
+        const stdoutIsNull = !(stdout?.overwrite?.length || stdout?.appendTo?.length)
+        const stderrIsNull = !(stderr?.overwrite?.length || stderr?.appendTo?.length)
+        let process  = Deno.run({
             cmd: command.filter(each=>(typeof each == 'string')),
             env,
             cwd,
             stdin: stdin.from.length ? 'piped' : 'null',
-            stdout: stdout.overwrite.length && stdout.appendTo.length ? 'piped' : 'null',
-            stderr: stderr.overwrite.length && stderr.appendTo.length ? 'piped' : 'null',
+            stdout: stdoutIsNull ? 'null' : 'piped',
+            stderr: stderrIsNull ? 'null' : 'piped',
         })
-        
         
         // 
         // create streams
@@ -52,22 +57,33 @@ async function simpleRun({ command, stdin, stdout, stderr, out, cwd, env, intera
         // 
         // connect streams
         // 
-        await mapOutToStreams(process.stdout, process.stderr, stdoutTargets, stderrTargets)
-        await mapInToStream(process.stdin, stdinSource)
+        mapOutToStreams(process.stdout, process.stderr, stdoutTargets, stderrTargets)
+        mapInToStream(process.stdin, stdinSource)
         
-        const { done, exitCode, success } = await process.status()
-
-        // 
-        // interface wrapper
-        // 
-        return {
-            success,
-            exitCode,
-            pid: process.pid,
-            rid: process.rid,
-            stdout: null, // FIXME: make these be strings
-            stderr: null, // FIXME: make these be strings
-        }
+        // FIXME: stdin control for process
+        // FIXME: allow stdoutFlow to be the stdin of another process
+        process.out = outFlow
+        process.stdout = stdoutFlow
+        process.stderr = stderrFlow
+        // FIXME: signals
+        // FIXME: for stdin, add a listener to stdout, 
+            // call 
+            // p.stdout.stat()
+            // Promise {
+            // <rejected> BadResource: Bad resource ID
+            //     at async fstat (deno:runtime/js/30_fs.js:210:26)
+            // }
+        
+        // FIXME test Deno.stdout to see if it causes a problem (see if it tries to close Deno.stdout)
+        process.result = process.status().then(async (value)=>({
+            ...process,
+            ...value,
+            outString: await outFlow?.string,
+            stdoutString: await stdoutFlow?.string,
+            stderrString: await stderrFlow?.string,
+        }))
+        
+        return process
     } else {
         // return {
         //     pid: process.pid,
@@ -224,19 +240,11 @@ const synchronousMethods = (thisTask, outputPromise) => ({
 // details
 // 
 // 
-    async function standardizeInputs({ command, stdin, stdout, stderr, out, cwd, env, debuggingString }) {
-        const simplified = {
-            stdin: null,
-            stdout: null,
-            stderr: null,
-            cwd: null,
-            env: null,
-        }
-
+    function standardizeInputs({ command=notGiven, stdin=notGiven, stdout=notGiven, stderr=notGiven, out=notGiven, cwd=notGiven, env=notGiven, debuggingString=notGiven, }) {
         // 
         // command
         // 
-        command = await standardizeCommandArgs(...command)
+        command = standardizeCommandArgs(...command)
         
         // 
         // stdin
@@ -247,24 +255,50 @@ const synchronousMethods = (thisTask, outputPromise) => ({
             }
         }
 
+        let outFlow, stdoutFlow, stderrFlow
+
         // 
         // stdout
         // 
         if (stdout == notGiven && out == notGiven) {
+            outFlow = new FlowingString({})
+            stdoutFlow = new FlowingString({})
             stdout = {
                 overwrite: [],
-                appendTo: [ Deno.stdout ],
+                appendTo: [ outFlow, stdoutFlow ],
             }
+        // always add a listener stream
+        } else if (stdout?.appendTo?.length > 0) {
+            outFlow = new FlowingString({})
+            stdoutFlow = new FlowingString({})
+            stdout.appendTo.push(
+                outFlow,
+            )
+            stdout.appendTo.push(
+                stdoutFlow
+            )
         }
         
         // 
         // stderr
         // 
         if (stderr == notGiven && out == notGiven) {
+            outFlow = outFlow || new FlowingString({})
+            stderrFlow = new FlowingString({})
             stderr = {
                 overwrite: [],
-                appendTo: [ Deno.stderr ],
+                appendTo: [ outFlow, stderrFlow, ],
             }
+        // always add a listener stream
+        } else if (stderr?.appendTo?.length > 0) {
+            outFlow = outFlow || new FlowingString({})
+            stderrFlow = new FlowingString({})
+            stderr.appendTo.push(
+                outFlow
+            )
+            stderr.appendTo.push(
+                stderrFlow
+            )
         }
 
         // 
@@ -279,20 +313,26 @@ const synchronousMethods = (thisTask, outputPromise) => ({
         }
         
         // await any promise inputs automatically, remove all null results
-        stdin.from       = (await Promise.all(stdin.from      )).filter(each=>each != null)
-        stdout.appendTo  = (await Promise.all(stdout.appendTo )).filter(each=>each != null)
-        stdout.overwrite = (await Promise.all(stdout.overwrite)).filter(each=>each != null)
-        stderr.appendTo  = (await Promise.all(stderr.appendTo )).filter(each=>each != null)
-        stderr.overwrite = (await Promise.all(stderr.overwrite)).filter(each=>each != null)
+        stdin.from       = stdin.from.filter(      each=>each != null)
+        stdout.appendTo  = stdout.appendTo.filter( each=>each != null)
+        stdout.overwrite = stdout.overwrite.filter(each=>each != null)
+        stderr.appendTo  = stderr.appendTo.filter( each=>each != null)
+        stderr.overwrite = stderr.overwrite.filter(each=>each != null)
 
         // 
         // check cwd
         // 
-        if (cwd !== undefined) {
-            const folderExists = await Deno.stat(cwd).then(({isDirectory})=>isDirectory).catch(()=>false)
+        if (cwd == notGiven) {
+            cwd = undefined
+        } else {
+            const folderExists = Deno.statSync(cwd).then(({isDirectory})=>isDirectory).catch(()=>false)
             if (!folderExists) {
                 throw Error(`${debuggingString}It was given a .with({ cwd: \n${JSON.stringify(cwd)}})\nbut that doesn't seem to be a path to a folder, so the command fails\n\n`)
             }
+        }
+
+        if (env == notGiven) {
+            env = undefined
         }
 
         return {
@@ -302,6 +342,9 @@ const synchronousMethods = (thisTask, outputPromise) => ({
             stderr,
             cwd,
             env,
+            stdoutFlow,
+            stderrFlow,
+            outFlow,
         }
     }
 
@@ -331,17 +374,16 @@ const synchronousMethods = (thisTask, outputPromise) => ({
     const fullDoubleQuotePattern = /^"(\\.|[^"\n])*"/
     const partialSingleQuotePattern = /^'(\\.|[^'\n])*($|')/
     const fullSingleQuotePattern = /^'(\\.|[^'\n])*'/
-    async function standardizeCommandArgs(maybeStrings, ...args) {
+    function standardizeCommandArgs(maybeStrings, ...args) {
         // non-templated input
         if (!(maybeStrings instanceof Array)) {
-            const output = await Promise.all([ maybeStrings, ...args ])
+            const output = [ maybeStrings, ...args ]
             // very simple
             return output.filter(each=>each!=null).map(toString)
         // templated input
         } else {
             // for some reason the original one is non-editable so make a copy
             maybeStrings = [...maybeStrings]
-            args = await Promise.all(args)
             const argsInOrder = zip(maybeStrings, args).flat()
             
             let combineWithPrevious = false
@@ -477,7 +519,6 @@ const synchronousMethods = (thisTask, outputPromise) => ({
 // streams
 // 
 // 
-import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "./stream_tools.js"
 
     // 
     // stdin 
@@ -511,7 +552,7 @@ import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadabl
             }
             return stdinReader
         }
-        const mapInToStream = async (stdinOfProcess, stdinReader) => {
+        const mapInToStream = (stdinOfProcess, stdinReader) => {
             if (stdinReader instanceof Uint8Array) {
                 // without the stdin.close() part the process will wait forever
                 stdinOfProcess.write(stdinReader).then(()=>stdinOfProcess.close())
@@ -526,49 +567,75 @@ import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadabl
     // 
         // create a helper that will prevent duplicates
         const streamAlreadyCreated = new Map()
-        const getWritableFor = async (inputValue, debuggingString) => {
+        const getWritableFor = (inputValue, debuggingString) => {
+            console.debug(`getWritableFor(inputValue, debuggingString):`, inputValue, debuggingString)
+            console.debug(`streamAlreadyCreated.has(inputValue) is:`,streamAlreadyCreated.has(inputValue))
             if (!streamAlreadyCreated.has(inputValue)) {
                 try {
-                    streamAlreadyCreated.set(inputValue, await toWritableStream(eachValue))
+                    streamAlreadyCreated.set(inputValue, toWritableStream(inputValue))
                 } catch (error) {
                     throw Error(`${debuggingString}When processing one of the output streams (stdout, stderr, out) one of the values was a problem. ${error.message}`)
                 }
             }
             return streamAlreadyCreated.get(inputValue)
         }
-        const outOrErrToWriterTargets = async (out, debuggingString) => {
+        const outOrErrToWriterTargets = (out, debuggingString) => {
             return [
-                await Promise.all(   out.overwrite.map(each=>getWritableFor(each, debuggingString))   ),
-                await Promise.all(   out.appendTo.map( each=>getWritableFor(each, debuggingString))   ),
-            ].flat()
+                out.overwrite.map(each=>getWritableFor(each, debuggingString)),
+                out.appendTo.map( each=>getWritableFor(each, debuggingString)),
+            ].flat(1)
         }
-        const mapOutToStreams = async (stdoutOfProcess, stderrOfProcess, stdoutWritables, stderrWritables) => {
+        const mapOutToStreams = (stdoutOfProcess, stderrOfProcess, stdoutWritables, stderrWritables) => {
+            console.debug(`stdoutOfProcess, stderrOfProcess, stdoutWritables, stderrWritables is:`, stdoutOfProcess, stderrOfProcess, stdoutWritables, stderrWritables)
+            try {
+                console.debug(`new Set(stdoutWritables) is:`,new Set(stdoutWritables))
+            } catch (error) {
+                console.debug(`error is:`,error)
+            }
             // 
             // figure out how many streams are needed
             // 
             const neededByStdout  = new Set(stdoutWritables)
+            console.debug(`neededByStdout is:`,neededByStdout)
             const neededByStderr  = new Set(stderrWritables)
+            console.log(`intersect`)
             const neededByBoth    = new Set(intersection(neededByStdout, neededByStderr))
+            console.log(`subtract1`)
             const neededByOutOnly = new Set(subtract({value: neededByBoth, from: neededByStdout }))
+            console.log(`subtract2`)
             const neededByErrOnly = new Set(subtract({value: neededByBoth, from: neededByStderr }))
+
+            console.debug(`neededByStdout is:`,neededByStdout)
+            console.debug(`neededByStderr is:`,neededByStderr)
+            console.debug(`neededByBoth is:`,neededByBoth)
+            console.debug(`neededByOutOnly is:`,neededByOutOnly)
+            console.debug(`neededByErrOnly is:`,neededByErrOnly)
             
             // 
             // generate a bunch of copies of the source (AFAIK copies is the only way to do it)
             // 
-            const stdoutStreams = duplicateReadableStream(stdoutOfProcess, neededByStdout.size)
-            const stderrStreams = duplicateReadableStream(stderrOfProcess, neededByStderr.size)
+            console.debug(`neededByStdout.size is:`,neededByStdout.size)
+            const stdoutStreams = duplicateReadableStream({ stream: stdoutOfProcess, numberOfDuplicates:neededByStdout.size })
+            const stderrStreams = duplicateReadableStream({ stream: stderrOfProcess, numberOfDuplicates:neededByStderr.size })
+            console.debug(`stdoutStreams is:`,stdoutStreams)
+            console.debug(`stderrStreams is:`,stderrStreams)
 
             // 
             // connect all the source copies to the correct target copies
             // 
             for (const targetStream of neededByBoth) {
-                zipReadableStreams(stdoutStreams.pop(), stderrStreams.pop()).pipeTo(targetStream)
+                try {
+                    zipReadableStreams(stdoutStreams.pop(), stderrStreams.pop()).pipeTo(targetStream)
+                } catch (error) {
+                    console.debug(`error is:`,error)
+                    console.debug(`targetStream is:`,targetStream)
+                }
             }
-            for (const each of neededByOutOnly) {
-                stdoutStreams.pop().pipeTo(targetStream)
+            for (const eachTargetStream of neededByOutOnly) {
+                stdoutStreams.pop().pipeTo(eachTargetStream)
             }
-            for (const each of neededByErrOnly) {
-                stderrStreams.pop().pipeTo(targetStream)
+            for (const eachTargetStream of neededByErrOnly) {
+                stderrStreams.pop().pipeTo(eachTargetStream)
             }
         }
 
@@ -578,7 +645,7 @@ import { toReadableStream, toWritableStream, duplicateReadableStream, zipReadabl
 // the convoluted/messy wrapper
 // 
 // 
-function run(...args) {
+export function run(...args) {
     const thisTask = {
         _instantExport: {},
         command: args,
@@ -648,6 +715,7 @@ function run(...args) {
                 }
             }
         } catch (error) {
+            console.debug(`error498 is:`,error)
             result = error
             result.success = false
         }
@@ -726,6 +794,7 @@ function run(...args) {
 
 // for arguments that can either be a value or an array
 const makeArray = (arg) => {
+    console.debug(`makeArray  arg is:`,arg)
     if (arg instanceof Array) {
         return arg
     } else if (arg !== undefined) {

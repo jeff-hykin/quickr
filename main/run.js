@@ -1,10 +1,10 @@
 import { FileSystem } from "./file_system.js"
-import { keyify } from "https://deno.land/x/good@0.7.6/map.js"
+import { keyify } from "https://deno.land/x/good@0.7.8/map.js"
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
-import { debugValueAsString } from "https://deno.land/x/good@0.7.6/debug.js"
+import { debugValueAsString } from "https://deno.land/x/good@0.7.8/debug.js"
 
 // TODO:
     // fix hasCommand: on windows it doesnt take into account commands that windows auto-hides the .bat or .ps1 from
