@@ -62,19 +62,84 @@ const streamToString = async (stream) => {
     return string
 }
 
-export const hasCommand = async (commandName) => {
-    const spliter = (Deno.build.os == "windows") ? ";" : ":"
+const { isWindows, isLinux, isMac } = OperatingSystem.commonChecks
+export const pathsToAllCommands = async () => {
+    const spliter = isWindows ? ";" : ":"
     const paths = Deno.env.get("PATH").split(spliter)
-    for (const eachFolder of paths) {
-        const info = await FileSystem.info(`${eachFolder}/${commandName}`)
-        // TODO: FileSystem needs an "isExecutable", which needs to get the user's UID, which is not a stable Deno api yet
-        // (so once that is added use it)
-        if (info.isFile) {
-            return true
-        }
+    const executableFilePaths = await Promise.all(paths.map(
+        each=>FileSystem.listFilePathsIn({
+            path: each,
+            shouldntReturn: async (path)=>{
+                if (isWindows) { // currently cant check execute permissions in windows
+                    return false
+                }
+                const permissions = (await FileSystem.getPermissions(path))
+                // filter out non-executable files
+                if (!(permissions.owner.canExecute||permissions.group.canExecute||permissions.others.canExecute)) {
+                    return true
+                }
+            }
+        })
+    ))
+
+    const mapping = {}
+    for (const each of executableFilePaths) {
+        const basename = FileSystem.basename(each)
+        const paths = mapping[basename] || []
+        paths.push(each)
+        mapping[basename] = paths
     }
-    return false
+    return mapping
 }
+export const pathsToCommands = async (commands) => {
+    commands = new Set(commands)
+    
+    const spliter = isWindows ? ";" : ":"
+    const paths = Deno.env.get("PATH").split(spliter)
+    const executableFilePaths = await Promise.all(paths.map(
+        each=>FileSystem.listFilePathsIn({
+            path: each,
+            shouldntReturn: async (path)=>{
+                const basename = FileSystem.basename(path)
+                if (isWindows) {
+                    // check all possible executable sources
+                    if (!(commands.has(basename) || commands.has(basename+".exe") || commands.has(basename+".bat") || commands.has(basename+".ps1"))) {
+                        return true
+                    }
+                } else {
+                    // filter out files that dont match the names
+                    if (!commands.has(basename)) {
+                        return true
+                    }
+                    // filter out non-executable files
+                    const permissions = (await FileSystem.getPermissions(path))
+                    if (!(permissions.owner.canExecute||permissions.group.canExecute||permissions.others.canExecute)) {
+                        return true
+                    }
+                }
+            }
+        })
+    ))
+    
+    const mapping = {}
+    for (const each of executableFilePaths) {
+        const basename = FileSystem.basename(each)
+        const paths = mapping[basename] || []
+        paths.push(each)
+        mapping[basename] = paths
+    }
+    return mapping
+}
+
+export const checkCommands = async (commands) => {
+    const mapping = await pathsToCommands(commands)
+    return {
+        missing: commands.filter(each=>mapping[each]),
+        available: commands.filter(each=>!mapping[each]),
+    }
+}
+
+export const hasCommand = (commandName)=>checkCommands([commandName]).then(({missing})=>missing.length==0)
 
 // 
 // 
