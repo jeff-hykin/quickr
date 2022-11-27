@@ -367,6 +367,10 @@ export const Console = {
             }
         },
     },
+    get paths() {
+        const spliter = OperatingSystem.commonChecks.isWindows ? ";" : ":"
+        return Deno.env.get("PATH").split(spliter)
+    },
     get reliableColorSupport() {
         if (colorSupportCache.includesAnsi != null) {
             return colorSupportCache

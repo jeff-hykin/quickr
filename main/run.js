@@ -1,4 +1,5 @@
 import { FileSystem } from "./file_system.js"
+import { Console } from "./console.js"
 import { keyify } from "https://deno.land/x/good@0.7.8/map.js"
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
@@ -63,9 +64,9 @@ const streamToString = async (stream) => {
 }
 
 const { isWindows, isLinux, isMac } = OperatingSystem.commonChecks
+
 export const pathsToAllCommands = async () => {
-    const spliter = isWindows ? ";" : ":"
-    const paths = Deno.env.get("PATH").split(spliter)
+    const paths = Console.paths
     const executableFilePaths = await Promise.all(paths.map(
         each=>FileSystem.listFilePathsIn({
             path: each,
@@ -93,9 +94,7 @@ export const pathsToAllCommands = async () => {
 }
 export const pathsToCommands = async (commands) => {
     commands = new Set(commands)
-    
-    const spliter = isWindows ? ";" : ":"
-    const paths = Deno.env.get("PATH").split(spliter)
+    const paths = Console.paths
     const executableFilePaths = await Promise.all(paths.map(
         each=>FileSystem.listFilePathsIn({
             path: each,
