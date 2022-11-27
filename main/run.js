@@ -69,21 +69,24 @@ const { isWindows, isLinux, isMac } = OperatingSystem.commonChecks
 export const pathsToAllCommands = async () => {
     const paths = Console.paths
     const executableFilePaths = (await Promise.all(paths.map(
-        each=>FileSystem.listFilePathsIn({
-            path: each,
-            shouldntReturn: async (path)=>{
+        each=>FileSystem.listFilePathsIn(each, {
+            shouldntInclude: async (path)=>{
                 if (isWindows) { // currently cant check execute permissions in windows
                     return false
                 }
-                const permissions = (await FileSystem.getPermissions(path))
-                // filter out non-executable files
-                if (!(permissions.owner.canExecute||permissions.group.canExecute||permissions.others.canExecute)) {
-                    return true
+                try {
+                    const permissions = (await FileSystem.getPermissions({path}))
+                    // filter out non-executable files
+                    if (!(permissions.owner.canExecute||permissions.group.canExecute||permissions.others.canExecute)) {
+                        return true
+                    }
+                } catch (error) {
+                    console.debug(`error is:`,error)
                 }
             }
         })
     ))).flat(1)
-
+    
     const mapping = {}
     for (const each of executableFilePaths) {
         const basename = FileSystem.basename(each)
@@ -97,9 +100,8 @@ export const pathsToCommands = async (commands) => {
     commands = new Set(commands)
     const paths = Console.paths
     const executableFilePaths = (await Promise.all(paths.map(
-        each=>FileSystem.listFilePathsIn({
-            path: each,
-            shouldntReturn: async (path)=>{
+        each=>FileSystem.listFilePathsIn(each, {
+            shouldntInclude: async (path)=>{
                 const basename = FileSystem.basename(path)
                 if (isWindows) {
                     // check all possible executable sources
@@ -112,7 +114,7 @@ export const pathsToCommands = async (commands) => {
                         return true
                     }
                     // filter out non-executable files
-                    const permissions = (await FileSystem.getPermissions(path))
+                    const permissions = (await FileSystem.getPermissions({path}))
                     if (!(permissions.owner.canExecute||permissions.group.canExecute||permissions.others.canExecute)) {
                         return true
                     }
@@ -134,8 +136,8 @@ export const pathsToCommands = async (commands) => {
 export const checkCommands = async (commands) => {
     const mapping = await pathsToCommands(commands)
     return {
-        missing: commands.filter(each=>mapping[each]),
-        available: commands.filter(each=>!mapping[each]),
+        missing: commands.filter(each=>!mapping[each]),
+        available: commands.filter(each=>mapping[each]),
     }
 }
 

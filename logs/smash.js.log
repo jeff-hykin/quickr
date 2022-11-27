@@ -1,0 +1,122 @@
+simpleRun called with {
+  command: [ "echo", "hello" ],
+  stdin: undefined,
+  stdout: undefined,
+  stderr: undefined,
+  out: undefined,
+  cwd: undefined,
+  env: undefined,
+  interactive: undefined
+}
+simpleRun standardizedInputs {
+  command: [ "echo", "hello" ],
+  stdin: { from: [ Stdin {} ] },
+  stdout: {
+    overwrite: [],
+    appendTo: [ FlowingString { locked: false }, FlowingString { locked: false } ]
+  },
+  stderr: {
+    overwrite: [],
+    appendTo: [ FlowingString { locked: false }, FlowingString { locked: false } ]
+  },
+  out: undefined,
+  cwd: undefined,
+  env: undefined
+}
+getWritableFor(inputValue, debuggingString): FlowingString { locked: false } 
+
+
+------------------------------------
+error/warning
+------------------------------------
+
+I was given a run command that probably looks something like: 
+    run(
+        "echo"
+        "hello"
+    )
+
+
+streamAlreadyCreated.has(inputValue) is: false
+getWritableFor(inputValue, debuggingString): FlowingString { locked: false } 
+
+
+------------------------------------
+error/warning
+------------------------------------
+
+I was given a run command that probably looks something like: 
+    run(
+        "echo"
+        "hello"
+    )
+
+
+streamAlreadyCreated.has(inputValue) is: false
+getWritableFor(inputValue, debuggingString): FlowingString { locked: false } 
+
+
+------------------------------------
+error/warning
+------------------------------------
+
+I was given a run command that probably looks something like: 
+    run(
+        "echo"
+        "hello"
+    )
+
+
+streamAlreadyCreated.has(inputValue) is: true
+getWritableFor(inputValue, debuggingString): FlowingString { locked: false } 
+
+
+------------------------------------
+error/warning
+------------------------------------
+
+I was given a run command that probably looks something like: 
+    run(
+        "echo"
+        "hello"
+    )
+
+
+streamAlreadyCreated.has(inputValue) is: false
+stdoutOfProcess, stderrOfProcess, stdoutWritables, stderrWritables is: FsFile {} FsFile {} [ FlowingString { locked: false }, FlowingString { locked: false } ] [ FlowingString { locked: false }, FlowingString { locked: false } ]
+new Set(stdoutWritables) is: Set { FlowingString { locked: false }, FlowingString { locked: false } }
+neededByStdout is: Set { FlowingString { locked: false }, FlowingString { locked: false } }
+intersect
+subtract1
+subtract2
+neededByStdout is: Set { FlowingString { locked: false }, FlowingString { locked: false } }
+neededByStderr is: Set { FlowingString { locked: false }, FlowingString { locked: false } }
+neededByBoth is: Set { FlowingString { locked: false } }
+neededByOutOnly is: Set { FlowingString { locked: false } }
+neededByErrOnly is: Set { FlowingString { locked: false } }
+neededByStdout.size is: 2
+stdoutStreams is: [ ReadableStream { locked: false }, ReadableStream { locked: false } ]
+stderrStreams is: [ ReadableStream { locked: false }, ReadableStream { locked: false } ]
+process is: Process {
+  rid: 6,
+  pid: 46843,
+  stdin: FsFile {},
+  stdout: FlowingString { locked: true },
+  stderr: FlowingString { locked: true },
+  out: FlowingString { locked: true },
+  result: Promise { <pending> }
+}
+await process is: <ref *1> {
+  rid: 6,
+  pid: 46843,
+  stdin: FsFile {},
+  stdout: FlowingString { locked: false },
+  stderr: FlowingString { locked: false },
+  out: FlowingString { locked: false },
+  result: Promise { [Circular *1] },
+  success: true,
+  code: 0,
+  outString: "hello\n",
+  stdoutString: "hello\n",
+  stderrString: ""
+}

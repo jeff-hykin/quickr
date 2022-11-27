@@ -1,9 +1,9 @@
 {
-  commonChecks: { isMac: true, isWindows: false, isLinux: false },
+  commonChecks: { isMac: true, isWindows: false, isLinux: false, isWsl: [Getter] },
   commonName: "MacOS",
   kernel: { commonName: "darwin" },
   architecture: undefined,
-  versionArray: [ 10, 13, 6 ],
+  versionArray: [Getter],
   username: [Getter],
   home: [Getter],
   idForUsername: [AsyncFunction: idForUsername]

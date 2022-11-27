@@ -13,7 +13,7 @@ console.log(await FileSystem.listFileItemsIn(`../main/`))
 console.log("# ")
 console.log("# breadthFirstSearch")
 console.log("# ")
-const bfsResults = await FileSystem.recursivelyListPathsIn(`..`, { searchOrder: 'breadthFirstSearch', shouldntReturn: each=>each.match(/.*(^|\/)\.git($|\/).*/) })
+const bfsResults = await FileSystem.recursivelyListPathsIn(`..`, { searchOrder: 'breadthFirstSearch', shouldntInclude: each=>each.match(/.*(^|\/)\.git($|\/).*/) })
 console.log(bfsResults)
 
 console.log("# ")
@@ -23,9 +23,9 @@ const dfsResults = await FileSystem.recursivelyListPathsIn(`..`, { searchOrder: 
 console.log(dfsResults)
 
 const shouldntExplore = subtract({value: bfsResults, from: dfsResults, })
-const shouldntReturn = subtract({value: dfsResults, from: bfsResults, })
+const shouldntInclude = subtract({value: dfsResults, from: bfsResults, })
 console.debug(`shouldntExplore uniquely has:`,shouldntExplore)
-console.debug(`shouldntReturn uniquely has:`,shouldntReturn)
+console.debug(`shouldntInclude uniquely has:`,shouldntInclude)
 
 const anAbsolutePath = `${FileSystem.thisFolder}/run.errors.log`
 console.log("# ")

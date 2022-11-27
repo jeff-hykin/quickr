@@ -502,12 +502,12 @@ export const Console = {
                         includes16m: false,
                     }
                 }
-
-                colorSupportCache.includesAnsi = terminalSupport.includesAnsi
-                colorSupportCache.includes256  = terminalSupport.includes256
-                colorSupportCache.includes16m  = terminalSupport.includes16m
-                return colorSupportCache
             }
         }
+
+        colorSupportCache.includesAnsi = terminalSupport.includesAnsi
+        colorSupportCache.includes256  = terminalSupport.includes256
+        colorSupportCache.includes16m  = terminalSupport.includes16m
+        return colorSupportCache
     },
 }
