@@ -82,7 +82,7 @@ export const pathsToAllCommands = async () => {
                 }
             }
         })
-    ))
+    )).flat(1)
 
     const mapping = {}
     for (const each of executableFilePaths) {
@@ -119,7 +119,7 @@ export const pathsToCommands = async (commands) => {
                 }
             }
         })
-    ))
+    )).flat(1)
     
     const mapping = {}
     for (const each of executableFilePaths) {
