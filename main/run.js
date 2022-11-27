@@ -68,7 +68,7 @@ const { isWindows, isLinux, isMac } = OperatingSystem.commonChecks
 
 export const pathsToAllCommands = async () => {
     const paths = Console.paths
-    const executableFilePaths = await Promise.all(paths.map(
+    const executableFilePaths = (await Promise.all(paths.map(
         each=>FileSystem.listFilePathsIn({
             path: each,
             shouldntReturn: async (path)=>{
@@ -82,7 +82,7 @@ export const pathsToAllCommands = async () => {
                 }
             }
         })
-    )).flat(1)
+    ))).flat(1)
 
     const mapping = {}
     for (const each of executableFilePaths) {
@@ -96,7 +96,7 @@ export const pathsToAllCommands = async () => {
 export const pathsToCommands = async (commands) => {
     commands = new Set(commands)
     const paths = Console.paths
-    const executableFilePaths = await Promise.all(paths.map(
+    const executableFilePaths = (await Promise.all(paths.map(
         each=>FileSystem.listFilePathsIn({
             path: each,
             shouldntReturn: async (path)=>{
@@ -119,7 +119,7 @@ export const pathsToCommands = async (commands) => {
                 }
             }
         })
-    )).flat(1)
+    ))).flat(1)
     
     const mapping = {}
     for (const each of executableFilePaths) {
