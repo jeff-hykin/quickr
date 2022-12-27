@@ -1147,6 +1147,9 @@ export const FileSystem = {
         const pathToThisFolder = FileSystem.thisFolder
         const startPath        = FileSystem.pathOfCaller(1)
         const nearestPath      = await FileSystem.walkUpUntil(path, startPath)
+        console.debug(`pathToThisFolder is:`,pathToThisFolder)
+        console.debug(`startPath is:`,startPath)
+        console.debug(`nearestPath is:`,nearestPath)
         if (nearestPath) {
             let relativePath = FileSystem.makeRelativePath({
                 from: pathToThisFolder,
