@@ -4,6 +4,7 @@ import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async
 import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
 
 // TODO: move this whole file to good-js
+// for await (let each of Deno.stdin.readable.pipeThrough(new TextDecoderStream())) { console.log("each", each) }
 
 export {
     zipReadableStreams as zipReadableStreams,

@@ -38,3 +38,7 @@ console.log("# ")
 console.log(`# All parent paths of ${aRelativePath}`)
 console.log("# ")
 console.log(FileSystem.allParentPaths(aRelativePath))
+
+console.log("")
+console.log("# FileSystem.pathOfCaller")
+console.log(FileSystem.pathOfCaller)

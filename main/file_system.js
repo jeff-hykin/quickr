@@ -1143,6 +1143,24 @@ export const FileSystem = {
         // now all parents are verified as real folders 
         return hardPath
     },
+    get pathOfCaller() {
+        const err = new Error()
+        const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
+        
+        // if valid file
+        // TODO: make sure this works inside of anonymous functions (not sure if error stack handles that well)
+        const secondPath = filePaths[1]
+        if (secondPath) {
+            try {
+                if (Deno.statSync(secondPath).isFile) {
+                    return secondPath
+                }
+            } catch (error) {
+            }
+        }
+        // if in an interpreter
+        return Deno.cwd()
+    },
     sync: {
         info(fileOrFolderPath, _cachedLstat=null) {
             // compute lstat and stat before creating ItemInfo (so its async for performance)
@@ -1251,5 +1269,5 @@ export const FileSystem = {
             FileSystem.sync.ensureIsFolder(Path.dirname(originalPath))
             return originalPath
         },
-    }
+    },
 }
