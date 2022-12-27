@@ -41,4 +41,8 @@ console.log(FileSystem.allParentPaths(aRelativePath))
 
 console.log("")
 console.log("# FileSystem.pathOfCaller")
-console.log(FileSystem.pathOfCaller)
+console.log(FileSystem.pathOfCaller())
+
+console.log("")
+console.log("# FileSystem.walkUpImport")
+console.log(await FileSystem.walkUpImport("console.js"))

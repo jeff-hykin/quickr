@@ -140,9 +140,9 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 54307,
-      mtime: 2022-12-27T21:05:20.160Z,
-      atime: 2022-12-27T21:05:21.894Z,
+      size: 55300,
+      mtime: 2022-12-27T21:33:51.302Z,
+      atime: 2022-12-27T21:33:52.900Z,
       birthtime: 2022-11-27T00:46:17.956Z,
       dev: 16777233,
       ino: 8186839,
@@ -326,3 +326,7 @@ shouldntInclude uniquely has: Set {}
 
 # FileSystem.pathOfCaller
 /Users/jeffhykin/repos/quickr/tests/file_system.js
+
+# FileSystem.walkUpImport
+Howdy!
+Module {}
