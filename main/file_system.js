@@ -1144,7 +1144,8 @@ export const FileSystem = {
         return hardPath
     },
     async walkUpImport(path, start) {
-        const nearestPath = await FileSystem.walkUpUntil(path, start || FileSystem.pathOfCaller(1))
+        const startPath = start || FileSystem.pathOfCaller(1)
+        const nearestPath = await FileSystem.walkUpUntil(path, startPath)
         if (nearestPath) {
             const absolutePath = FileSystem.makeAbsolutePath(`${nearestPath}/${path}`)
             return import(Path.toFileUrl(absolutePath).href)
