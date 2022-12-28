@@ -1147,15 +1147,19 @@ export const FileSystem = {
         const pathToThisFolder = FileSystem.thisFolder
         const startPath        = FileSystem.pathOfCaller(1)
         const nearestPath      = await FileSystem.walkUpUntil(path, startPath)
+        console.debug(`pathToThisFolder is:`,pathToThisFolder)
+        console.debug(`startPath is:`,startPath)
+        console.debug(`nearestPath is:`,nearestPath)
         if (nearestPath) {
             let relativePath = FileSystem.makeRelativePath({
                 from: pathToThisFolder,
-                to: `${nearestPath}/${FileSystem.basename(path)}`
+                to: `${nearestPath}/${path}`
             })
             // the import command needs a `./`
             if (!relativePath.startsWith("./")) {
                 relativePath = `./${relativePath}`
             }
+            console.debug(`relativePath is:`,relativePath)
             return import(relativePath)
         } else {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
