@@ -275,7 +275,7 @@ export const FileSystem = {
         // if in an interpreter
         return ':<interpreter>:'
     },
-    get thisFolder() {
+    get thisFolder() { // FIXME: fails inside of libraries that are pulled from URL's
         const err = new Error()
         const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
         
@@ -1143,24 +1143,11 @@ export const FileSystem = {
         // now all parents are verified as real folders 
         return hardPath
     },
-    async walkUpImport(path) {
-        const pathToThisFolder = FileSystem.thisFolder
-        const startPath        = FileSystem.pathOfCaller(1)
-        const nearestPath      = await FileSystem.walkUpUntil(path, startPath)
-        console.debug(`pathToThisFolder is:`,pathToThisFolder)
-        console.debug(`startPath is:`,startPath)
-        console.debug(`nearestPath is:`,nearestPath)
+    async walkUpImport(path, start) {
+        const nearestPath = await FileSystem.walkUpUntil(path, start || FileSystem.pathOfCaller(1))
         if (nearestPath) {
-            let relativePath = FileSystem.makeRelativePath({
-                from: pathToThisFolder,
-                to: `${nearestPath}/${path}`
-            })
-            // the import command needs a `./`
-            if (!relativePath.startsWith("./")) {
-                relativePath = `./${relativePath}`
-            }
-            console.debug(`relativePath is:`,relativePath)
-            return import(relativePath)
+            const absolutePath = FileSystem.makeAbsolutePath(`${nearestPath}/${path}`)
+            return import(absolutePath)
         } else {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
         }
