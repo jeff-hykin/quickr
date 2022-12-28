@@ -1155,7 +1155,6 @@ export const FileSystem = {
     pathOfCaller(callerNumber=undefined) {
         const err = new Error()
         let filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
-        console.debug(`filePaths is:`,filePaths)
         if (callerNumber) {
             filePaths = filePaths.slice(callerNumber)
         }
