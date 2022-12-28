@@ -1147,7 +1147,7 @@ export const FileSystem = {
         const nearestPath = await FileSystem.walkUpUntil(path, start || FileSystem.pathOfCaller(1))
         if (nearestPath) {
             const absolutePath = FileSystem.makeAbsolutePath(`${nearestPath}/${path}`)
-            return eval(`import(${JSON.stringify(absolutePath)})`)
+            return import(Path.toFileUrl(absolutePath).href)
         } else {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
         }
