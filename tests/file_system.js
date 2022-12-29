@@ -46,3 +46,15 @@ console.log(FileSystem.pathOfCaller())
 console.log("")
 console.log("# FileSystem.walkUpImport")
 console.log(await FileSystem.walkUpImport("console.js"))
+
+console.log("")
+console.log("# await FileSystem.glob('*.log')")
+console.log(await FileSystem.glob("*.log"))
+
+console.log("")
+console.log(`# await FileSystem.glob("*.log", { startPath: ".." })`)
+console.log(await FileSystem.glob("*.log", { startPath: ".." }))
+
+console.log("")
+console.log(`# await FileSystem.glob("**/*.log", { startPath: ".." })`)
+console.log(await FileSystem.glob("**/*.log", { startPath: ".." }))

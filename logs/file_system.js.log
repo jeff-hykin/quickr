@@ -140,9 +140,9 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 55300,
-      mtime: 2022-12-27T21:33:51.302Z,
-      atime: 2022-12-27T21:33:52.900Z,
+      size: 56070,
+      mtime: 2022-12-29T15:57:33.883Z,
+      atime: 2022-12-29T15:57:35.827Z,
       birthtime: 2022-11-27T00:46:17.956Z,
       dev: 16777233,
       ino: 8186839,
@@ -219,22 +219,13 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../tests/run.js",
   "../tests/file_system.js",
   "../tests/operating_system.js",
-  "../tests/move.js",
   "../dependencies/babel_runtime@v0.13.9.js",
   "../dependencies/babel@v7.13.8.js",
   "../logs/operating_system.js.log",
-  "../logs/console.js.log.log",
-  "../logs/run.js.log.log",
-  "../logs/stdin.js.log.log",
   "../logs/smash.js.log",
-  "../logs/operating_system.js.log.log",
-  "../logs/stdin.js.log",
   "../logs/file_system.js.log",
   "../logs/console.js.log",
   "../logs/tests",
-  "../logs/run.grep_path.txt.log",
-  "../logs/file_system.js.log.log",
-  "../logs/run.errors.log.old.log",
   "../logs/run.js.log",
   "../logs/tests/run.errors.log",
   "../logs/tests/run.grep_path.txt",
@@ -263,7 +254,6 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../tests/run.js",
   "../tests/file_system.js",
   "../tests/operating_system.js",
-  "../tests/move.js",
   "../dependencies",
   "../dependencies/babel_runtime@v0.13.9.js",
   "../dependencies/babel@v7.13.8.js",
@@ -271,20 +261,12 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../readme.md",
   "../logs",
   "../logs/operating_system.js.log",
-  "../logs/console.js.log.log",
-  "../logs/run.js.log.log",
-  "../logs/stdin.js.log.log",
   "../logs/smash.js.log",
-  "../logs/operating_system.js.log.log",
-  "../logs/stdin.js.log",
   "../logs/file_system.js.log",
   "../logs/console.js.log",
   "../logs/tests",
   "../logs/tests/run.errors.log",
   "../logs/tests/run.grep_path.txt",
-  "../logs/run.grep_path.txt.log",
-  "../logs/file_system.js.log.log",
-  "../logs/run.errors.log.old.log",
   "../logs/run.js.log",
   "../.gitignore",
   "../run",
@@ -330,3 +312,25 @@ shouldntInclude uniquely has: Set {}
 # FileSystem.walkUpImport
 Howdy!
 Module {}
+
+# await FileSystem.glob('*.log')
+[
+  "operating_system.js.log",
+  "smash.js.log",
+  "file_system.js.log",
+  "console.js.log",
+  "run.js.log"
+]
+
+# await FileSystem.glob("*.log", { startPath: ".." })
+[]
+
+# await FileSystem.glob("**/*.log", { startPath: ".." })
+[
+  "logs/operating_system.js.log",
+  "logs/smash.js.log",
+  "logs/file_system.js.log",
+  "logs/console.js.log",
+  "logs/run.js.log",
+  "logs/tests/run.errors.log"
+]

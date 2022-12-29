@@ -2,9 +2,9 @@
 const { run, simpleRun } = await import(`../main/smash.js`)
 
 // runs async
-var process = simpleRun({command: ["echo", "hello"]})
-console.debug(`process is:`,process)
-console.debug(`await process is:`,await process.result)
+// var process = simpleRun({command: ["echo", "hello"]})
+// console.debug(`process is:`,process)
+// console.debug(`await process is:`,await process.result)
 
 // // wait for a command
 // await run("echo", "hello")

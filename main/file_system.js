@@ -4,6 +4,7 @@ import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.7.8/string.js"
 import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.8/iterable.js"
+import { globToRegExp } from "https://deno.land/std@0.87.0/path/glob.ts"
 
 // TODO:
     // handling relative symbolic links for the move command 
@@ -376,6 +377,10 @@ export const FileSystem = {
         await moveAndRename(oldPath, newPath)
     },
     async remove(fileOrFolder) {
+        // for `await FileSystem.remove(glob(`*.js`))`
+        if (fileOrFolder instanceof Array) {
+            return Promise.all(fileOrFolder.map(FileSystem.remove))
+        }
         fileOrFolder = fileOrFolder.path || fileOrFolder
         const itemInfo = await FileSystem.info(fileOrFolder)
         if (itemInfo.isFile || itemInfo.isSymlink) {
@@ -948,6 +953,22 @@ export const FileSystem = {
     recursivelyListItemsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, shouldntExplore:null, shouldntInclude:null, }) {
         return asyncIteratorToList(FileSystem.recursivelyIterateItemsIn(pathOrFileInfo, options))
     },
+    async * globIterator(pattern, options={startPath:null}) {
+        var {startPath, ...iteratePathsOptions} = options
+        startPath = startPath || "."
+        const regex = pattern instanceof RegExp ? pattern : globToRegExp(pattern)
+        for await (const eachPath of FileSystem.iteratePathsIn(startPath, {recursively: true, ...iteratePathsOptions})) {
+            if (eachPath.match(regex)) {
+                yield FileSystem.makeRelativePath({
+                    from: startPath,
+                    to: eachPath,
+                })
+            }
+        }
+    },
+    glob(pattern, options={startPath:null}) {
+        return asyncIteratorToList(FileSystem.globIterator(pattern, options))
+    },
     async getPermissions({path}) {
         const {mode} = await Deno.lstat(path)
         // see: https://stackoverflow.com/questions/15055634/understanding-and-decoding-the-file-mode-value-from-stat-function-output#15059931
@@ -1287,3 +1308,5 @@ export const FileSystem = {
         },
     },
 }
+
+export const glob = FileSystem.glob
