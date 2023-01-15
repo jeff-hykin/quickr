@@ -4,41 +4,7 @@ import { toString } from "https://deno.land/x/good@0.7.8/string.js"
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
 
-const env = new Proxy({}, {
-    // Object.keys
-    ownKeys(target) {
-        return Object.keys(Deno.env.toObject())
-    },
-    has(original, key) {
-        if (typeof key === 'symbol') {
-            return false
-        } else {
-            return Deno.env.get(key) !== undefined
-        }
-    },
-    get(original, key) {
-        if (typeof key === 'symbol') {
-            return undefined
-        } else {
-            return Deno.env.get(key)
-        }
-    },
-    set(original, key, value) {
-        if (typeof key === 'symbol') {
-            undefined
-        } else {
-            Deno.env.set(key, value)
-        }
-        return true
-    },
-    deleteProperty(original, key) {
-        if (typeof key === 'symbol') {
-            return undefined
-        } else {
-            return Deno.env.delete(key)
-        }
-    },
-})
+let env = null
 
 // 
 // allow custom logging 
@@ -315,7 +281,46 @@ export const Console = {
         }
         return Console
     },
-    env: env,
+    get env() {
+        // this is a cached getter to prevent Deno.env.toObject() from getting called until necessary
+        return env = env || new Proxy(
+            Deno.env.toObject(),
+            {
+                // Object.keys
+                ownKeys(target) {
+                    return Object.keys(Deno.env.toObject())
+                },
+                has(original, key) {
+                    if (typeof key === 'symbol') {
+                        return false
+                    } else {
+                        return Deno.env.get(key) !== undefined
+                    }
+                },
+                get(original, key) {
+                    if (typeof key === 'symbol') {
+                        return original[key]
+                    } else {
+                        return Deno.env.get(key)
+                    }
+                },
+                set(original, key, value) {
+                    original[key] = value
+                    if (typeof key !== 'symbol') {
+                        Deno.env.set(key, value)
+                    }
+                    return true
+                },
+                deleteProperty(original, key) {
+                    if (typeof key === 'symbol') {
+                        return undefined
+                    } else {
+                        return Deno.env.delete(key)
+                    }
+                },
+            }
+        )
+    },
     disableColorIfNonIteractive: true,
     askFor: {
         // in the future once Deno.setRaw is stable, add a askFor.password using: https://github.com/caspervonb/deno-prompts
@@ -435,9 +440,9 @@ export const Console = {
                 //
                 // terminal support
                 //
-                if ('TERM_PROGRAM' in env) {
-                    const version = Number.parseInt((env.TERM_PROGRAM_VERSION || '').split('.')[0], 10)
-                    if (env.TERM_PROGRAM == 'iTerm.app') {
+                if ('TERM_PROGRAM' in Console.env) {
+                    const version = Number.parseInt((Console.env.TERM_PROGRAM_VERSION || '').split('.')[0], 10)
+                    if (Console.env.TERM_PROGRAM == 'iTerm.app') {
                         if (version >= 3) {
                             terminalSupport = {
                                 includesAnsi: true,
@@ -451,7 +456,7 @@ export const Console = {
                                 includes16m: false,
                             }
                         }
-                    } else if (env.TERM_PROGRAM == 'Apple_Terminal') {
+                    } else if (Console.env.TERM_PROGRAM == 'Apple_Terminal') {
                         terminalSupport = {
                             includesAnsi: true,
                             includes256: true,
@@ -459,37 +464,37 @@ export const Console = {
                         }
                     }
                 }
-                if (env.TERM === 'dumb') {
+                if (Console.env.TERM === 'dumb') {
                     terminalSupport = {
                         includesAnsi: false,
                         includes256: false,
                         includes16m: false,
                     }
-                } else if ('CI' in env) {
+                } else if ('CI' in Console.env) {
                     terminalSupport = {
-                        includesAnsi: ['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE', 'DRONE'].some(sign => sign in env) || env.CI_NAME === 'codeship',
+                        includesAnsi: ['TRAVIS', 'CIRCLECI', 'APPVEYOR', 'GITLAB_CI', 'GITHUB_ACTIONS', 'BUILDKITE', 'DRONE'].some(sign => sign in Console.env) || Console.env.CI_NAME === 'codeship',
                         includes256: false,
                         includes16m: false,
                     }
-                } else if (env.COLORTERM === 'truecolor') {
+                } else if (Console.env.COLORTERM === 'truecolor') {
                     terminalSupport = {
                         includesAnsi: true,
                         includes256: true,
                         includes16m: true,
                     }
-                } else if (/-256(color)?$/i.test(env.TERM)) {
+                } else if (/-256(color)?$/i.test(Console.env.TERM)) {
                     terminalSupport = {
                         includesAnsi: true,
                         includes256: true,
                         includes16m: false,
                     }
-                } else if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(env.TERM)) {
+                } else if (/^screen|^xterm|^vt100|^vt220|^rxvt|color|ansi|cygwin|linux/i.test(Console.env.TERM)) {
                     terminalSupport = {
                         includesAnsi: true,
                         includes256: false,
                         includes16m: false,
                     }
-                } else if ('COLORTERM' in env) {
+                } else if ('COLORTERM' in Console.env) {
                     terminalSupport = {
                         includesAnsi: true,
                         includes256: false,
