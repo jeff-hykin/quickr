@@ -1,7 +1,6 @@
 import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
-import { copy } from "https://deno.land/std@0.123.0/streams/conversion.ts"
-import { move as moveAndRename, moveSync as moveAndRenameSync } from "https://deno.land/std@0.133.0/fs/mod.ts"
+import { move as moveAndRename, moveSync as moveAndRenameSync, copy } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.7.8/string.js"
 import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.8/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.87.0/path/glob.ts"
@@ -595,7 +594,7 @@ export const FileSystem = {
         }
     },
     // FIXME: make this work for folders with many options for how to handle symlinks
-    async copy({from, to, force=true}) {
+    async copy({from, to, force=true, preserveTimestamps=true}) {
         const existingItemDoesntExist = (await Deno.stat(from).catch(()=>({doesntExist: true}))).doesntExist
         if (existingItemDoesntExist) {
             throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
@@ -604,12 +603,8 @@ export const FileSystem = {
             FileSystem.sync.clearAPathFor(to, { overwrite: force })
             FileSystem.sync.remove(to)
         }
-        const target = await Deno.create(to)
-        const source = await Deno.open(from, { read: true })
-        const result = await copy(source, target)
-        Deno.close(source.rid)
-        Deno.close(target.rid)
-        return result
+        const fromInfo = await FileSystem.info(from)
+        return basicCopy(from, to, {force, preserveTimestamps: true})
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false}) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
