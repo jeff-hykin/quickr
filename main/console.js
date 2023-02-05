@@ -148,6 +148,7 @@ globalThis.console = new Proxy(originalThing, {
             styleAccumulator.styles = [ styleString ]
             styleAccumulator.sequence = [ styleString ]
             styleAccumulator.toString = ()=>styleAccumulator.sequence.join("")+styleStrings.reset
+            styleAccumulator[Deno.customInspect] = ()=>styleAccumulator.sequence.join("")+styleStrings.reset
             styleAccumulator[symbolForConsoleLog] = ()=>{
                 const asString = styleAccumulator.toString()
                 if (Console.reliableColorSupport.includesAnsi) {
