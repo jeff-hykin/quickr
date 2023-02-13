@@ -13,6 +13,28 @@ export {
     writableStreamFromWriter as writableStreamFromWriter,
 }
 
+const concatUint8Arrays = (arrays) => new Uint8Array( // simplified from: https://stackoverflow.com/questions/49129643/how-do-i-merge-an-array-of-uint8arrays
+        arrays.reduce((acc, curr) => (acc.push(...curr),acc), [])
+    )
+
+export const streamToString = async (stream) => {
+    let returnReader = stream
+    // if given a readable, it will skip this part
+    if (stream?.getReader instanceof Function) {
+        returnReader = stream.getReader()
+    }
+    let blocks = []
+    while (true) {
+        const {value, done} = await returnReader.read()
+        if (done) {
+            break
+        }
+        blocks.push(value)
+    }
+    const string = new TextDecoder().decode(concatUint8Arrays(blocks))
+    return string
+}
+
 export const isReadable = (obj) => obj instanceof Object && obj.read instanceof Function
 export const isWritable = (obj) => obj instanceof Object && obj.write instanceof Function
 
