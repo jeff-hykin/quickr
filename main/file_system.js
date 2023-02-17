@@ -1047,7 +1047,7 @@ export const FileSystem = {
             || (fileInfo instanceof Object && fileInfo.isFile) // if already computed, dont make a 2nd system call
             || (!(fileInfo instanceof Object) && (await FileSystem.info(path)).isFile)
         ) {
-            return Deno.chmod(path, permissionNumber)
+            return Deno.chmod(path.path || path, permissionNumber)
         } else {
             const promises = []
             const paths = await FileSystem.recursivelyListPathsIn(path, {onlyHardlinks: false, dontFollowSymlinks: false, ...recursively})

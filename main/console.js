@@ -186,7 +186,7 @@ globalThis.console = new Proxy(originalThing, {
                 eachStyleName,
                 { 
                     get() {
-                        styleAccumulator = createStyleAccumulator(rootStyleString)
+                        const styleAccumulator = createStyleAccumulator(rootStyleString)
                         styleAccumulator.styles.push(eachStyleString)
                         styleAccumulator.sequence.push(eachStyleString)
                         return styleAccumulator
