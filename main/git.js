@@ -2,6 +2,15 @@
 // add this wherever you need it now:
 import { stringToBytes } from "https://deno.land/x/binaryify@0.0.6/tools.js"
 
+import fs from "node:fs"
+import nodePath from "node:path"
+import process from "node:process"
+import { Worker } from "node:worker_threads"
+
+import { deferred } from "https://deno.land/std@0.181.0/async/deferred.ts";
+
+const everythingLoaded = deferred();
+
 import binaryStringForLg2Wasm from "./lg2.wasm.binaryified.js"
 const uint8ArrayForLg2Wasm = stringToBytes(binaryStringForLg2Wasm)
 
@@ -49,22 +58,13 @@ var quit_ = (status, toThrow) => {
 }
 var ENVIRONMENT_IS_WEB = typeof window == "object"
 var ENVIRONMENT_IS_WORKER = typeof importScripts == "function"
-var ENVIRONMENT_IS_NODE = typeof process == "object" && typeof process.versions == "object" && typeof process.versions.node == "string"
+var ENVIRONMENT_IS_NODE = true
 var scriptDirectory = ""
-function locateFile(path) {
-    if (Module["locateFile"]) {
-        return Module["locateFile"](path, scriptDirectory)
-    }
-    return scriptDirectory + path
-}
 var read_, readAsync, readBinary, setWindowTitle
 if (ENVIRONMENT_IS_NODE) {
-    var fs = require("fs")
-    var nodePath = require("path")
+    
     if (ENVIRONMENT_IS_WORKER) {
         scriptDirectory = nodePath.dirname(scriptDirectory) + "/"
-    } else {
-        scriptDirectory = __dirname + "/"
     }
     read_ = (filename, binary) => {
         filename = isFileURI(filename) ? new URL(filename) : nodePath.normalize(filename)
@@ -1300,6 +1300,8 @@ var NODEFS = {
         return ERRNO_CODES[code]
     },
     mount: (mount) => {
+        mount.opts.root = "./run"
+        console.debug(`mount is:`,mount)
         return NODEFS.createNode(null, "/", NODEFS.getMode(mount.opts.root), 0)
     },
     createNode: (parent, name, mode, dev) => {
@@ -1314,6 +1316,7 @@ var NODEFS = {
     getMode: (path) => {
         var stat
         try {
+            console.debug(`path is:`,path)
             stat = fs.lstatSync(path)
             if (NODEFS.isWindows) {
                 stat.mode = stat.mode | ((stat.mode & 292) >> 2)
@@ -1970,6 +1973,7 @@ var FS = {
         mode = mode !== undefined ? mode : 511
         mode &= 511 | 512
         mode |= 16384
+        console.log(`here:mkdir`)
         return FS.mknod(path, mode, 0)
     },
     mkdirTree: (path, mode) => {
@@ -3197,10 +3201,10 @@ var SOCKFS = {
                         opts = undefined
                     }
                     var WebSocketConstructor
-                    if (ENVIRONMENT_IS_NODE) {
-                        WebSocketConstructor = require("ws")
-                    } else {
+                    if (WebSocket instanceof Function) {
                         WebSocketConstructor = WebSocket
+                    } else if (ENVIRONMENT_IS_NODE) {
+                        WebSocketConstructor = require("ws")
                     }
                     ws = new WebSocketConstructor(url, opts)
                     ws.binaryType = "arraybuffer"
@@ -3262,33 +3266,16 @@ var SOCKFS = {
                 sock.recv_queue.push({ addr: peer.addr, port: peer.port, data: data })
                 Module["websocket"].emit("message", sock.stream.fd)
             }
-            if (ENVIRONMENT_IS_NODE) {
-                peer.socket.on("open", handleOpen)
-                peer.socket.on("message", function (data, isBinary) {
-                    if (!isBinary) {
-                        return
-                    }
-                    handleMessage(new Uint8Array(data).buffer)
-                })
-                peer.socket.on("close", function () {
-                    Module["websocket"].emit("close", sock.stream.fd)
-                })
-                peer.socket.on("error", function (error) {
-                    sock.error = 14
-                    Module["websocket"].emit("error", [sock.stream.fd, sock.error, "ECONNREFUSED: Connection refused"])
-                })
-            } else {
-                peer.socket.onopen = handleOpen
-                peer.socket.onclose = function () {
-                    Module["websocket"].emit("close", sock.stream.fd)
-                }
-                peer.socket.onmessage = function peer_socket_onmessage(event) {
-                    handleMessage(event.data)
-                }
-                peer.socket.onerror = function (error) {
-                    sock.error = 14
-                    Module["websocket"].emit("error", [sock.stream.fd, sock.error, "ECONNREFUSED: Connection refused"])
-                }
+            peer.socket.onopen = handleOpen
+            peer.socket.onclose = function () {
+                Module["websocket"].emit("close", sock.stream.fd)
+            }
+            peer.socket.onmessage = function peer_socket_onmessage(event) {
+                handleMessage(event.data)
+            }
+            peer.socket.onerror = function (error) {
+                sock.error = 14
+                Module["websocket"].emit("error", [sock.stream.fd, sock.error, "ECONNREFUSED: Connection refused"])
             }
         },
         poll: function (sock) {
@@ -4216,13 +4203,7 @@ function getHeapMax() {
 function _emscripten_get_heap_max() {
     return getHeapMax()
 }
-var _emscripten_get_now
-if (ENVIRONMENT_IS_NODE) {
-    _emscripten_get_now = () => {
-        var t = process.hrtime()
-        return t[0] * 1e3 + t[1] / 1e6
-    }
-} else _emscripten_get_now = () => performance.now()
+var _emscripten_get_now = () => performance.now()
 function _emscripten_memcpy_big(dest, src, num) {
     HEAPU8.copyWithin(dest, src, src + num)
 }
@@ -4859,9 +4840,7 @@ Object.defineProperties(FSNode.prototype, {
 })
 FS.FSNode = FSNode
 FS.staticInit()
-if (ENVIRONMENT_IS_NODE) {
-    NODEFS.staticInit()
-}
+
 ERRNO_CODES = { EPERM: 63, ENOENT: 44, ESRCH: 71, EINTR: 27, EIO: 29, ENXIO: 60, E2BIG: 1, ENOEXEC: 45, EBADF: 8, ECHILD: 12, EAGAIN: 6, EWOULDBLOCK: 6, ENOMEM: 48, EACCES: 2, EFAULT: 21, ENOTBLK: 105, EBUSY: 10, EEXIST: 20, EXDEV: 75, ENODEV: 43, ENOTDIR: 54, EISDIR: 31, EINVAL: 28, ENFILE: 41, EMFILE: 33, ENOTTY: 59, ETXTBSY: 74, EFBIG: 22, ENOSPC: 51, ESPIPE: 70, EROFS: 69, EMLINK: 34, EPIPE: 64, EDOM: 18, ERANGE: 68, ENOMSG: 49, EIDRM: 24, ECHRNG: 106, EL2NSYNC: 156, EL3HLT: 107, EL3RST: 108, ELNRNG: 109, EUNATCH: 110, ENOCSI: 111, EL2HLT: 112, EDEADLK: 16, ENOLCK: 46, EBADE: 113, EBADR: 114, EXFULL: 115, ENOANO: 104, EBADRQC: 103, EBADSLT: 102, EDEADLOCK: 16, EBFONT: 101, ENOSTR: 100, ENODATA: 116, ETIME: 117, ENOSR: 118, ENONET: 119, ENOPKG: 120, EREMOTE: 121, ENOLINK: 47, EADV: 122, ESRMNT: 123, ECOMM: 124, EPROTO: 65, EMULTIHOP: 36, EDOTDOT: 125, EBADMSG: 9, ENOTUNIQ: 126, EBADFD: 127, EREMCHG: 128, ELIBACC: 129, ELIBBAD: 130, ELIBSCN: 131, ELIBMAX: 132, ELIBEXEC: 133, ENOSYS: 52, ENOTEMPTY: 55, ENAMETOOLONG: 37, ELOOP: 32, EOPNOTSUPP: 138, EPFNOSUPPORT: 139, ECONNRESET: 15, ENOBUFS: 42, EAFNOSUPPORT: 5, EPROTOTYPE: 67, ENOTSOCK: 57, ENOPROTOOPT: 50, ESHUTDOWN: 140, ECONNREFUSED: 14, EADDRINUSE: 3, ECONNABORTED: 13, ENETUNREACH: 40, ENETDOWN: 38, ETIMEDOUT: 73, EHOSTDOWN: 142, EHOSTUNREACH: 23, EINPROGRESS: 26, EALREADY: 7, EDESTADDRREQ: 17, EMSGSIZE: 35, EPROTONOSUPPORT: 66, ESOCKTNOSUPPORT: 137, EADDRNOTAVAIL: 4, ENETRESET: 39, EISCONN: 30, ENOTCONN: 53, ETOOMANYREFS: 141, EUSERS: 136, EDQUOT: 19, ESTALE: 72, ENOTSUP: 138, ENOMEDIUM: 148, EILSEQ: 25, EOVERFLOW: 61, ECANCELED: 11, ENOTRECOVERABLE: 56, EOWNERDEAD: 62, ESTRPIPE: 135 }
 var wasmImports = { k: ___syscall_chmod, s: ___syscall_connect, l: ___syscall_faccessat, g: ___syscall_fcntl64, T: ___syscall_fstat64, O: ___syscall_getcwd, D: ___syscall_getdents64, Q: ___syscall_lstat64, L: ___syscall_mkdirat, R: ___syscall_newfstatat, F: ___syscall_openat, C: ___syscall_readlinkat, r: ___syscall_recvfrom, B: ___syscall_renameat, A: ___syscall_rmdir, q: ___syscall_sendto, h: ___syscall_socket, S: ___syscall_stat64, z: ___syscall_symlink, w: ___syscall_unlinkat, v: ___syscall_utimensat, U: __emscripten_get_now_is_monotonic, I: __gmtime_js, J: __localtime_js, K: __mktime_js, G: __mmap_js, H: __munmap_js, x: __tzset_js, c: _abort, b: _emscripten_asm_const_int, j: _emscripten_date_now, y: _emscripten_get_heap_max, f: _emscripten_get_now, V: _emscripten_memcpy_big, t: _emscripten_resize_heap, M: _environ_get, N: _environ_sizes_get, a: _exit, d: _fd_close, o: _fd_pread, n: _fd_pwrite, i: _fd_read, p: _fd_seek, P: _fd_sync, e: _fd_write, m: _getaddrinfo, E: _getentropy, u: _getloadavg, W: _strftime }
 var asm = createWasm()
@@ -4932,7 +4911,7 @@ function run(args = arguments_) {
         if (ABORT) return
         initRuntime()
         preMain()
-        if (Module["onRuntimeInitialized"]) Module["onRuntimeInitialized"]()
+        everythingLoaded.resolve()
         if (shouldRunNow) callMain(args)
         postRun()
     }
@@ -4967,125 +4946,143 @@ FS.chmod = function (path, mode, dontFollow) {
         return 0
     }
 }
-if (ENVIRONMENT_IS_WORKER) {
-    Object.assign(Module, {
-        emscriptenhttpconnect: function (url, buffersize, method, headers) {
-            if (!method) {
-                method = "GET"
-            }
-            const xhr = new XMLHttpRequest()
-            xhr.open(method, url, false)
-            xhr.responseType = "arraybuffer"
-            if (headers) {
-                Object.keys(headers).forEach((header) => xhr.setRequestHeader(header, headers[header]))
-            }
-            emscriptenhttpconnections[httpConnectionNo] = { xhr: xhr, resultbufferpointer: 0, buffersize: buffersize }
-            if (method === "GET") {
-                xhr.send()
-            }
-            return httpConnectionNo++
-        },
-        emscriptenhttpwrite: function (connectionNo, buffer, length) {
-            const connection = emscriptenhttpconnections[connectionNo]
-            const buf = new Uint8Array(Module.HEAPU8.buffer, buffer, length).slice(0)
-            if (!connection.content) {
-                connection.content = buf
-            } else {
-                const content = new Uint8Array(connection.content.length + buf.length)
-                content.set(connection.content)
-                content.set(buf, connection.content.length)
-                connection.content = content
-            }
-        },
-        emscriptenhttpread: function (connectionNo, buffer, buffersize) {
-            const connection = emscriptenhttpconnections[connectionNo]
-            if (connection.content) {
-                connection.xhr.send(connection.content.buffer)
-                connection.content = null
-            }
-            let bytes_read = connection.xhr.response.byteLength - connection.resultbufferpointer
-            if (bytes_read > buffersize) {
-                bytes_read = buffersize
-            }
-            const responseChunk = new Uint8Array(connection.xhr.response, connection.resultbufferpointer, bytes_read)
-            writeArrayToMemory(responseChunk, buffer)
-            connection.resultbufferpointer += bytes_read
-            return bytes_read
-        },
-        emscriptenhttpfree: function (connectionNo) {
-            delete emscriptenhttpconnections[connectionNo]
-        },
-    })
-} else if (ENVIRONMENT_IS_NODE) {
-    const { Worker: Worker } = require("worker_threads")
-    Object.assign(Module, {
-        emscriptenhttpconnect: function (url, buffersize, method, headers) {
-            const statusArray = new Int32Array(new SharedArrayBuffer(4))
-            Atomics.store(statusArray, 0, method === "POST" ? -1 : 0)
-            const resultBuffer = new SharedArrayBuffer(buffersize)
-            const resultArray = new Uint8Array(resultBuffer)
-            const workerData = { statusArray: statusArray, resultArray: resultArray, url: url, method: method ? method : "GET", headers: headers }
-            new Worker(
-                "(" +
-                    function requestWorker() {
-                        const { workerData: workerData } = require("worker_threads")
-                        const req = require(workerData.url.indexOf("https") === 0 ? "https" : "http").request(workerData.url, { headers: workerData.headers, method: workerData.method }, (res) => {
-                            res.on("data", (chunk) => {
-                                const previousStatus = workerData.statusArray[0]
-                                if (previousStatus !== 0) {
-                                    Atomics.wait(workerData.statusArray, 0, previousStatus)
-                                }
-                                workerData.resultArray.set(chunk)
-                                Atomics.store(workerData.statusArray, 0, chunk.length)
-                                Atomics.notify(workerData.statusArray, 0, 1)
-                            })
-                        })
-                        if (workerData.method === "POST") {
-                            while (workerData.statusArray[0] !== 0) {
-                                Atomics.wait(workerData.statusArray, 0, -1)
-                                const length = workerData.statusArray[0]
-                                if (length === 0) {
-                                    break
-                                }
-                                req.write(Buffer.from(workerData.resultArray.slice(0, length)))
-                                Atomics.store(workerData.statusArray, 0, -1)
-                                Atomics.notify(workerData.statusArray, 0, 1)
-                            }
-                        }
-                        req.end()
-                    }.toString() +
-                    ")()",
-                { eval: true, workerData: workerData }
-            )
-            emscriptenhttpconnections[httpConnectionNo] = workerData
-            console.log("connected with method", workerData.method, "to", workerData.url)
-            return httpConnectionNo++
-        },
-        emscriptenhttpwrite: function (connectionNo, buffer, length) {
-            const connection = emscriptenhttpconnections[connectionNo]
-            connection.resultArray.set(new Uint8Array(Module.HEAPU8.buffer, buffer, length))
-            Atomics.store(connection.statusArray, 0, length)
-            Atomics.notify(connection.statusArray, 0, 1)
-            Atomics.wait(connection.statusArray, 0, length)
-        },
-        emscriptenhttpread: function (connectionNo, buffer) {
-            const connection = emscriptenhttpconnections[connectionNo]
-            if (connection.statusArray[0] === -1 && connection.method === "POST") {
-                Atomics.store(connection.statusArray, 0, 0)
-                Atomics.notify(connection.statusArray, 0, 1)
-            }
-            Atomics.wait(connection.statusArray, 0, 0)
-            const bytes_read = connection.statusArray[0]
-            writeArrayToMemory(connection.resultArray.slice(0, bytes_read), buffer)
-            Atomics.store(connection.statusArray, 0, 0)
-            Atomics.notify(connection.statusArray, 0, 1)
-            return bytes_read
-        },
-        emscriptenhttpfree: function (connectionNo) {
-            delete emscriptenhttpconnections[connectionNo]
-        },
-    })
-}
+// Object.assign(Module, {
+//     emscriptenhttpconnect: function (url, buffersize, method, headers) {
+//         if (!method) {
+//             method = "GET"
+//         }
+//         const xhr = new XMLHttpRequest()
+//         xhr.open(method, url, false)
+//         xhr.responseType = "arraybuffer"
+//         if (headers) {
+//             Object.keys(headers).forEach((header) => xhr.setRequestHeader(header, headers[header]))
+//         }
+//         emscriptenhttpconnections[httpConnectionNo] = { xhr: xhr, resultbufferpointer: 0, buffersize: buffersize }
+//         if (method === "GET") {
+//             xhr.send()
+//         }
+//         return httpConnectionNo++
+//     },
+//     emscriptenhttpwrite: function (connectionNo, buffer, length) {
+//         const connection = emscriptenhttpconnections[connectionNo]
+//         const buf = new Uint8Array(Module.HEAPU8.buffer, buffer, length).slice(0)
+//         if (!connection.content) {
+//             connection.content = buf
+//         } else {
+//             const content = new Uint8Array(connection.content.length + buf.length)
+//             content.set(connection.content)
+//             content.set(buf, connection.content.length)
+//             connection.content = content
+//         }
+//     },
+//     emscriptenhttpread: function (connectionNo, buffer, buffersize) {
+//         const connection = emscriptenhttpconnections[connectionNo]
+//         if (connection.content) {
+//             connection.xhr.send(connection.content.buffer)
+//             connection.content = null
+//         }
+//         let bytes_read = connection.xhr.response.byteLength - connection.resultbufferpointer
+//         if (bytes_read > buffersize) {
+//             bytes_read = buffersize
+//         }
+//         const responseChunk = new Uint8Array(connection.xhr.response, connection.resultbufferpointer, bytes_read)
+//         writeArrayToMemory(responseChunk, buffer)
+//         connection.resultbufferpointer += bytes_read
+//         return bytes_read
+//     },
+//     emscriptenhttpfree: function (connectionNo) {
+//         delete emscriptenhttpconnections[connectionNo]
+//     },
+// })
+// // if (ENVIRONMENT_IS_WORKER) {
+// // } else if (ENVIRONMENT_IS_NODE) {
+// //     Object.assign(Module, {
+// //         emscriptenhttpconnect: function (url, buffersize, method, headers) {
+// //             const statusArray = new Int32Array(new SharedArrayBuffer(4))
+// //             Atomics.store(statusArray, 0, method === "POST" ? -1 : 0)
+// //             const resultBuffer = new SharedArrayBuffer(buffersize)
+// //             const resultArray = new Uint8Array(resultBuffer)
+// //             const workerData = { statusArray: statusArray, resultArray: resultArray, url: url, method: method ? method : "GET", headers: headers }
+// //             new Worker(
+// //                 "(" +
+// //                     function requestWorker() {
+// //                         // const { workerData: workerData } = require("worker_threads")
+// //                         const req = require(workerData.url.indexOf("https") === 0 ? "https" : "http").request(workerData.url, { headers: workerData.headers, method: workerData.method }, (res) => {
+// //                             res.on("data", (chunk) => {
+// //                                 const previousStatus = workerData.statusArray[0]
+// //                                 if (previousStatus !== 0) {
+// //                                     Atomics.wait(workerData.statusArray, 0, previousStatus)
+// //                                 }
+// //                                 workerData.resultArray.set(chunk)
+// //                                 Atomics.store(workerData.statusArray, 0, chunk.length)
+// //                                 Atomics.notify(workerData.statusArray, 0, 1)
+// //                             })
+// //                         })
+// //                         if (workerData.method === "POST") {
+// //                             while (workerData.statusArray[0] !== 0) {
+// //                                 Atomics.wait(workerData.statusArray, 0, -1)
+// //                                 const length = workerData.statusArray[0]
+// //                                 if (length === 0) {
+// //                                     break
+// //                                 }
+// //                                 req.write(Buffer.from(workerData.resultArray.slice(0, length)))
+// //                                 Atomics.store(workerData.statusArray, 0, -1)
+// //                                 Atomics.notify(workerData.statusArray, 0, 1)
+// //                             }
+// //                         }
+// //                         req.end()
+// //                     }.toString() +
+// //                     ")()",
+// //                 { eval: true, workerData: workerData }
+// //             )
+// //             emscriptenhttpconnections[httpConnectionNo] = workerData
+// //             console.log("connected with method", workerData.method, "to", workerData.url)
+// //             return httpConnectionNo++
+// //         },
+// //         emscriptenhttpwrite: function (connectionNo, buffer, length) {
+// //             const connection = emscriptenhttpconnections[connectionNo]
+// //             connection.resultArray.set(new Uint8Array(Module.HEAPU8.buffer, buffer, length))
+// //             Atomics.store(connection.statusArray, 0, length)
+// //             Atomics.notify(connection.statusArray, 0, 1)
+// //             Atomics.wait(connection.statusArray, 0, length)
+// //         },
+// //         emscriptenhttpread: function (connectionNo, buffer) {
+// //             const connection = emscriptenhttpconnections[connectionNo]
+// //             if (connection.statusArray[0] === -1 && connection.method === "POST") {
+// //                 Atomics.store(connection.statusArray, 0, 0)
+// //                 Atomics.notify(connection.statusArray, 0, 1)
+// //             }
+// //             Atomics.wait(connection.statusArray, 0, 0)
+// //             const bytes_read = connection.statusArray[0]
+// //             writeArrayToMemory(connection.resultArray.slice(0, bytes_read), buffer)
+// //             Atomics.store(connection.statusArray, 0, 0)
+// //             Atomics.notify(connection.statusArray, 0, 1)
+// //             return bytes_read
+// //         },
+// //         emscriptenhttpfree: function (connectionNo) {
+// //             delete emscriptenhttpconnections[connectionNo]
+// //         },
+// //     })
+// // }
 
+await everythingLoaded
 
 export default Module
+
+
+// 
+// doesnt quite work
+// 
+    // import git from "./main/git.js"
+    // var FS = git.FS
+    // var NODEFS = FS.filesystems.NODEFS
+    // FS.mkdir('/home/web_user/test')
+    // FS.mount(NODEFS, { }, '/home/web_user/test')
+
+
+    // FS.chdir('/home/web_user/test')
+    // FS.writeFile('/home/web_user/.gitconfig', '[user]\nname = Test User\nemail = test@example.com')
+
+    // // clone a repository from github
+    // git.callMain(['clone','https://github.com/torch2424/made-with-webassembly.git', 'made-with-webassembly'])
+    // FS.readdir('made-with-webassembly')
