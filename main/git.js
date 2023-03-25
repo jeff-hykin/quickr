@@ -374,80 +374,29 @@ function isDataURI(filename) {
 function isFileURI(filename) {
     return filename.startsWith("file://")
 }
-var wasmBinaryFile
-wasmBinaryFile = "lg2.wasm"
-if (!isDataURI(wasmBinaryFile)) {
-    wasmBinaryFile = locateFile(wasmBinaryFile)
-}
-function getBinary(file) {
-    try {
-        if (file == wasmBinaryFile && wasmBinary) {
-            return new Uint8Array(wasmBinary)
-        }
-        if (readBinary) {
-            return readBinary(file)
-        }
-        throw "both async and sync fetching of the wasm failed"
-    } catch (err) {
-        abort(err)
-    }
-}
-function getBinaryPromise(binaryFile) {
-    if (!wasmBinary && (ENVIRONMENT_IS_WEB || ENVIRONMENT_IS_WORKER)) {
-        if (typeof fetch == "function" && !isFileURI(binaryFile)) {
-            return fetch(binaryFile, { credentials: "same-origin" })
-                .then(function (response) {
-                    if (!response["ok"]) {
-                        throw "failed to load wasm binary file at '" + binaryFile + "'"
-                    }
-                    return response["arrayBuffer"]()
-                })
-                .catch(function () {
-                    return getBinary(binaryFile)
-                })
-        } else {
-            if (readAsync) {
-                return new Promise(function (resolve, reject) {
-                    readAsync(
-                        binaryFile,
-                        function (response) {
-                            resolve(new Uint8Array(response))
-                        },
-                        reject
-                    )
-                })
-            }
-        }
-    }
-    return Promise.resolve().then(function () {
-        return getBinary(binaryFile)
+function instantiateArrayBuffer(imports, receiver) {
+    return new Promise((resolve, reject)=>{
+        resolve(WebAssembly.instantiate(uint8ArrayForLg2Wasm, imports))
+    }).then(function (instance) {
+        return instance
+    })
+    .then(receiver, function (reason) {
+        err("failed to asynchronously prepare wasm: " + reason)
+        abort(reason)
     })
 }
-function instantiateArrayBuffer(binaryFile, imports, receiver) {
-    return getBinaryPromise(binaryFile)
-        .then(function (binary) {
-            return WebAssembly.instantiate(binary, imports)
-        })
-        .then(function (instance) {
-            return instance
-        })
-        .then(receiver, function (reason) {
-            err("failed to asynchronously prepare wasm: " + reason)
-            abort(reason)
-        })
-}
 function instantiateAsync(binary, binaryFile, imports, callback) {
-    if (!binary && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI(binaryFile) && !isFileURI(binaryFile) && !ENVIRONMENT_IS_NODE && typeof fetch == "function") {
-        return fetch(binaryFile, { credentials: "same-origin" }).then(function (response) {
+    if (!binary && typeof WebAssembly.instantiateStreaming == "function" && !isDataURI("lg2.wasm") && !isFileURI("lg2.wasm") && !ENVIRONMENT_IS_NODE && typeof fetch == "function") {
+        return fetch("lg2.wasm", { credentials: "same-origin" }).then(function (response) {
             var result = WebAssembly.instantiateStreaming(response, imports)
             return result.then(callback, function (reason) {
                 err("wasm streaming compile failed: " + reason)
                 err("falling back to ArrayBuffer instantiation")
-                return instantiateArrayBuffer(binaryFile, imports, callback)
+                return instantiateArrayBuffer(imports, callback)
             })
         })
     } else {
-        return instantiateArrayBuffer(binaryFile, imports, callback)
+        return instantiateArrayBuffer(imports, callback)
     }
 }
 function createWasm() {
@@ -474,7 +423,7 @@ function createWasm() {
             return false
         }
     }
-    instantiateAsync(wasmBinary, wasmBinaryFile, info, receiveInstantiationResult)
+    instantiateAsync(wasmBinary, "lg2.wasm", info, receiveInstantiationResult)
     return {}
 }
 var tempDouble
@@ -5137,3 +5086,6 @@ if (ENVIRONMENT_IS_WORKER) {
         },
     })
 }
+
+
+export default Module
