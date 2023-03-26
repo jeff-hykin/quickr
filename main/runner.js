@@ -258,6 +258,7 @@ import { FileSystem } from "./file_system.js"
         Object.assign(proimseOfProcess, setup)
         return proimseOfProcess
     }
+    const didClose = Symbol()
     class ProcessSetup {
         constructor(...args) {
             this.args = {}
@@ -363,10 +364,11 @@ import { FileSystem } from "./file_system.js"
                 })
                 // FIXME: consider synchonous execution 
                 this.process = new Process({
+                    setupArgs: this.args,
                     childProcess: command.spawn(),
                     stdinStream: null,
                     stdoutStream: null,
-                    stderr: null,
+                    stderrStream: null,
                 })
             
             // 
@@ -417,19 +419,208 @@ import { FileSystem } from "./file_system.js"
                         args: normalArgs.slice(1,),
                         ...assignment, // stdin, stdout, stderr
                     })
+                    const childProcess = command.spawn()
 
                 // 
-                // Create the stdin stream
+                // Create the stdin stream variable
                 // 
+                    let stdinStream = null
+                    if (assignment.stdin == 'piped') {
+                        const directStdinWriter = childProcess.stdin.getWriter()
+                        stdinStream = directStdinWriter
+                        if (typeof stdinSource == 'string') {
+                            stdinStream = null // not accessable on Process object
+                            // without the stdin.close() part the process will wait forever
+                            directStdinWriter.write(new TextEncoder().encode(stdinSource)).then(()=>{
+                                directStdinWriter.close()
+                            })
+                        } else if (stdinSource instanceof Uint8Array) {
+                            stdinStream = null // not accessable on Process object
+                            // without the stdin.close() part the process will wait forever
+                            directStdinWriter.write(stdinSource).then(()=>directStdinWriter.close())
+                        } else if (stdinSource instanceof Deno.File) {
+                            // FIXME: add a close listener
+                        } else {
+                            let reader
+                            if (stdinSource instanceof ReadableStream) {
+                                reader = stdinSource.getReader()
+                            } else if (isReadable(stdinSource)) {
+                                reader = stdinSource
+                            } else {
+                                throw Error(`Not sure how this happened, but stdin was piped and I don't know how to handle the stdinSource ${stdinSource}`)
+                            }
 
-                
+                            const closedPromise = reader.closed().then(()=>didClose)
+                            ;((async ()=>{
+                                while (1) {
+                                    const result = await Promise.any([ reader.read(), closedPromise ])
+                                    if (result === didClose) {
+                                        directStdinWriter.close()
+                                    } else {
+                                        if (typeof result == 'string') {
+                                            directStdinWriter.write(new TextEncoder().encode(result))
+                                        } else {
+                                            directStdinWriter.write(result)
+                                        }
+                                    }
+                                }
+                            })())
+                        }
+                    }
+                    
+                // 
+                // Create the out streams
+                //
+                    const stdoutListeners = []
+                    const stderrListeners = []
+                    
+                    const listenToStdoutString = stdoutTargets.some(each=>each===String)
+                    const listenToStderrString = stderrTargets.some(each=>each===String)
+                    const stringOuts = {
+                        out: null,
+                        stdout: null,
+                        stderr: null,
+                    }
+                    // if both
+                    if (listenToStdoutString && listenToStderrString) {
+                        stringOuts.out = ""
+                        stringOuts.stdout = ""
+                        stringOuts.stderr = ""
+                        const stdoutDecoder = new TextDecoder()
+                        stdoutListeners.push({
+                            onWrite(chunk) {
+                                try {
+                                    const textString = stdoutDecoder.decode(chunk)
+                                    stringOuts.out    += textString
+                                    stringOuts.stdout += textString
+                                } catch (error) {
+                                    
+                                }
+                            },
+                            onClose() {},
+                        })
+                        const stderrDecoder = new TextDecoder()
+                        stderrListeners.push({
+                            onWrite(chunk) {
+                                try {
+                                    const textString = stderrDecoder.decode(chunk)
+                                    stringOuts.out    += textString
+                                    stringOuts.stderr += textString
+                                } catch (error) {
+                                    
+                                }
+                            },
+                            onClose() {},
+                        })
+                    // if only stdout
+                    } else if (listenToStdoutString) {
+                        stringOuts.stdout = ""
+                        const stdoutDecoder = new TextDecoder()
+                        stdoutListeners.push({
+                            onWrite(chunk) {
+                                try {
+                                    const textString = stdoutDecoder.decode(chunk)
+                                    stringOuts.stdout += textString
+                                } catch (error) {
+                                    
+                                }
+                            },
+                            onClose() {},
+                        })
+                    // if only stderr
+                    } else if (listenToStderrString) {
+                        stringOuts.stderr = ""
+                        const stderrDecoder = new TextDecoder()
+                        stderrListeners.push({
+                            onWrite(chunk) {
+                                try {
+                                    const textString = stderrDecoder.decode(chunk)
+                                    stringOuts.stderr += textString
+                                } catch (error) {
+                                    
+                                }
+                            },
+                            onClose() {},
+                        })
+                    }
+                    
+                    // 
+                    // handle Uint8Array output
+                    // 
+                        // FIXME
+                    
+                    // 
+                    // handle multiple write stream outputs
+                    // 
+                    for (const [targets, listeners] of [[stdoutTargets, stdoutListeners], [stderrTargets, stderrListeners]]) {
+                        // String writers
+                        if (targets.some(each=>each===String)) {
+                            listeners.push({
+                                onWrite(chunk) {
+                                    try {
+                                        stringOuts.
+                                        new TextDecoder().decode(chunk)
+                                    } catch (error) {
+                                        
+                                    }
+                                }
+                            })
+                        }
+                    }
+
+                    // FIXME:
+                        // record necessary string vars
+                        // write to files
+                        // write to 
+
+                    let stdoutStream = null
+                    if (assignment.stdout == 'piped') {
+                        const directStdoutReader = childProcess.stdout.getReader()
+                        const closedPromise = directStdoutReader.closed().then(()=>didClose)
+                        ;((async ()=>{
+                            while (1) {
+                                const result = await Promise.any([ reader.read(), closedPromise ])
+                                if (result === didClose) {
+                                    for (const {onClose, onWrite} of stdoutListeners) {
+                                        try {
+                                            onClose()
+                                        } catch (error) {
+                                            // should only be triggered if something from this library is broken
+                                            console.error(error)
+                                        }
+                                    }
+                                } else {
+                                    for (const {onClose, onWrite} of stdoutListeners) {
+                                        try {
+                                            onWrite(result)
+                                        } catch (error) {
+                                            // should only be triggered if something from this library is broken
+                                            console.error(error)
+                                        }
+                                    }
+                                }
+                            }
+                        })())
+                    }
+                // 
+                // Create the stderr stream
+                // 
+                    
+
 
                 // 
-                // Create the stdout stream
+                // finalize the process object
                 // 
-
-                this.process = something
+                this.process = new Process({
+                    setupArgs: this.args,
+                    childProcess,
+                    stdinStream,
+                    stdoutStream,
+                    stderrStream,
+                    // _premadeResult
+                })
             }
+
             return this.process
         }
     }
@@ -445,13 +636,21 @@ import { FileSystem } from "./file_system.js"
         // .stdinStream  // can be used for writing
         // .stdoutStream // can be used for reading
         // .stderrStream // can be used for reading
-        constructor({setupArgs, childProcess, stdinStream, stdoutStream, stderrStream}) {
+        constructor({setupArgs, childProcess, stdinStream, stdoutStream, stderrStream, _premadeResult}) {
             this.setupArgs = setupArgs
             this.childProcess = childProcess
             this.pid = childProcess.pid
             this.stdinStream = stdinStream
             this.stdoutStream = stdoutStream
             this.stderrStream = stderrStream
+            if (_premadeResult) {
+                this.result = result
+            } else {
+                this.result = this.childProcess.output().then(({stdout,stderr})=>{
+                    // FIXME: handle the result here
+                })
+            }
+            this._premadeResult = _premadeResult
         }
         signal(value) {
             return this.childProcess.kill(value)
@@ -461,11 +660,6 @@ import { FileSystem } from "./file_system.js"
         }
         forceKill(value) {
             return this.childProcess.kill("SIGKILL")
-        }
-        get result() {
-            return new Promise(async (resolve, reject)=>{
-                
-            })
         }
     }
 
