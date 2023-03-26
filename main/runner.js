@@ -97,7 +97,7 @@ import { FileSystem } from "./file_system.js"
         }
     }
 
-    // this will purely be used for Stdin
+    // this will be used for Stdin and Stdout/Stderr
     export const InteractiveStream = (...args)=>new InteractiveStreamClass(...args)
     class InteractiveStreamClass {
         constructor({ onWrite, onClose }) {
@@ -128,6 +128,9 @@ import { FileSystem } from "./file_system.js"
         close() {
             if (this.streamConnection) {
                 this.streamConnection.close()
+            }
+            if (this.onClose instanceof Function) {
+                this.onClose()
             }
         }
     }
@@ -706,18 +709,20 @@ import { FileSystem } from "./file_system.js"
             if (_premadeResult) {
                 this.result = result
             } else {
-                this.result = this.childProcess.output().then(({stdout, stderr})=>{
-                    
-                    if (this.setupArgs.stdoutTargets.includes(String))
-                    // FIXME: handle the result here
+                this.result = this.childProcess.output().then(async ({stdout, stderr})=>{
+                    const commandStatus = await this.childProcess.status()
+                    return new Result({
+                        commandStatus,
+                        outStream,
+                    })
                 })
             }
-            this._premadeResult = _premadeResult
         }
         signal(value) {
             return this.childProcess.kill(value)
         }
         kill(value) {
+            // FIXME: make sure to interupt outStream.string.accumulate any time the process dies
             return this.childProcess.kill("SIGINT")
         }
         forceKill(value) {
@@ -726,17 +731,21 @@ import { FileSystem } from "./file_system.js"
     }
 
     class Result {
-        constructor({ setupArgs, commandStatus }) {
-            this._setupArgs     = setupArgs
-            this._commandStatus = commandStatus
-
-            this.exitCode = this._commandStatus.code
-            this.success  = this._commandStatus.success
-            this.signal   = this._commandStatus.signal
-
-            this.out      = out
-            this.stdout   = stdout
-            this.stderr   = stderr
+        constructor({ commandStatus, outStream, }) {
+            this.exitCode = commandStatus.code
+            this.success  = commandStatus.success
+            this.signal   = commandStatus.signal
+            
+            this.string = {
+                out: outStream.string.out,
+                stdout: outStream.string.stdout,
+                stderr: outStream.string.stderr,
+            }
+            this.bytes = {
+                out: outStream.bytes.out,
+                stdout: outStream.bytes.stdout,
+                stderr: outStream.bytes.stderr,
+            }
         }
     }
     
@@ -753,9 +762,10 @@ import { FileSystem } from "./file_system.js"
     //     if (out.match(/please enter password\n/)) {
     //         process.outStream.clearAccumulation()
     //         process.stdinStream.write('howdy there\n')
+    //     } else {
+    //         process.stdinStream.close()
     //     }
     // }
-    // const { success, exitCode } = await process.result
     // const { success, exitCode } = await process.result
 
 // var process = Deno.run({
