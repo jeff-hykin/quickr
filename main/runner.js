@@ -61,7 +61,7 @@ import { FileSystem } from "./file_system.js"
         } else if (
             !(
                 value === null ||
-                value instanceof FileStream ||
+                value instanceof FileStreamClass ||
                 value instanceof Deno.File ||
                 isWritable(value)
             )
@@ -100,8 +100,11 @@ import { FileSystem } from "./file_system.js"
     // this will purely be used for Stdin
     export const InteractiveStream = (...args)=>new InteractiveStreamClass(...args)
     class InteractiveStreamClass {
-        constructor() {
+        constructor({ onWrite, onClose }) {
+            this.onWrite = onWrite
+            this.onClose = onClose
             this.buffer = []
+            this.streamConnection = null
         }
         write(input) {
             let uint8Input = input
@@ -112,10 +115,20 @@ import { FileSystem } from "./file_system.js"
             } else {
                 throw Error(`When performing a .write(input) with an InteractiveStream object, the input needs to be a string or Uint8Array. However instead I received an input of ${input}`)
             }
-            this.buffer.push(uint8Input)
+            if (this.onWrite) {
+                this.onWrite(input)
+            }
+
+            if (this.streamConnection) {
+                this.streamConnection.write(uint8Input)
+            } else {
+                this.buffer.push(uint8Input)
+            }
         }
-        read() {
-            // FIXME: finish making this class a valid readable stream
+        close() {
+            if (this.streamConnection) {
+                this.streamConnection.close()
+            }
         }
     }
 
@@ -376,17 +389,24 @@ import { FileSystem } from "./file_system.js"
                 let stdinStream = null
                 if (assignment.stdin == 'piped') {
                     const directStdinWriter = childProcess.stdin.getWriter()
-                    stdinStream = directStdinWriter
                     if (typeof stdinSource == 'string') {
-                        stdinStream = null // not accessable on Process object
                         // without the stdin.close() part the process will wait forever
                         directStdinWriter.write(new TextEncoder().encode(stdinSource)).then(()=>{
                             directStdinWriter.close()
                         })
                     } else if (stdinSource instanceof Uint8Array) {
-                        stdinStream = null // not accessable on Process object
                         // without the stdin.close() part the process will wait forever
                         directStdinWriter.write(stdinSource).then(()=>directStdinWriter.close())
+                    } else if (stdinSource instanceof InteractiveStreamClass) {
+                        const buffer = stdinSource.buffer
+                        stdinSource.buffer.length = 0 // clear the contents
+                        stdinSource.streamConnection = directStdinWriter
+                        if (buffer.length > 0) {
+                            directStdinWriter.write(concatUint8Arrays(buffer))
+                        }
+                        
+                        // connect the stream
+                        stdinStream = stdinSource
                     } else {
                         let reader
                         if (stdinSource instanceof ReadableStream) {
@@ -421,169 +441,236 @@ import { FileSystem } from "./file_system.js"
                 const stdoutListeners = []
                 const stderrListeners = []
                 
-                const uint8ArrayOuts = {
-                    out: null,
-                    stdout: null,
-                    stderr: null,
-                }
-                const listenToStdoutUint8Array = assignment.stdout != 'null'
-                const listenToStderrUint8Array = assignment.stderr != 'null'
-                // if both
-                if (listenToStdoutUint8Array && listenToStderrUint8Array) {
-                    uint8ArrayOuts.out = new Uint8Array()
-                    uint8ArrayOuts.stdout = new Uint8Array()
-                    uint8ArrayOuts.stderr = new Uint8Array()
-                    stdoutListeners.push({
-                        onWrite(chunk) {
-                            try {
-                                uint8ArrayOuts.out    = concatUint8Arrays(uint8ArrayOuts.out, chunk)
-                                uint8ArrayOuts.stdout = concatUint8Arrays(uint8ArrayOuts.stdout, chunk)
-                            } catch (error) {
-                                
+                // 
+                // outStream
+                // 
+                    const decoder = new TextDecoder()
+                    const outStream = {
+                        clearAccumulation() {
+                            if (outStream.bytes.out instanceof Uint8Array   ) { outStream.bytes.out    = new Uint8Array() }
+                            if (outStream.bytes.stdout instanceof Uint8Array) { outStream.bytes.stdout = new Uint8Array() }
+                            if (outStream.bytes.stderr instanceof Uint8Array) { outStream.bytes.stderr = new Uint8Array() }
+                        },
+                        _stdoutNext: null,
+                        _stderrNext: null,
+                        _stdoutClose: null,
+                        _stderrClose: null,
+                        bytes: {
+                            out: null,
+                            stdout: null,
+                            stderr: null,
+                        },
+                        string: {
+                            get    out() { return outStream.bytes.out    === null ? null : decoder.decode(outStream.bytes.out) }
+                            get stdout() { return outStream.bytes.stdout === null ? null : decoder.decode(outStream.bytes.stdout) }
+                            get stderr() { return outStream.bytes.stderr === null ? null : decoder.decode(outStream.bytes.stderr) }
+                            async *accumulate() {
+                                const closedBothPromise = Promise.all([
+                                    outStream._stdoutClose,
+                                    outStream._stderrClose,
+                                ]).then(()=>didClose)
+
+                                while (1) {
+                                    const signal = await Promise.any(
+                                        outStream._stdoutNext,
+                                        outStream._stderrNext, 
+                                        closedBothPromise,
+                                    )
+                                    if (signal == didClose) {
+                                        break
+                                    }
+                                    yield {
+                                        out:    outStream.string.out,
+                                        stdout: outStream.string.stdout,
+                                        stderr: outStream.string.stderr,
+                                    }
+                                }
                             }
                         },
-                        onClose() {},
-                    })
-                    stderrListeners.push({
-                        onWrite(chunk) {
-                            try {
-                                uint8ArrayOuts.out    = concatUint8Arrays(uint8ArrayOuts.out, chunk)
-                                uint8ArrayOuts.stderr = concatUint8Arrays(uint8ArrayOuts.stderr, chunk)
-                            } catch (error) {
-                                
-                            }
-                        },
-                        onClose() {},
-                    })
-                // if only stdout
-                } else if (listenToStdoutUint8Array) {
-                    uint8ArrayOuts.stdout = new Uint8Array()
-                    stdoutListeners.push({
-                        onWrite(chunk) {
-                            try {
-                                uint8ArrayOuts.stdout = concatUint8Arrays(uint8ArrayOuts.stdout, chunk)
-                            } catch (error) {
-                                
-                            }
-                        },
-                        onClose() {},
-                    })
-                // if only stderr
-                } else if (listenToStderrUint8Array) {
-                    uint8ArrayOuts.stderr = new Uint8Array()
-                    stderrListeners.push({
-                        onWrite(chunk) {
-                            try {
-                                uint8ArrayOuts.stderr = concatUint8Arrays(uint8ArrayOuts.stderr, chunk)
-                            } catch (error) {
-                                
-                            }
-                        },
-                        onClose() {},
-                    })
-                }
+                    }
+                    const listenToStdoutUint8Array = assignment.stdout != 'null'
+                    const listenToStderrUint8Array = assignment.stderr != 'null'
+                    // if both
+                    if (listenToStdoutUint8Array && listenToStderrUint8Array) {
+                        outStream.bytes.out = new Uint8Array()
+                        outStream.bytes.stdout = new Uint8Array()
+                        outStream.bytes.stderr = new Uint8Array()
+                        outStream._stdoutNext  = deferred()
+                        outStream._stdoutClose = deferred()
+                        outStream._stderrNext  = deferred()
+                        outStream._stderrClose = deferred()
+                        stdoutListeners.push({
+                            write(chunk) {
+                                try {
+                                    outStream.bytes.out    = concatUint8Arrays(outStream.bytes.out, chunk)
+                                    outStream.bytes.stdout = concatUint8Arrays(outStream.bytes.stdout, chunk)
+                                } catch (error) {
+                                    
+                                }
+                                outStream._stdoutNext.resolve()
+                                outStream._stdoutNext = deferred()
+                            },
+                            close() {
+                                outStream._stdoutClose.resolve()
+                            },
+                        })
+                        stderrListeners.push({
+                            write(chunk) {
+                                try {
+                                    outStream.bytes.out    = concatUint8Arrays(outStream.bytes.out, chunk)
+                                    outStream.bytes.stderr = concatUint8Arrays(outStream.bytes.stderr, chunk)
+                                } catch (error) {
+                                    
+                                }
+                                outStream._stderrNext.resolve()
+                                outStream._stderrNext = deferred()
+                            },
+                            close() {
+                                outStream._stderrClose.resolve()
+                            },
+                        })
+                    // if only stdout
+                    } else if (listenToStdoutUint8Array) {
+                        outStream.bytes.stdout = new Uint8Array()
+                        outStream._stdoutNext  = deferred()
+                        outStream._stdoutClose = deferred()
+                        stdoutListeners.push({
+                            write(chunk) {
+                                try {
+                                    outStream.bytes.stdout = concatUint8Arrays(outStream.bytes.stdout, chunk)
+                                } catch (error) {
+                                    
+                                }
+                                outStream._stdoutNext.resolve()
+                                outStream._stdoutNext = deferred()
+                            },
+                            close() {
+                                outStream._stdoutClose.resolve()
+                            },
+                        })
+                    // if only stderr
+                    } else if (listenToStderrUint8Array) {
+                        outStream.bytes.stderr = new Uint8Array()
+                        outStream._stderrNext  = deferred()
+                        outStream._stderrClose = deferred()
+                        stderrListeners.push({
+                            write(chunk) {
+                                try {
+                                    outStream.bytes.stderr = concatUint8Arrays(outStream.bytes.stderr, chunk)
+                                } catch (error) {
+                                    
+                                }
+                                outStream._stderrNext.resolve()
+                                outStream._stderrNext = deferred()
+                            },
+                            close() {
+                                outStream._stderrClose.resolve()
+                            },
+                        })
+                    }
 
                 // 
-                // handle multiple write stream outputs
+                // handle targets
                 // 
-                for (const [targets, listeners] of [[stdoutTargets, stdoutListeners], [stderrTargets, stderrListeners]]) {
-                    for (const eachTarget of targets.map(each=>each.value)) {
-                        if (eachTarget === null) {
-                            break
-                        }
-
-                        const listener = {
-                            onClose() {}
-                            onWrite() {}
-                        }
-
-                        if (eachTarget instanceof FileStream) {
-                            listener.onClose = eachTarget.close
-                            listener.onWrite = eachTarget.write
-                        } else if (eachTarget === Deno.stdout) {
-                            // don't close stdout, just write
-                            listener.onWrite = (chunk)=>writeAllSync(Deno.stdout, chunk)
-                        } else if (eachTarget === Deno.stderr) {
-                            // don't close stderr, just write
-                            listener.onWrite = (chunk)=>writeAllSync(Deno.stderr, chunk)
-                        } else if (eachTarget instanceof Deno.File) {
-                            // don't auto-close deno file objects (the whole point would be using an already-open file)
-                            listener.onWrite = (chunk)=>eachTarget.write(chunk)
-                        } else {
-                            let writer = eachTarget
-                            if (eachTarget.getWriter instanceof Function) {
-                                writer = eachTarget.getWriter()
+                    for (const [targets, listeners] of [[stdoutTargets, stdoutListeners], [stderrTargets, stderrListeners]]) {
+                        for (const eachTarget of targets.map(each=>each.value)) {
+                            if (eachTarget === null) {
+                                break
                             }
-                            listener.onWrite = writer.write
-                            listener.onClose = writer.close
+
+                            const listener = {
+                                close() {}
+                                write() {}
+                            }
+
+                            if (eachTarget instanceof FileStreamClass) {
+                                listener.close = eachTarget.close
+                                listener.write = eachTarget.write
+                            } else if (eachTarget instanceof InteractiveStreamClass) {
+                                listener.close = eachTarget.onClose || ()=>{}
+                                listener.write = eachTarget.onWrite || ()=>{}
+                            } else if (eachTarget === Deno.stdout) {
+                                // don't close stdout, just write
+                                listener.write = (chunk)=>writeAllSync(Deno.stdout, chunk)
+                            } else if (eachTarget === Deno.stderr) {
+                                // don't close stderr, just write
+                                listener.write = (chunk)=>writeAllSync(Deno.stderr, chunk)
+                            } else if (eachTarget instanceof Deno.File) {
+                                // don't auto-close deno file objects (the whole point would be using an already-open file)
+                                listener.write = eachTarget.write
+                            } else {
+                                let writer = eachTarget
+                                if (eachTarget.getWriter instanceof Function) {
+                                    writer = eachTarget.getWriter()
+                                }
+                                listener.write = writer.write
+                                listener.close = writer.close
+                            }
                         }
                     }
-                }
 
                 //    
                 // hook into stdout
                 //    
-                let stdoutStream = null
-                if (assignment.stdout == 'piped') {
-                    const directStdoutReader = childProcess.stdout.getReader()
-                    const closedPromise = directStdoutReader.closed().then(()=>didClose)
-                    ;((async ()=>{
-                        while (1) {
-                            const result = await Promise.any([ reader.read(), closedPromise ])
-                            if (result === didClose) {
-                                for (const {onClose, onWrite} of stdoutListeners) {
-                                    try {
-                                        onClose()
-                                    } catch (error) {
-                                        // should only be triggered if something from this library is broken
-                                        console.error(error)
+                    if (assignment.stdout == 'piped') {
+                        const directStdoutReader = childProcess.stdout.getReader()
+                        const closedPromise = directStdoutReader.closed().then(()=>didClose)
+                        ;((async ()=>{
+                            while (1) {
+                                const result = await Promise.any([ reader.read(), closedPromise ])
+                                if (result === didClose) {
+                                    for (const {close, write} of stdoutListeners) {
+                                        try {
+                                            close()
+                                        } catch (error) {
+                                            // should only be triggered if something from this library is broken
+                                            console.error(error)
+                                        }
                                     }
-                                }
-                            } else {
-                                for (const {onClose, onWrite} of stdoutListeners) {
-                                    try {
-                                        onWrite(result)
-                                    } catch (error) {
-                                        // should only be triggered if something from this library is broken
-                                        console.error(error)
+                                } else {
+                                    for (const {close, write} of stdoutListeners) {
+                                        try {
+                                            write(result)
+                                        } catch (error) {
+                                            // should only be triggered if something from this library is broken
+                                            console.error(error)
+                                        }
                                     }
                                 }
                             }
-                        }
-                    })())
-                }
+                        })())
+                    }
                 //    
                 // hook into stderr
                 //    
-                let stderrStream = null
-                if (assignment.stderr == 'piped') {
-                    const directStdoutReader = childProcess.stderr.getReader()
-                    const closedPromise = directStdoutReader.closed().then(()=>didClose)
-                    ;((async ()=>{
-                        while (1) {
-                            const result = await Promise.any([ reader.read(), closedPromise ])
-                            if (result === didClose) {
-                                for (const {onClose, onWrite} of stderrListeners) {
-                                    try {
-                                        onClose()
-                                    } catch (error) {
-                                        // should only be triggered if something from this library is broken
-                                        console.error(error)
+                    if (assignment.stderr == 'piped') {
+                        const directStdoutReader = childProcess.stderr.getReader()
+                        const closedPromise = directStdoutReader.closed().then(()=>didClose)
+                        ;((async ()=>{
+                            while (1) {
+                                const result = await Promise.any([ reader.read(), closedPromise ])
+                                if (result === didClose) {
+                                    for (const {close, write} of stderrListeners) {
+                                        try {
+                                            close()
+                                        } catch (error) {
+                                            // should only be triggered if something from this library is broken
+                                            console.error(error)
+                                        }
                                     }
-                                }
-                            } else {
-                                for (const {onClose, onWrite} of stderrListeners) {
-                                    try {
-                                        onWrite(result)
-                                    } catch (error) {
-                                        // should only be triggered if something from this library is broken
-                                        console.error(error)
+                                } else {
+                                    for (const {close, write} of stderrListeners) {
+                                        try {
+                                            write(result)
+                                        } catch (error) {
+                                            // should only be triggered if something from this library is broken
+                                            console.error(error)
+                                        }
                                     }
                                 }
                             }
-                        }
-                    })())
-                }
+                        })())
+                    }
             
             // 
             // finalize the process object
@@ -592,8 +679,7 @@ import { FileSystem } from "./file_system.js"
                 setupArgs: this.args,
                 childProcess,
                 stdinStream,
-                stdoutStream,
-                stderrStream,
+                outStream,
                 // _premadeResult
             })
 
@@ -610,15 +696,13 @@ import { FileSystem } from "./file_system.js"
         // .kill
         // .forceKill
         // .stdinStream  // can be used for writing
-        // .stdoutStream // can be used for reading
-        // .stderrStream // can be used for reading
-        constructor({setupArgs, childProcess, stdinStream, stdoutStream, stderrStream, _premadeResult}) {
+        // .outStream    // can be used for reading
+        constructor({setupArgs, childProcess, stdinStream, outStream, _premadeResult}) {
             this.setupArgs = setupArgs
             this.childProcess = childProcess
             this.pid = childProcess.pid
             this.stdinStream = stdinStream
-            this.stdoutStream = stdoutStream
-            this.stderrStream = stderrStream
+            this.outStream = outStream
             if (_premadeResult) {
                 this.result = result
             } else {
@@ -664,18 +748,14 @@ import { FileSystem } from "./file_system.js"
     // )
     // const { success, exitCode } = await process.result
     
-    // 
-    // const process = await run('ssh', "blah", Stdin(InteractiveStream()), Stdout(InteractiveStream()))
-    // onNewData()
-    // onClose()
-    // for await (const { out, stdout, stderr, emptyBuffers } in process.outStream.accumulate) {
+    // const process = await run('ssh', "blah", Stdin(InteractiveStream()), Out(InteractiveStream()))
+    // for await (const { out, stdout, stderr } in process.outStream.string.accumulate) {
     //     if (out.match(/please enter password\n/)) {
-    //         emptyBuffers()
+    //         process.outStream.clearAccumulation()
     //         process.stdinStream.write('howdy there\n')
     //     }
     // }
-    // process.stdoutStream.get() // synchonous read
-    // await process.stdoutStream.nextOrClose
+    // const { success, exitCode } = await process.result
     // const { success, exitCode } = await process.result
 
 // var process = Deno.run({
