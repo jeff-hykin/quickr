@@ -315,7 +315,7 @@ export const run = (maybeStrings, ...args) => {
                             stdinWriter = readableStreamFromReader(first)
                             prev = 'readable'
                         } else {
-                            throw Error(`when calling run() with the command: \n    ${JSON.stringify(runArg.cmd)}\nAn Stdin() was given, but there was a problem with one of the arguments.\nThe argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I receied:\n    ${first}\n\n`)
+                            throw Error(`when calling run() with the command: \n    ${JSON.stringify(runArg.cmd)}\nAn Stdin() was given, but there was a problem with one of the arguments.\nThe argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${first}\n\n`)
                         }
 
                         // for all remaining args
@@ -343,7 +343,7 @@ export const run = (maybeStrings, ...args) => {
                                 newStream = readableStreamFromReader(each)
                                 current = 'readable'
                             } else {
-                                throw Error(`when calling run() with the command: \n    ${JSON.stringify(runArg.cmd)}\nAn Stdin() was given, but there was a problem with one of the arguments.\nThe argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I receied:\n    ${each}\n\n`)
+                                throw Error(`when calling run() with the command: \n    ${JSON.stringify(runArg.cmd)}\nAn Stdin() was given, but there was a problem with one of the arguments.\nThe argument can be a string, a file (Deno.open("./path")), bytes (Uint8Array), or any readable object (like Deno.stdin or the .stdout of another run command)\nbut instead of any of those I received:\n    ${each}\n\n`)
                             }
                             
                             // 
