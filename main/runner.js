@@ -6,14 +6,6 @@ import { FileSystem } from "./file_system.js"
 // Argument handling
 // 
 // 
-    class PreviousProcess {
-        static name = "PreviousProcess"
-        constructor(value) {
-            // TODO: validate that this is a process class once the process class is defined
-            this.value = value
-        }
-    }
-    
     const Cwd = (...args)=>new CwdClass(...args)
     class CwdClass {
         static name = "Cwd"
@@ -47,12 +39,13 @@ import { FileSystem } from "./file_system.js"
         constructor(value) {
             if (
                 typeof value == 'string' ||
+                value === null ||
                 isReadable(value) ||
                 eachOutValue instanceof Deno.File
             ) {
                 this.value = value
             } else {
-                throw Error(`\n\nI found Stdin(${value}) as an argument. This is a problem as the value needs to be a readable stream, string, or a file object.`)
+                throw Error(`\n\nI found Stdin(${value}) as an argument. This is a problem as the value needs to be a readable stream, string, a file object, or null.`)
             }
         }
     }
@@ -65,6 +58,7 @@ import { FileSystem } from "./file_system.js"
         // Unknown mistake
         } else if (
             !(
+                value == Uint8Array || // not instanceof Uint8Array
                 value == String || // not typeof value == 'string' but actually value == String
                 value === null ||
                 value instanceof FileStream ||
@@ -72,7 +66,7 @@ import { FileSystem } from "./file_system.js"
                 isWritable(value)
             )
         ) {
-            throw Error(`\n\nI found ${streamName}(${value}) as an argument. However, the value should be a writable stream, a Deno.File, null, or should === String (e.g. ${streamName}(String) not ${streamName}("a string"))`)
+            throw Error(`\n\nI found ${streamName}(${value}) as an argument. However, the value should be a writable stream, a Deno.File, null, or should === String (e.g. ${streamName}(String) not ${streamName}("a string")) or Uint8Array`)
         }
     }
 
@@ -165,7 +159,6 @@ import { FileSystem } from "./file_system.js"
     // 
     // 
     function validateAndStandardizeArguments(...args) {
-        const previousProcessArgs = []
         const cwdArgs             = []
         const envArgs             = []
         const stdinArgs           = []
@@ -173,8 +166,7 @@ import { FileSystem } from "./file_system.js"
         const stderrArgs          = []
         const normalArgs          = []
         for (const each of args) {
-            if (each instanceof PreviousProcess) { previousProcessArgs.push(each) }
-            else if (each instanceof CwdClass)        { cwdArgs.push(each)             }
+            if (each instanceof CwdClass)        { cwdArgs.push(each)             }
             else if (each instanceof EnvClass)        { envArgs.push(each)             }
             else if (each instanceof StdinClass)      { stdinArgs.push(each)           }
             else if (each instanceof StdoutClass)     { stdoutArgs.push(each)          }
@@ -190,7 +182,7 @@ import { FileSystem } from "./file_system.js"
         // 
         // single-entry only arguments
         // 
-        for (const eachArgList of [ previousProcessArgs, cwdArgs, envArgs, stdinArgs  ]) {
+        for (const eachArgList of [ cwdArgs, envArgs, stdinArgs  ]) {
             if (eachArgList.length > 1) {
                 throw Error(`When creating a process I found ${eachArgList.length} instances of ${eachArgList[0].name}(), however only one is allowed per process`)
             }
@@ -199,9 +191,8 @@ import { FileSystem } from "./file_system.js"
         // 
         // assign basics
         // 
-        const previousProcess = previousProcessArgs[0] // will be undefined if not given as an argument
-        const cwd             = cwdArgs.length   > 0 ? cwdArgs[0].value   : Deno.cwd()
-        const env             = envArgs.length   > 0 ? envArgs[0].value   : Console.env
+        const cwd             = cwdArgs.length   > 0 ? cwdArgs[0].value   : Deno.cwd
+        const env             = envArgs.length   > 0 ? envArgs[0].value   : ()=>Console.env
         const stdinSource     = stdinArgs.length > 0 ? stdinArgs[0].value : Deno.stdin
         const stdoutTargets   = stdoutArgs.length == 0 ? [ Deno.stdout ] : []
         const stderrTargets   = stderrArgs.length == 0 ? [ Deno.stderr ] : []
@@ -226,11 +217,8 @@ import { FileSystem } from "./file_system.js"
                 }
             }
         }
-
-        // FIXME: analyze previousProcess and figure out how it will work with stdin
-
+        
         return {
-            previousProcess,
             cwd,
             env,
             stdinSource,
@@ -245,19 +233,258 @@ import { FileSystem } from "./file_system.js"
 // main function
 // 
 // 
-    const run = (...args)=>new Process(...args)
-    class Process {
+    // ProcessSetup (e.g. Command)
+    // Process      (e.g. ChildProcess)
+    // Result       (e.g. CommandResult)
+    
+    // FIXME: handle synchonous execution
+    // FIXME: add wait options (Deno.ChildProcess.ref)
+
+    const run = (...args)=>{
+        const setup = new ProcessSetup(...args)
+        const proimseOfProcess = new Promise((resolve, reject) => {
+            setTimeout(() => {
+                try {
+                    if (!setup.hasSpawned) {
+                        resolve(setup.execute())
+                    } else {
+                        resolve(setup.process)
+                    }
+                } catch (error) {
+                    reject(error)
+                }
+            }, 0)
+        })
+        Object.assign(proimseOfProcess, setup)
+        return proimseOfProcess
+    }
+    class ProcessSetup {
         constructor(...args) {
-            Object.assign(this, validateAndStandardizeArguments(...args))
-            // this.previousProcess
-            // this.cwd
-            // this.env
-            // this.stdinSource
-            // this.stdoutTargets
-            // this.stderrTargets
-            // this.normalArgs
+            this.args = {}
+            Object.assign(this.args, validateAndStandardizeArguments(...args))
+            // this.args.cwd
+            // this.args.env
+            // this.args.stdinSource
+            // this.args.stdoutTargets
+            // this.args.stderrTargets
+            // this.args.normalArgs
+            this.process = null
+            this.hasSpawned = false
+            this.pipeCallback = null
+            this.andProcessSetup = null
+            this.orProcessSetup = null
+        }
+        
+        pipe(callback) {
+            this.pipeCallback = callback
+            return this
+        }
+        and(process) {
+            this.andProcessSetup = process
+            return this
+        }
+        or(process) {
+            this.orProcessSetup = process
+            return this
+        }
+
+        get _builtinStreamOptionAssignment() {
+            if (this.pipeCallback instanceof Function) {
+                return null
+            }
+            const { stdinSource, stdoutTargets, stderrTargets } = this.args
+            const thereAreMultipleStdouts = stdoutTargets.length > 1
+            const thereAreMultipleStderrs = stderrTargets.length > 1
+            if (thereAreMultipleStdouts || thereAreMultipleStderrs) {
+                return null
+            }
+
+            const assignment = {
+                stdin: null,
+                stdout: null,
+                stderr: null,
+            }
+            // stdin
+            if (stdinSource === Deno.stdin) {
+                assignment.stdin = 'inherit'
+            } else if (stdinSource === null) {
+                assignment.stdin = 'null'
+            }
+            // stdout
+            if (stdoutTargets[0] === Deno.stdout) {
+                assignment.stdout = 'inherit'
+            } else if (stdoutTargets[0] === null) {
+                assignment.stdout = 'null'
+            } else if (stdoutTargets[0] === String) {
+                assignment.stdout = 'piped'
+            }
+            // stderr
+            if (stderrTargets[0] === Deno.stderr) {
+                assignment.stderr = 'inherit'
+            } else if (stderrTargets[0] === null) {
+                assignment.stderr = 'null'
+            } else if (stderrTargets[0] === String) {
+                assignment.stderr = 'piped'
+            }
+
+            if (assignment.stdin === null || assignment.stdout === null || assignment.stderr === null) {
+                return false
+            }
+            
+            return assignment
+        }
+
+        // always returns a process
+        execute() {
+            if (this.hasSpawned) {
+                throw Error(`Cannot spawn a command twice. Command args are: ${this.args.normalArgs}`)
+            }
+            this.hasSpawned = true
+            
+            // FIXME: ensure that this.args.normalArgs[0] is an executable
+            let { cwd, env, stdinSource, stdoutTargets, stderrTargets, normalArgs } = this.args
+            if (cwd instanceof Function) {
+                cwd = cwd()
+            }
+            if (env instanceof Function) {
+                env = env()
+            }
+            
+            const assignment = this._builtinStreamOptionAssignment
+            // 
+            // Very simple cases (edgecase)
+            // 
+            if (assignment) {
+                const command = new Deno.Command(normalArgs[0], {
+                    env,
+                    cwd,
+                    args: normalArgs.slice(1,),
+                    ...assignment, // stdin, stdout, stderr
+                })
+                // FIXME: consider synchonous execution 
+                this.process = new Process({
+                    childProcess: command.spawn(),
+                    stdinStream: null,
+                    stdoutStream: null,
+                    stderr: null,
+                })
+            
+            // 
+            // suhcurity we've got a complicated order
+            // 
+            } else {
+                // 
+                // figure out stream assignment
+                // 
+                    const assignment = {
+                        stdin: null,
+                        stdout: null,
+                        stderr: null,
+                    }
+                    
+                    // stdin
+                    if (stdinSource === Deno.stdin) {
+                        assignment.stdin = 'inherit'
+                    } else if (stdinSource === null) {
+                        assignment.stdin = 'null'
+                    } else {
+                        assignment.stdin = 'piped'
+                    }
+
+                    // stdout
+                    if (stdoutTargets[0] === Deno.stdout) {
+                        assignment.stdout = 'inherit'
+                    } else if (stdoutTargets[0] === null) {
+                        assignment.stdout = 'null'
+                    } else {
+                        assignment.stdout = 'piped'
+                    }
+                    
+                    // stderr
+                    if (stderrTargets[0] === Deno.stderr) {
+                        assignment.stderr = 'inherit'
+                    } else if (stderrTargets[0] === null) {
+                        assignment.stderr = 'null'
+                    } else {
+                        assignment.stderr = 'piped'
+                    }
+                // 
+                // create the command
+                // 
+                    const command = new Deno.Command(normalArgs[0], {
+                        env,
+                        cwd,
+                        args: normalArgs.slice(1,),
+                        ...assignment, // stdin, stdout, stderr
+                    })
+
+                // 
+                // Create the stdin stream
+                // 
+
+                
+
+                // 
+                // Create the stdout stream
+                // 
+
+                this.process = something
+            }
+            return this.process
         }
     }
+
+    // Wrapper around deno child process
+    class Process {
+        // .pid
+        // .done
+        // .result
+        // .signal
+        // .kill
+        // .forceKill
+        // .stdinStream  // can be used for writing
+        // .stdoutStream // can be used for reading
+        // .stderrStream // can be used for reading
+        constructor({setupArgs, childProcess, stdinStream, stdoutStream, stderrStream}) {
+            this.setupArgs = setupArgs
+            this.childProcess = childProcess
+            this.pid = childProcess.pid
+            this.stdinStream = stdinStream
+            this.stdoutStream = stdoutStream
+            this.stderrStream = stderrStream
+        }
+        signal(value) {
+            return this.childProcess.kill(value)
+        }
+        kill(value) {
+            return this.childProcess.kill("SIGINT")
+        }
+        forceKill(value) {
+            return this.childProcess.kill("SIGKILL")
+        }
+        get result() {
+            return new Promise(async (resolve, reject)=>{
+                
+            })
+        }
+    }
+
+    class Result {
+        constructor({exitCode, out, stdout, stderr, success,}) {
+            this.exitCode = exitCode
+            this.out      = out
+            this.stdout   = stdout
+            this.stderr   = stderr
+            this.success  = success
+        }
+    }
+
+    // const process = await run('echo', "blah").pipe(
+    //     (stdout, stderr)=>run("echo", Stdin(stdout)).and(
+    //         run("echo", "that last thing worked")
+    //     )
+    // )
+    // const { success, exitCode } = await process.result
 
 // var process = Deno.run({
 //     "cmd": [
@@ -271,6 +498,7 @@ import { FileSystem } from "./file_system.js"
 // })
 // console.debug(`process is:`,process)
 // console.debug(`await process.status() is:`,await process.status())
+
 
 
 // var command = new Deno.Command("nix", {
