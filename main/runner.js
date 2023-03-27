@@ -279,7 +279,7 @@ import { FileSystem } from "./file_system.js"
     // FIXME: add wait options (Deno.ChildProcess.ref)
     // FIXME: uid, gid, windowsRawArguments inputs
 
-    const run = (...args)=>{
+    export const run = (...args)=>{
         const setup = new ProcessSetup(...args)
         const proimseOfProcess = new Promise((resolve, reject) => {
             setTimeout(() => {
@@ -298,7 +298,7 @@ import { FileSystem } from "./file_system.js"
         return proimseOfProcess
     }
     const didClose = Symbol()
-    class ProcessSetup {
+    export class ProcessSetup {
         constructor(...args) {
             this.args = {}
             Object.assign(this.args, validateAndStandardizeArguments(...args))
@@ -691,7 +691,7 @@ import { FileSystem } from "./file_system.js"
     }
 
     // Wrapper around deno child process
-    class Process {
+    export class Process {
         // .pid
         // .done
         // .result
@@ -716,6 +716,8 @@ import { FileSystem } from "./file_system.js"
                         outStream,
                     })
                 })
+                this.stringResult = this.result.then((value)=>value.string)
+                this.bytesResult  = this.result.then((value)=>value.bytes)
             }
         }
         signal(value) {
@@ -730,7 +732,7 @@ import { FileSystem } from "./file_system.js"
         }
     }
 
-    class Result {
+    export class Result {
         constructor({ commandStatus, outStream, }) {
             this.exitCode = commandStatus.code
             this.success  = commandStatus.success
@@ -740,11 +742,17 @@ import { FileSystem } from "./file_system.js"
                 out: outStream.string.out,
                 stdout: outStream.string.stdout,
                 stderr: outStream.string.stderr,
+                exitCode: this.exitCode,
+                success: this.success,
+                signal: this.signal,
             }
             this.bytes = {
                 out: outStream.bytes.out,
                 stdout: outStream.bytes.stdout,
                 stderr: outStream.bytes.stderr,
+                exitCode: this.exitCode,
+                success: this.success,
+                signal: this.signal,
             }
         }
     }
@@ -756,8 +764,11 @@ import { FileSystem } from "./file_system.js"
     //     )
     // )
     // const { success, exitCode } = await process.result
+    // const { success, exitCode, out, stdout, stderr } = await process.stringResult
+    // const { success, exitCode, out, stdout, stderr } = await process.bytesResult
     
-    // const process = await run('ssh', "blah", Stdin(InteractiveStream()), Out(InteractiveStream()))
+    // const process = await run`ssh pi@raspberry`.stdin(InteractiveStream()).out(InteractiveStream())
+    // const process = await run('ssh', "pi@raspberry", Stdin(InteractiveStream()), Out(InteractiveStream()))
     // for await (const { out, stdout, stderr } in process.outStream.string.accumulate) {
     //     if (out.match(/please enter password\n/)) {
     //         process.outStream.clearAccumulation()
