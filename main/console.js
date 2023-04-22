@@ -1,5 +1,5 @@
 import { OperatingSystem } from "./operating_system.js"
-import { toString } from "https://deno.land/x/good@0.7.8/string.js"
+import { toString, indent } from "https://deno.land/x/good@0.7.8/string.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
@@ -369,6 +369,29 @@ export const Console = {
                     }
                 } else {
                     console.log("[ please respond with y/n, yes/no, or use CTRL+C to cancel ]")
+                }
+            }
+        },
+        oneOf(keyValues, question="Please type one of the names from the list above") {
+            if (keyValues instanceof Array) {
+                keyValues = Object.fromEntries(keyValues.map((each,index)=>[index,each]))
+            }
+            const keys = Object.keys(keyValues)
+            if (keys.length == 0) {
+                console.warn(`Tried to perform Console.askFor.oneOf(object) but the object was empty`)
+                return undefined
+            }
+            const longest = Math.max(keys.map(each=>each.length))
+            while (true) {
+                for (const [key, value] of Object.entries(keyValues)) {
+                    const valueAsString = indent({string: `${value}\n`, by: " ".repeat(longest+2), noLead: true})
+                    console.log(``,`${key}: ${valueAsString}`)
+                }
+                let answer = prompt(question)
+                if (keys.includes(answer)) {
+                    return keyValues[answer]
+                } else {
+                    console.log("\n\n[ please pick one of the listed names, or use CTRL+C to cancel ]")
                 }
             }
         },
