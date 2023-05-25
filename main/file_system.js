@@ -1104,15 +1104,14 @@ export const FileSystem = {
                 await FileSystem.remove(path)
             }
         }
-        const file = await Deno.open(path, {write: true, read:true, create: true})
-        // go to the end of a file (meaning everthing will be appended)
-        await Deno.seek(file.rid, 0, Deno.SeekMode.End)
+        const file = await Deno.open(path, {read:true, write: true, create: true})
+        await file.seek(0, Deno.SeekMode.End)
         // string
         if (typeof data == 'string') {
-            await Deno.write(file.rid, new TextEncoder().encode(data))
+            await file.write(new TextEncoder().encode(data))
         // assuming bytes (maybe in the future, readables and pipes will be supported)
         } else {
-            await Deno.write(file.rid, data)
+            await file.write(data)
         }
         // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
         await file.close()
@@ -1300,6 +1299,27 @@ export const FileSystem = {
             }
             FileSystem.sync.ensureIsFolder(Path.dirname(originalPath))
             return originalPath
+        },
+        append({path, data, force=true}) {
+            if (force) {
+                FileSystem.sync.clearAPathFor(path, { overwrite: force })
+
+                const info = FileSystem.sync.info(path)
+                if (info.isDirectory) {
+                    FileSystem.sync.remove(path)
+                }
+            }
+            const file = Deno.openSync(path, {read:true, write: true, create: true})
+            file.seekSync(0, Deno.SeekMode.End)
+            // string
+            if (typeof data == 'string') {
+                file.writeSync(new TextEncoder().encode(data))
+            // assuming bytes (maybe in the future, readables and pipes will be supported)
+            } else {
+                file.writeSync(data)
+            }
+            // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
+            file.close()
         },
     },
 }
