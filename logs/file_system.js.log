@@ -3,6 +3,28 @@ FileSystem.thisFolder is: /Users/jeffhykin/repos/quickr/main
 FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 [
   ItemInfo {
+    path: "../main/lg2.wasm.binaryified.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 3280361,
+      mtime: 2023-03-25T21:26:48.118Z,
+      atime: 2023-03-25T21:28:30.964Z,
+      birthtime: 2023-03-25T21:26:48.111Z,
+      dev: 16777235,
+      ino: 24800875,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4096,
+      blocks: 6408
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
     path: "../main/_convert.js",
     _lstat: {
       isFile: true,
@@ -12,7 +34,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-27T00:46:17.956Z,
       atime: 2022-11-27T00:46:19.286Z,
       birthtime: 2022-11-27T00:46:17.955Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 8186838,
       mode: 33188,
       nlink: 1,
@@ -34,7 +56,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T19:44:52.436Z,
       atime: 2022-11-06T19:44:53.515Z,
       birthtime: 2022-11-06T17:29:51.421Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 6672506,
       mode: 33188,
       nlink: 1,
@@ -52,11 +74,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 6912,
-      mtime: 2022-12-12T02:14:20.639Z,
-      atime: 2022-12-12T02:14:22.000Z,
+      size: 7639,
+      mtime: 2023-02-13T13:13:48.746Z,
+      atime: 2023-02-13T13:13:53.775Z,
       birthtime: 2022-11-27T00:46:17.958Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 8186842,
       mode: 33188,
       nlink: 1,
@@ -78,8 +100,52 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-27T00:46:17.957Z,
       atime: 2022-11-27T00:46:19.865Z,
       birthtime: 2022-11-27T00:46:17.956Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 8186841,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4096,
+      blocks: 72
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
+    path: "../main/git.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 184663,
+      mtime: 2023-03-25T23:13:33.310Z,
+      atime: 2023-03-25T23:13:35.810Z,
+      birthtime: 2023-03-25T21:25:55.841Z,
+      dev: 16777235,
+      ino: 24800795,
+      mode: 33188,
+      nlink: 1,
+      uid: 501,
+      gid: 20,
+      rdev: 0,
+      blksize: 4096,
+      blocks: 368
+    },
+    _data: { isBrokenLink: false, isLoopOfLinks: false }
+  },
+  ItemInfo {
+    path: "../main/runner.js",
+    _lstat: {
+      isFile: true,
+      isDirectory: false,
+      isSymlink: false,
+      size: 33748,
+      mtime: 2023-03-27T00:51:28.647Z,
+      atime: 2023-03-27T00:51:42.712Z,
+      birthtime: 2023-03-26T16:27:10.758Z,
+      dev: 16777235,
+      ino: 24833352,
       mode: 33188,
       nlink: 1,
       uid: 501,
@@ -96,11 +162,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 23469,
-      mtime: 2022-11-27T01:26:40.537Z,
-      atime: 2022-11-27T01:48:12.823Z,
+      size: 25412,
+      mtime: 2023-05-25T13:34:19.085Z,
+      atime: 2023-05-25T13:34:19.147Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 2917673,
       mode: 33188,
       nlink: 1,
@@ -108,7 +174,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 48
+      blocks: 56
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -118,12 +184,12 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 32840,
-      mtime: 2022-11-27T01:45:44.045Z,
-      atime: 2022-11-27T01:48:12.824Z,
-      birthtime: 2022-11-27T00:46:17.956Z,
-      dev: 16777233,
-      ino: 8186840,
+      size: 32842,
+      mtime: 2023-03-26T17:11:47.701Z,
+      atime: 2023-03-26T17:27:45.866Z,
+      birthtime: 2023-02-14T21:17:04.801Z,
+      dev: 16777235,
+      ino: 20909010,
       mode: 33188,
       nlink: 1,
       uid: 501,
@@ -140,11 +206,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 56070,
-      mtime: 2022-12-29T15:57:33.883Z,
-      atime: 2022-12-29T15:57:35.827Z,
+      size: 59067,
+      mtime: 2023-05-25T16:55:21.728Z,
+      atime: 2023-05-25T16:55:39.322Z,
       birthtime: 2022-11-27T00:46:17.956Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 8186839,
       mode: 33188,
       nlink: 1,
@@ -152,7 +218,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 112
+      blocks: 120
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -166,7 +232,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T16:23:39.690Z,
       atime: 2022-11-27T00:43:24.359Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 2917675,
       mode: 33188,
       nlink: 1,
@@ -188,7 +254,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T18:40:58.703Z,
       atime: 2022-11-06T18:40:59.129Z,
       birthtime: 2022-11-06T18:27:31.934Z,
-      dev: 16777233,
+      dev: 16777235,
       ino: 6675855,
       mode: 33188,
       nlink: 1,
@@ -205,6 +271,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 # breadthFirstSearch
 # 
 [
+  "../.DS_Store",
   "../tests",
   "../dependencies",
   "../.keep",
@@ -231,11 +298,15 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../logs/tests/run.grep_path.txt",
   "../run/make_babel_bundle",
   "../run/tests",
+  "../run/made-with-webassembly",
   "../run/tests.ps1",
+  "../main/lg2.wasm.binaryified.js",
   "../main/_convert.js",
   "../main/sprinter.js",
   "../main/stream_tools.js",
   "../main/smash.js",
+  "../main/git.js",
+  "../main/runner.js",
   "../main/console.js",
   "../main/run.js",
   "../main/file_system.js",
@@ -248,6 +319,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 # depthFirstSearch
 # 
 [
+  "../.DS_Store",
   "../tests",
   "../tests/smash.js",
   "../tests/console.js",
@@ -272,13 +344,18 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../run",
   "../run/make_babel_bundle",
   "../run/tests",
+  "../run/made-with-webassembly",
+  "../run/made-with-webassembly/.git",
   "../run/tests.ps1",
   "../.git",
   "../main",
+  "../main/lg2.wasm.binaryified.js",
   "../main/_convert.js",
   "../main/sprinter.js",
   "../main/stream_tools.js",
   "../main/smash.js",
+  "../main/git.js",
+  "../main/runner.js",
   "../main/console.js",
   "../main/run.js",
   "../main/file_system.js",
@@ -288,7 +365,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../reference/readable.ps1",
   "../reference/portable.ps1"
 ]
-shouldntExplore uniquely has: Set { "../.git" }
+shouldntExplore uniquely has: Set { "../run/made-with-webassembly/.git", "../.git" }
 shouldntInclude uniquely has: Set {}
 # 
 # All parent paths of /Users/jeffhykin/repos/quickr/main/run.errors.log
