@@ -222,6 +222,10 @@ class ItemInfo {
     }
 }
 
+const defaultOptionsHelper = (options)=>({
+    renameExtension: options.renameExtension || FileSystem.defaultRenameExtension,
+    overwrite: options.overwrite,
+})
 const locker = {}
 export const FileSystem = {
     denoExecutablePath: Deno.execPath(),
@@ -230,6 +234,7 @@ export const FileSystem = {
     basename: Path.basename,
     extname: Path.extname,
     join: Path.join,
+    defaultRenameExtension: ".old",
     get home() {
         if (!cache.home) {
             if (Deno.build.os!="windows") {
@@ -338,7 +343,7 @@ export const FileSystem = {
         }
         return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
     },
-    async move({ item, newParentFolder, newName, overwrite=false, force=true }) {
+    async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
         // force     => will MOVE other things out of the way until the job is done
         // overwrite => will DELETE things out of the way until the job is done
         
@@ -358,14 +363,15 @@ export const FileSystem = {
                     newItem: newPath,
                     force,
                     overwrite,
+                    renameExtension,
                 })
                 // remove the original since it was "moved"
                 await FileSystem.remove(itemInfo)
             }
         }
         
-        if (force || overwrite) {
-            FileSystem.sync.clearAPathFor(newPath, { overwrite })
+        if (force) {
+            FileSystem.sync.clearAPathFor(newPath, { overwrite, renameExtension })
         }
         // FIXME: this needs to recursively check for realtive symlinks!
         //          if there is a relative symlink to something OUTSIDE the folder being moved, it needs to be adjusted in order to not break
@@ -472,7 +478,10 @@ export const FileSystem = {
             }
         }
     },
-    async ensureIsFile(path) {
+    async ensureIsFile(path, options={overwrite:false, renameExtension:null}) {
+        const {overwrite, renameExtension} = defaultOptionsHelper(options)
+        await FileSystem.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
+
         path = path.path || path // if given ItemInfo object
         const pathInfo = await FileSystem.info(path)
         if (pathInfo.isFile && !pathInfo.isDirectory) { // true for symbolic links to non-directories
@@ -482,7 +491,8 @@ export const FileSystem = {
             return path
         }
     },
-    async ensureIsFolder(path) {
+    async ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
+        const {overwrite, renameExtension} = defaultOptionsHelper(options)
         path = path.path || path // if given ItemInfo object
         path = FileSystem.makeAbsolutePath(path)
         const parentPath = Path.dirname(path)
@@ -493,27 +503,45 @@ export const FileSystem = {
         // make sure parent is a folder
         const parent = await FileSystem.info(parentPath)
         if (!parent.isDirectory) {
-            FileSystem.sync.ensureIsFolder(parentPath)
+            FileSystem.sync.ensureIsFolder(parentPath, {overwrite, renameExtension})
         }
         
-        // delete files in the way
+        // move/remove files in the way
         let pathInfo = FileSystem.sync.info(path)
         if (pathInfo.exists && !pathInfo.isDirectory) {
-            FileSystem.sync.remove(path)
+            if (overwrite) {
+                await FileSystem.remove(path)
+            } else {
+                await FileSystem.moveOutOfTheWay(eachPath, {extension: renameExtension})
+            }
         }
         
         await Deno.mkdir(path, { recursive: true })
         // finally create the folder
         return path
     },
-    async clearAPathFor(path, options={overwrite:false, extension:".old"}) {
-        const {overwrite, extension} = {overwrite:false, extension:".old", ...options }
+    /**
+     * Move/Remove everything and Ensure parent folders
+     *
+     * @param path
+     * @param options.overwrite - if false, then things in the way will be moved instead of deleted
+     * @param options.renameExtension - the string to append when renaming files to get them out of the way
+     * 
+     * @note
+     *     very agressive: will change whatever is necessary to make sure a parent exists
+     * 
+     * @example
+     *     await FileSystem.clearAPathFor("./something")
+     */
+    async clearAPathFor(path, options={overwrite:false, renameExtension:null}) {
+        const {overwrite, renameExtension} = defaultOptionsHelper(options)
         const originalPath = path
         const paths = []
         while (Path.dirname(path) !== path) {
             paths.push(path)
             path = Path.dirname(path)
         }
+        // start at root "/" then get more and more specific
         for (const eachPath of paths.reverse()) {
             const info = await FileSystem.info(eachPath)
             if (!info.exists) {
@@ -522,22 +550,21 @@ export const FileSystem = {
                 if (overwrite) {
                     await FileSystem.remove(eachPath)
                 } else {
-                    await FileSystem.moveOutOfTheWay(eachPath, {extension})
+                    await FileSystem.moveOutOfTheWay(eachPath, {extension:renameExtension})
                 }
             }
         }
-        await FileSystem.ensureIsFolder(Path.dirname(originalPath))
+        await Deno.mkdir(Path.dirname(originalPath), { recursive: true })
         return originalPath
     },
-    async moveOutOfTheWay(path, options={extension:".old"}) {
-        const {overwrite, extension} = { extension:".old", ...options }
-        const {move} = await import("https://deno.land/std@0.133.0/fs/mod.ts")
+    async moveOutOfTheWay(path, options={extension:null}) {
+        const extension = options?.extension || FileSystem.defaultRenameExtension
         const info = await FileSystem.info(path)
         if (info.exists) {
             // make sure nothing is in the way of what I'm about to move
             const newPath = path+extension
             await FileSystem.moveOutOfTheWay(newPath, {extension})
-            await move(path, newPath)
+            await moveAndRename(path, newPath)
         }
     },
     /**
@@ -594,37 +621,33 @@ export const FileSystem = {
         }
     },
     // FIXME: make this work for folders with many options for how to handle symlinks
-    async copy({from, to, force=true, preserveTimestamps=true}) {
+    async copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
         const existingItemDoesntExist = (await Deno.stat(from).catch(()=>({doesntExist: true}))).doesntExist
         if (existingItemDoesntExist) {
             throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
         }
         if (force) {
-            FileSystem.sync.clearAPathFor(to, { overwrite: force })
-            FileSystem.sync.remove(to)
+            FileSystem.sync.clearAPathFor(to, { overwrite, renameExtension })
         }
         const fromInfo = await FileSystem.info(from)
         return basicCopy(from, to, {force, preserveTimestamps: true})
     },
-    async relativeLink({existingItem, newItem, force=true, overwrite=false}) {
+    async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null}) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
         const newItemPath = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
-        if (existingItemDoesntExist) {
+        if (!allowNonExistingTarget && existingItemDoesntExist) {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItemPath}, newItem:${newItemPath}\nbut existingItem didn't actually exist`)
         } else {
             const parentOfNewItem = FileSystem.parentPath(newItemPath)
-            await FileSystem.ensureIsFolder(parentOfNewItem)
+            await FileSystem.ensureIsFolder(parentOfNewItem, {overwrite, renameExtension})
             const hardPathToNewItem = `${await FileSystem.makeHardPathTo(parentOfNewItem)}/${FileSystem.basename(newItemPath)}`
             const hardPathToExistingItem = await FileSystem.makeHardPathTo(existingItemPath)
             const pathFromNewToExisting = Path.relative(hardPathToNewItem, hardPathToExistingItem).replace(/^\.\.\//,"") // all paths should have the "../" at the begining
-            if (force || overwrite) {
-                FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite})
-                if (overwrite) {
-                    await FileSystem.remove(hardPathToNewItem)
-                }
+            if (force) {
+                FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
             }
             return Deno.symlink(
                 pathFromNewToExisting,
@@ -632,19 +655,18 @@ export const FileSystem = {
             )
         }
     },
-    async absoluteLink({existingItem, newItem, force=true}) {
+    async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null}) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
         newItem = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
         newItem = FileSystem.normalize(newItem)
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
-        if (existingItemDoesntExist) {
+        if (!allowNonExistingTarget && existingItemDoesntExist) {
             throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
         } else {
             if (force) {
-                await FileSystem.ensureIsFolder(FileSystem.dirname(newItem))
-                await FileSystem.remove(newItem)
+                FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
             }
             
             return Deno.symlink(
@@ -1068,13 +1090,13 @@ export const FileSystem = {
     },
     // alias
     setPermissions(...args) { return FileSystem.addPermissions(...args) },
-    async write({path, data, force=true}) {
+    async write({path, data, force=true, overwrite=false, renameExtension=null}) {
         while (locker[path]) {
             await new Promise((resolve)=>setTimeout(resolve, 70))
         }
         locker[path] = true
         if (force) {
-            FileSystem.sync.clearAPathFor(path, { overwrite: force })
+            FileSystem.ensureIsFolder(path, { overwrite, renameExtension, })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -1091,14 +1113,14 @@ export const FileSystem = {
         delete locker[path]
         return output
     },
-    async append({path, data, force=true}) {
+    async append({path, data, force=true, overwrite=false, renameExtension=null}) {
         while (locker[path]) {
             await new Promise((resolve)=>setTimeout(resolve, 70))
         }
         locker[path] = true
 
         if (force) {
-            FileSystem.sync.clearAPathFor(path, { overwrite: force })
+            FileSystem.sync.ensureIsFolder(path, { overwrite, renameExtension })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -1243,8 +1265,8 @@ export const FileSystem = {
                 }
             }
         },
-        moveOutOfTheWay(path, options={extension:".old"}) {
-            const {overwrite, extension} = { extension:".old", ...options }
+        moveOutOfTheWay(path, options={extension:null}) {
+            const extension = options?.extension || FileSystem.defaultRenameExtension
             const info = FileSystem.sync.info(path)
             if (info.exists) {
                 // make sure nothing is using the new-name I just picked
@@ -1253,7 +1275,8 @@ export const FileSystem = {
                 moveAndRenameSync(path, newPath)
             }
         },
-        ensureIsFolder(path) {
+        ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
+            const {overwrite, renameExtension} = defaultOptionsHelper(options)
             path = path.path || path // if given ItemInfo object
             path = FileSystem.makeAbsolutePath(path)
             const parentPath = Path.dirname(path)
@@ -1264,21 +1287,35 @@ export const FileSystem = {
             // make sure parent is a folder
             const parent = FileSystem.sync.info(parentPath)
             if (!parent.isDirectory) {
-                FileSystem.sync.ensureIsFolder(parentPath)
+                FileSystem.sync.ensureIsFolder(parentPath, {overwrite, renameExtension})
             }
             
             // delete files in the way
             let pathInfo = FileSystem.sync.info(path)
             if (pathInfo.exists && !pathInfo.isDirectory) {
-                FileSystem.sync.remove(path)
+                if (overwrite) {
+                    FileSystem.sync.remove(path)
+                } else {
+                    FileSystem.sync.moveOutOfTheWay(path, {extension:renameExtension})
+                }
             }
             
             Deno.mkdirSync(path, { recursive: true })
             // finally create the folder
             return path
         },
-        clearAPathFor(path, options={overwrite:false, extension:".old"}) {
-            const {overwrite, extension} = {overwrite:false, extension:".old", ...options }
+        /**
+         * Move/Remove everything and Ensure parent folders
+         *
+         * @param path
+         * @param options.overwrite - if false, then things in the way will be moved instead of deleted
+         * @param options.extension - the string to append when renaming files to get them out of the way
+         * 
+         * @example
+         *     FileSystem.sync.clearAPathFor("./something")
+         */
+        clearAPathFor(path, options={overwrite:false, renameExtension:null}) {
+            const {overwrite, renameExtension} = defaultOptionsHelper(options)
             const originalPath = path
             const paths = []
             while (Path.dirname(path) !== path) {
@@ -1293,17 +1330,16 @@ export const FileSystem = {
                     if (overwrite) {
                         FileSystem.sync.remove(eachPath)
                     } else {
-                        FileSystem.sync.moveOutOfTheWay(eachPath, {extension})
+                        FileSystem.sync.moveOutOfTheWay(eachPath, {extension:renameExtension})
                     }
                 }
             }
-            FileSystem.sync.ensureIsFolder(Path.dirname(originalPath))
+            Deno.mkdirSync(Path.dirname(originalPath), { recursive: true })
             return originalPath
         },
-        append({path, data, force=true}) {
+        append({path, data, force=true, overwrite=false, renameExtension=null}) {
             if (force) {
-                FileSystem.sync.clearAPathFor(path, { overwrite: force })
-
+                FileSystem.sync.ensureIsFolder(path, {overwrite, renameExtension})
                 const info = FileSystem.sync.info(path)
                 if (info.isDirectory) {
                     FileSystem.sync.remove(path)
