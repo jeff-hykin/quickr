@@ -1096,7 +1096,7 @@ export const FileSystem = {
         }
         locker[path] = true
         if (force) {
-            FileSystem.ensureIsFolder(path, { overwrite, renameExtension, })
+            FileSystem.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -1120,7 +1120,7 @@ export const FileSystem = {
         locker[path] = true
 
         if (force) {
-            FileSystem.sync.ensureIsFolder(path, { overwrite, renameExtension })
+            FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -1339,7 +1339,7 @@ export const FileSystem = {
         },
         append({path, data, force=true, overwrite=false, renameExtension=null}) {
             if (force) {
-                FileSystem.sync.ensureIsFolder(path, {overwrite, renameExtension})
+                FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
                 const info = FileSystem.sync.info(path)
                 if (info.isDirectory) {
                     FileSystem.sync.remove(path)
