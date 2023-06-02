@@ -634,7 +634,7 @@ export const FileSystem = {
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null}) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
-        const newItemPath = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
+        const newItemPath = FileSystem.normalize((newItem.path || newItem).replace(/\/+$/, "")) // if given ItemInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -657,21 +657,23 @@ export const FileSystem = {
     },
     async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null}) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
-        newItem = (newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
-        newItem = FileSystem.normalize(newItem)
+        const newItemPath = FileSystem.normalize(newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
         if (!allowNonExistingTarget && existingItemDoesntExist) {
-            throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItem:${newItem}\nbut existingItem didn't actually exist`)
+            throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItemPath:${newItemPath}\nbut existingItem didn't actually exist`)
         } else {
+            const parentOfNewItem = FileSystem.parentPath(newItemPath)
+            await FileSystem.ensureIsFolder(parentOfNewItem, {overwrite, renameExtension})
+            const hardPathToNewItem = `${await FileSystem.makeHardPathTo(parentOfNewItem)}/${FileSystem.basename(newItemPath)}`
             if (force) {
                 FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
             }
             
             return Deno.symlink(
                 FileSystem.makeAbsolutePath(existingItem), 
-                newItem,
+                newItemPath,
             )
         }
     },
