@@ -481,7 +481,7 @@ export const run = (maybeStrings, ...args) => {
         try {
             process = Deno.run(runArg)
         } catch (error) {
-            const rejection = new Promise((resolve, reject)=>reject(error))
+            const rejection = new Promise((resolve, reject)=>reject(`\n${error}\nThis was from a run() call, which was converted to Deno.run(${JSON.stringify(runArg,0,4)})`))
             return [ rejection, rejection, rejection ]
         }
         if (commandMetaData.timeout.gentlyBy) {
