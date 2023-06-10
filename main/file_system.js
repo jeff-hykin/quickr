@@ -3,7 +3,7 @@ import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@0.7.8/string.js"
 import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.8/iterable.js"
-import { globToRegExp } from "https://deno.land/std@0.87.0/path/glob.ts"
+import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
 
 // TODO:
     // handling relative symbolic links for the move command 
@@ -977,7 +977,7 @@ export const FileSystem = {
         startPath = startPath || "."
         const regex = pattern instanceof RegExp ? pattern : globToRegExp(pattern)
         for await (const eachPath of FileSystem.iteratePathsIn(startPath, {recursively: true, ...iteratePathsOptions})) {
-            if (eachPath.match(regex)) {
+            if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
                 yield FileSystem.makeRelativePath({
                     from: startPath,
                     to: eachPath,
