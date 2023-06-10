@@ -1252,6 +1252,9 @@ export const FileSystem = {
             return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
         },
         remove(fileOrFolder) {
+            if (fileOrFolder instanceof Array) {
+                return fileOrFolder.map(FileSystem.sync.remove)
+            }
             fileOrFolder = fileOrFolder.path || fileOrFolder
             let exists = false
             let item
