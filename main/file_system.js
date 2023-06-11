@@ -4,13 +4,12 @@ import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy
 import { findAll } from "https://deno.land/x/good@0.7.8/string.js"
 import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.8/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
+import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 
 // TODO:
     // handling relative symbolic links for the move command 
     // add copy command (figure out how to handle symlinks)
-    // globbing
     // LF vs CRLF detection
-    // Deno.execPath()
     // owner of a file
     // rename
     // merge
@@ -21,7 +20,6 @@ import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
     // timeOfLastModification
     // tempfile
     // tempfolder
-    // readBytes
     // readStream
     // username with Deno.getUid()
 
@@ -226,7 +224,15 @@ const defaultOptionsHelper = (options)=>({
     renameExtension: options.renameExtension || FileSystem.defaultRenameExtension,
     overwrite: options.overwrite,
 })
-const locker = {}
+// might seem dumb to have locking in a single threaded JS application but I assure you it is required for async file operations to not fight eachother
+const fileLockSymbol = Symbol.for("fileLock")
+const locker = globalThis[fileLockSymbol] || {}
+const grabPathLock = async (path)=> {
+    while (locker[path]) {
+        await new Promise((resolve)=>setTimeout(resolve, 70))
+    }
+    locker[path] = true
+}
 export const FileSystem = {
     denoExecutablePath: Deno.execPath(),
     parentPath: Path.dirname,
@@ -299,11 +305,7 @@ export const FileSystem = {
         return Deno.cwd()
     },
     async read(path) {
-        // busy wait till lock is removed
-        while (locker[path]) {
-            await new Promise((resolve)=>setTimeout(resolve, 70))
-        }
-        locker[path] = true
+        await grabPathLock(path)
         let output
         try {
             output = await Deno.readTextFile(path)
@@ -311,6 +313,29 @@ export const FileSystem = {
         }
         delete locker[path]
         return output
+    },
+    async readBytes(path) {
+        await grabPathLock(path)
+        let output
+        try {
+            output = await Deno.readFile(path)
+        } catch (error) {
+        }
+        delete locker[path]
+        return output
+    },
+    async * readLinesIteratively(path) {
+        await grabPathLock(path)
+        try {
+            const file = await Deno.open(path)
+            try {
+                yield* readLines(file)
+            } finally {
+                Deno.close(file.rid)
+            }
+        } finally {
+            delete locker[path]
+        }
     },
     async info(fileOrFolderPath, _cachedLstat=null) {
         // compute lstat and stat before creating ItemInfo (so its async for performance)
@@ -1093,10 +1118,7 @@ export const FileSystem = {
     // alias
     setPermissions(...args) { return FileSystem.addPermissions(...args) },
     async write({path, data, force=true, overwrite=false, renameExtension=null}) {
-        while (locker[path]) {
-            await new Promise((resolve)=>setTimeout(resolve, 70))
-        }
-        locker[path] = true
+        await grabPathLock(path)
         if (force) {
             FileSystem.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
             const info = await FileSystem.info(path)
@@ -1116,11 +1138,7 @@ export const FileSystem = {
         return output
     },
     async append({path, data, force=true, overwrite=false, renameExtension=null}) {
-        while (locker[path]) {
-            await new Promise((resolve)=>setTimeout(resolve, 70))
-        }
-        locker[path] = true
-
+        await grabPathLock(path)
         if (force) {
             FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension })
             const info = await FileSystem.info(path)
