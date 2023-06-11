@@ -1,7 +1,7 @@
 import { deferred } from "https://deno.land/std@0.181.0/async/mod.ts"
 import { writeAllSync } from "https://deno.land/std@0.181.0/streams/conversion.ts"
-import { isReadable, isWritable, concatUint8Arrays } from "./stream_tools.js"
-import { FileSystem } from "./file_system.js"
+import { isReadable, isWritable, concatUint8Arrays } from "../stream_tools.js"
+import { FileSystem } from "../file_system.js"
 
 // 
 // 
