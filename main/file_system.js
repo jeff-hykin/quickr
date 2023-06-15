@@ -1,10 +1,11 @@
 import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy } from "https://deno.land/std@0.133.0/fs/mod.ts"
-import { findAll } from "https://deno.land/x/good@0.7.8/string.js"
-import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@0.7.8/iterable.js"
+import { findAll } from "https://deno.land/x/good@1.1.1.2/string.js"
+import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.1.1.2/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
+import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
 
 // TODO:
     // handling relative symbolic links for the move command 
@@ -1127,12 +1128,28 @@ export const FileSystem = {
             }
         }
         let output
+        // incremental data
+        if (isGeneratorType(data)) {
+            const file = await Deno.open(path, {read:true, write: true, create: true})
+            const encoder = new TextEncoder()
+            const encode = encoder.encode.bind(encoder)
+            try {
+                let index = 0
+                for await (let packet of data) {
+                    if (typeof packet == 'string') {
+                        packet = encode(packet)
+                    }
+                    await Deno.write(file.rid, packet)
+                }
+            } finally {
+                Deno.close(file.rid)
+            }
         // string
-        if (typeof data == 'string') {
+        } else if (typeof data == 'string') {
             output = await Deno.writeTextFile(path, data)
         // assuming bytes (maybe in the future, readables and pipes will be supported)
         } else {
-        output = await Deno.writeFile(path, data)
+            output = await Deno.writeFile(path, data)
         }
         delete locker[path]
         return output
