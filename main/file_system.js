@@ -8,21 +8,25 @@ import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
 
 // TODO:
-    // handling relative symbolic links for the move command 
-    // add copy command (figure out how to handle symlinks)
-    // LF vs CRLF detection
-    // owner of a file
-    // rename
-    // merge
-    // get/set owner
-    // size
-    // timeCreated
-    // timeOfLastAccess
-    // timeOfLastModification
-    // tempfile
-    // tempfolder
-    // readStream
-    // username with Deno.getUid()
+    // ensure that all path arguments also accept ItemInfo objects
+    // make sure the .sync api is in parity with the async API
+    // check LF vs CRLF detection
+    // add API's
+        // rename function
+        // move function
+            // needs to handle relative symbolic links
+        // copy function
+            // decide how to handle symlinks
+        // merge folders
+        // get/set item owner
+        // current user's username with Deno.getUid()
+        // item size
+        // item timeCreated
+        // item timeOfLastAccess
+        // item timeOfLastModification
+        // tempfile
+        // tempfolder
+        // readFileStream
 
 const emptyIterator = (async function *() {})()
 const cache = {}
