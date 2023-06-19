@@ -272,6 +272,16 @@ export const Console = {
             arg1 = arg1.replace("%", "%%")
         }
         if (!isBrowserContext) {
+            if (!Console.reliableColorSupport.includesAnsi) {
+                arg1 = clearAnsiStylesFrom(arg1)
+                others = others.map(each=>{
+                    if (typeof each == 'string') {
+                        return clearAnsiStylesFrom(each)
+                    } else {
+                        return each
+                    }
+                })
+            }
             realConsole.log(arg1, ...others)
         } else {
             if (args[0][symbolForConsoleLog] && typeof args[0].styleString == 'string') {
