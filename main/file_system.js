@@ -1133,7 +1133,7 @@ export const FileSystem = {
         }
         let output
         // incremental data
-        if (isGeneratorType(data)) {
+        if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
             const file = await Deno.open(path, {read:true, write: true, create: true})
             const encoder = new TextEncoder()
             const encode = encoder.encode.bind(encoder)
