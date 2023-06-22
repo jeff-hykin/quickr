@@ -1125,7 +1125,7 @@ export const FileSystem = {
     async write({path, data, force=true, overwrite=false, renameExtension=null}) {
         await grabPathLock(path)
         if (force) {
-            FileSystem.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
+            await FileSystem.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
             const info = await FileSystem.info(path)
             if (info.isDirectory) {
                 await FileSystem.remove(path)
@@ -1134,7 +1134,7 @@ export const FileSystem = {
         let output
         // incremental data
         if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
-            const file = await Deno.open(path, {read:true, write: true, create: true})
+            const file = await Deno.open(path, {read:true, write: true, create: true, truncate: true})
             const encoder = new TextEncoder()
             const encode = encoder.encode.bind(encoder)
             try {
