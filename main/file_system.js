@@ -238,6 +238,15 @@ const grabPathLock = async (path)=> {
     }
     locker[path] = true
 }
+const pathStandardize = (path)=>{
+    // ItemInfo object to path
+    path = path.path||path
+    // url-like file path to POSIX path
+    if (typeof path == 'string' && path.startsWith("file:///")) {
+        path = Path.fromFileUrl(path)
+    }
+    return path
+}
 export const FileSystem = {
     denoExecutablePath: Deno.execPath(),
     parentPath: Path.dirname,
@@ -310,6 +319,7 @@ export const FileSystem = {
         return Deno.cwd()
     },
     async read(path) {
+        path = pathStandardize(path)
         await grabPathLock(path)
         let output
         try {
@@ -320,6 +330,7 @@ export const FileSystem = {
         return output
     },
     async readBytes(path) {
+        path = pathStandardize(path)
         await grabPathLock(path)
         let output
         try {
@@ -330,6 +341,7 @@ export const FileSystem = {
         return output
     },
     async * readLinesIteratively(path) {
+        path = pathStandardize(path)
         await grabPathLock(path)
         try {
             const file = await Deno.open(path)
@@ -343,35 +355,41 @@ export const FileSystem = {
         }
     },
     async info(fileOrFolderPath, _cachedLstat=null) {
-        // compute lstat and stat before creating ItemInfo (so its async for performance)
-        const lstat = _cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
-        let stat = {}
-        if (!lstat.isSymlink) {
-            stat = {
-                isBrokenLink: false,
-                isLoopOfLinks: false,
-            }
-        // if symlink
-        } else {
-            try {
-                stat = await Deno.stat(fileOrFolderPath)
-            } catch (error) {
-                if (error.message.match(/^Too many levels of symbolic links/)) {
-                    stat.isBrokenLink = true
-                    stat.isLoopOfLinks = true
-                } else if (error.message.match(/^No such file or directory/)) {
-                    stat.isBrokenLink = true
-                } else {
-                    if (!error.message.match(/^PermissionDenied:/)) {
-                        return {doesntExist: true, permissionDenied: true}
+        path = pathStandardize(path)
+        await grabPathLock(path)
+        try {
+            // compute lstat and stat before creating ItemInfo (so its async for performance)
+            const lstat = _cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
+            let stat = {}
+            if (!lstat.isSymlink) {
+                stat = {
+                    isBrokenLink: false,
+                    isLoopOfLinks: false,
+                }
+            // if symlink
+            } else {
+                try {
+                    stat = await Deno.stat(fileOrFolderPath)
+                } catch (error) {
+                    if (error.message.match(/^Too many levels of symbolic links/)) {
+                        stat.isBrokenLink = true
+                        stat.isLoopOfLinks = true
+                    } else if (error.message.match(/^No such file or directory/)) {
+                        stat.isBrokenLink = true
+                    } else {
+                        if (!error.message.match(/^PermissionDenied:/)) {
+                            return {doesntExist: true, permissionDenied: true}
+                        }
+                        // probably a permission error
+                        // TODO: improve how this is handled
+                        throw error
                     }
-                    // probably a permission error
-                    // TODO: improve how this is handled
-                    throw error
                 }
             }
+            return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
+        } finally {
+            delete locker[path]
         }
-        return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
     },
     async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
         // force     => will MOVE other things out of the way until the job is done
@@ -412,6 +430,7 @@ export const FileSystem = {
         await moveAndRename(oldPath, newPath)
     },
     async remove(fileOrFolder) {
+        fileOrFolder = pathStandardize(fileOrFolder)
         // for `await FileSystem.remove(glob(`*.js`))`
         if (fileOrFolder instanceof Array) {
             return Promise.all(fileOrFolder.map(FileSystem.remove))
@@ -424,7 +443,7 @@ export const FileSystem = {
             return Deno.remove(itemInfo.path.replace(/\/+$/,""), {recursive: true})
         }
     },
-    normalize: (path)=>Path.normalize(path.path||path).replace(/\/$/,""),
+    normalize: (path)=>Path.normalize(pathStandardize(path)).replace(/\/$/,""),
     isAbsolutePath: Path.isAbsolute,
     isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
@@ -1123,6 +1142,7 @@ export const FileSystem = {
     // alias
     setPermissions(...args) { return FileSystem.addPermissions(...args) },
     async write({path, data, force=true, overwrite=false, renameExtension=null}) {
+        path = pathStandardize(path)
         await grabPathLock(path)
         if (force) {
             await FileSystem.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
@@ -1159,6 +1179,7 @@ export const FileSystem = {
         return output
     },
     async append({path, data, force=true, overwrite=false, renameExtension=null}) {
+        path = pathStandardize(path)
         await grabPathLock(path)
         if (force) {
             FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension })
@@ -1310,6 +1331,7 @@ export const FileSystem = {
             }
         },
         moveOutOfTheWay(path, options={extension:null}) {
+            path = pathStandardize(path)
             const extension = options?.extension || FileSystem.defaultRenameExtension
             const info = FileSystem.sync.info(path)
             if (info.exists) {
@@ -1320,6 +1342,7 @@ export const FileSystem = {
             }
         },
         ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
+            path = pathStandardize(path)
             const {overwrite, renameExtension} = defaultOptionsHelper(options)
             path = path.path || path // if given ItemInfo object
             path = FileSystem.makeAbsolutePath(path)
@@ -1382,6 +1405,7 @@ export const FileSystem = {
             return originalPath
         },
         append({path, data, force=true, overwrite=false, renameExtension=null}) {
+            path = pathStandardize(path)
             if (force) {
                 FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
                 const info = FileSystem.sync.info(path)
