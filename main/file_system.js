@@ -355,8 +355,8 @@ export const FileSystem = {
         }
     },
     async info(fileOrFolderPath, _cachedLstat=null) {
-        path = pathStandardize(path)
-        await grabPathLock(path)
+        fileOrFolderPath = pathStandardize(fileOrFolderPath)
+        await grabPathLock(fileOrFolderPath)
         try {
             // compute lstat and stat before creating ItemInfo (so its async for performance)
             const lstat = _cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
@@ -388,7 +388,7 @@ export const FileSystem = {
             }
             return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
         } finally {
-            delete locker[path]
+            delete locker[fileOrFolderPath]
         }
     },
     async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
