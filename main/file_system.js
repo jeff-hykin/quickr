@@ -1145,10 +1145,10 @@ export const FileSystem = {
         path = pathStandardize(path)
         await grabPathLock(path)
         if (force) {
-            await FileSystem.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
-            const info = await FileSystem.info(path)
+            FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
+            const info = FileSystem.sync.info(path)
             if (info.isDirectory) {
-                await FileSystem.remove(path)
+                FileSystem.sync.remove(path)
             }
         }
         let output
