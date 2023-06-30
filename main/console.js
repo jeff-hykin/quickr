@@ -1,5 +1,6 @@
 import { OperatingSystem } from "./operating_system.js"
-import { toString, indent } from "https://deno.land/x/good@0.7.8/string.js"
+import { toString, indent } from "https://deno.land/x/good@1.3.0.4/string.js"
+import { zip } from "https://deno.land/x/good@1.3.0.4/iterable.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
@@ -120,27 +121,35 @@ globalThis.console = new Proxy(originalThing, {
     const styleObject = (rootStyleString)=>{
         const createStyleAccumulator = (styleString)=>{
             const styleAccumulator = (strings, ...values)=>{
-                // if called as a normal function instead of a template
-                if (typeof strings == "string") {
-                    strings = [strings, ...values.map(each=>"")]
+                const objectToStyledString = (interpolatedValue, styles)=>{
+                    let singleCombinedString = ""
+                    if (interpolatedValue instanceof Object && interpolatedValue[styleObjectSymbol] instanceof Function) {
+                        singleCombinedString += interpolatedValue[styleObjectSymbol]()
+                    } else {
+                        singleCombinedString += toString(interpolatedValue)
+                    }
+                    singleCombinedString += styleStrings.reset + styleAccumulator.styles.join("") // encase the interpolated value messed with styles
+                    return singleCombinedString
                 }
+                
                 
                 // combine into one string
                 let singleCombinedString = ""
-                for (const index in values) {
-                    // add the string value
-                    singleCombinedString += toString(strings[index])
-                    
-                    const interpolatedValue = values[index]
-                    if (interpolatedValue[styleObjectSymbol] instanceof Function) {
-                        singleCombinedString += interpolatedValue.toString()
-                    } else {
-                        singleCombinedString += toString(values[index])
+                // if called as a normal function instead of a template
+                if (!(strings instanceof Array) || strings.length < 1 || !strings.every(each=>typeof each == 'string')) {
+                    for (const each of [strings, ...values]) {
+                        singleCombinedString += objectToStyledString(each)
                     }
-                    singleCombinedString += styleStrings.reset + styleAccumulator.styles.join("") // encase the interpolated value messed with styles
+                // if template-call, interweave the values
+                } else {
+                    for (const index in values) {
+                        // add the string value
+                        singleCombinedString += strings[index]
+                        singleCombinedString += objectToStyledString(values[index])
+                    }
+                    const lastString = strings.slice(-1)[0]
+                    singleCombinedString += lastString
                 }
-                singleCombinedString += strings.slice(-1)[0]
-
                 styleAccumulator.sequence.push(singleCombinedString)
                 return styleAccumulator
             }
