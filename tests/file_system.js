@@ -58,3 +58,19 @@ console.log(await FileSystem.glob("*.log", { startPath: ".." }))
 console.log("")
 console.log(`# await FileSystem.glob("**/*.log", { startPath: ".." })`)
 console.log(await FileSystem.glob("**/*.log", { startPath: ".." }))
+
+console.log("")
+console.log("Encrypting file")
+await FileSystem.encrypt({
+    pathToEncrypt: "console.js.log",
+    outputPath: "console.log.encrypted",
+    password: "supersecret", 
+})
+
+console.log("")
+console.log("Decrypting file")
+await FileSystem.encrypt({
+    pathToEncrypt: "console.log.encrypted",
+    outputPath: "console.log.decrypted",
+    password: "supersecret", 
+})

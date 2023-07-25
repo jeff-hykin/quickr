@@ -234,29 +234,33 @@ const defaultOptionsHelper = (options)=>({
 const fileLockSymbol = Symbol.for("fileLock")
 const locker = globalThis[fileLockSymbol] || {}
 const withPathLock = async (path, isInternalCall, handler)=>{
-    if (!isInternalCall) {
+    if (isInternalCall) {
+        return handler()
+    } else {
         while (locker[path]) {
             await new Promise((resolve)=>setTimeout(resolve, 70))
         }
         locker[path] = true
-    }
-    let output
-    let isBeingHandledWithAfter = false
-    try {
-        output = await handler()
-        // annoying but necessary to run the "finally" after 
-        if (isIterableObjectOrContainer(output)) {
-            isBeingHandledWithAfter = true
-            return after(output).finally(()=>{
+        
+        let output
+        let isBeingHandledWithAfter = false
+        try {
+            output = await handler()
+            // annoying but necessary to run the "finally" after 
+            // if (isIterableObjectOrContainer(output)) {
+            //     isBeingHandledWithAfter = true
+            //     after(output).finally(()=>{
+            //         delete locker[path]
+            //     })
+            //     return output
+            // }
+        } finally {
+            if (!isBeingHandledWithAfter) {
                 delete locker[path]
-            })
+            }
         }
-    } finally {
-        if (!isBeingHandledWithAfter) {
-            delete locker[path]
-        }
+        return output
     }
-    return output
 }
 const grabPathLock = async (path)=> {
     while (locker[path]) {
@@ -347,6 +351,7 @@ export const FileSystem = {
     async read(path, _extra={isInternalCall:false}) {
         const { isInternalCall } = _extra
         path = pathStandardize(path)
+        console.log(`1`)
         return withPathLock(path, isInternalCall, async ()=>{
             try {
                 return await Deno.readTextFile(path)
@@ -357,6 +362,7 @@ export const FileSystem = {
     async readBytes(path, _extra={isInternalCall:false}) {
         const { isInternalCall } = _extra
         path = pathStandardize(path)
+        console.log(`2`)
         return withPathLock(path, isInternalCall, async ()=>{
             try {
                 return await Deno.readFile(path)
@@ -367,6 +373,7 @@ export const FileSystem = {
     async readLinesIteratively(path, _extra={isInternalCall:false}) {
         const { isInternalCall } = _extra
         path = pathStandardize(path)
+        console.log(`3`)
         return withPathLock(path, isInternalCall, async function *(){
             const file = await Deno.open(path)
             try {
@@ -378,42 +385,37 @@ export const FileSystem = {
     },
     async info(fileOrFolderPath, _extra={cachedLstat:null, isInternalCall:false}) {
         const { cachedLstat, isInternalCall } = _extra
-        return withPathLock(path, isInternalCall, async ()=>{
-            fileOrFolderPath = pathStandardize(fileOrFolderPath)
-            await grabPathLock(fileOrFolderPath)
-            try {
-                // compute lstat and stat before creating ItemInfo (so its async for performance)
-                const lstat = cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
-                let stat = {}
-                if (!lstat.isSymlink) {
-                    stat = {
-                        isBrokenLink: false,
-                        isLoopOfLinks: false,
-                    }
-                // if symlink
-                } else {
-                    try {
-                        stat = await Deno.stat(fileOrFolderPath)
-                    } catch (error) {
-                        if (error.message.match(/^Too many levels of symbolic links/)) {
-                            stat.isBrokenLink = true
-                            stat.isLoopOfLinks = true
-                        } else if (error.message.match(/^No such file or directory/)) {
-                            stat.isBrokenLink = true
-                        } else {
-                            if (!error.message.match(/^PermissionDenied:/)) {
-                                return {doesntExist: true, permissionDenied: true}
-                            }
-                            // probably a permission error
-                            // TODO: improve how this is handled
-                            throw error
+        fileOrFolderPath = pathStandardize(fileOrFolderPath)
+        return withPathLock(fileOrFolderPath, isInternalCall, async ()=>{
+            // compute lstat and stat before creating ItemInfo (so its async for performance)
+            const lstat = cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
+            let stat = {}
+            if (!lstat.isSymlink) {
+                stat = {
+                    isBrokenLink: false,
+                    isLoopOfLinks: false,
+                }
+            // if symlink
+            } else {
+                try {
+                    stat = await Deno.stat(fileOrFolderPath)
+                } catch (error) {
+                    if (error.message.match(/^Too many levels of symbolic links/)) {
+                        stat.isBrokenLink = true
+                        stat.isLoopOfLinks = true
+                    } else if (error.message.match(/^No such file or directory/)) {
+                        stat.isBrokenLink = true
+                    } else {
+                        if (!error.message.match(/^PermissionDenied:/)) {
+                            return {doesntExist: true, permissionDenied: true}
                         }
+                        // probably a permission error
+                        // TODO: improve how this is handled
+                        throw error
                     }
                 }
-                return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
-            } finally {
-                delete locker[fileOrFolderPath]
             }
+            return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
         })
     },
     async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
@@ -552,47 +554,95 @@ export const FileSystem = {
             }
         }
     },
-    async encrypt({ pathToEncrypt, outputPath, password, method={ name: "AES-GCM", iv: new Uint8Array(12), } }) {
-        pathToEncrypt = pathToEncrypt.path
-        const dataBuffer = await Deno.readFile(pathToEncrypt)
-        const { iv } = method
-        const encoder = new TextEncoder()
-        const passwordBuffer = typeof password == 'string' ? encoder.encode(password) : password
+    async encrypt({ pathToEncrypt, outputPath, password, method="basic", _isInternalCall = false, ...options }) {
+        pathToEncrypt = pathToEncrypt.path || pathToEncrypt
+        return withPathLock(pathToEncrypt, _isInternalCall, async function () {
+            const dataBuffer = await Deno.readFile(pathToEncrypt)
+            const encoder = new TextEncoder()
+            const passwordBuffer = typeof password == "string" ? encoder.encode(password) : password
 
-        // Perform encryption using AES-GCM
-        try {
+            // Derive a key from the password using PBKDF2
+            const keyMaterial = await window.crypto.subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveBits"])
+
+            const salt = new Uint8Array(16) // You should use a random salt for production use.
+            const iterations = 100000
+            const keyLength = 256 // Use 128 or 192 for lower key strength.
+
+            const derivedKeyBits = await window.crypto.subtle.deriveBits(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: iterations,
+                    hash: "SHA-256",
+                },
+                keyMaterial,
+                keyLength
+            )
+
+            const key = await window.crypto.subtle.importKey("raw", derivedKeyBits, { name: "AES-GCM" }, false, ["encrypt", "decrypt"])
+
             const encryptedData = await window.crypto.subtle.encrypt(
-                method,
-                passwordBuffer,
-                dataBuffer,
+                {
+                    name: "AES-GCM",
+                    iv: new Uint8Array(12),
+                },
+                key,
+                dataBuffer
             )
 
             await FileSystem.write({
                 path: outputPath,
                 data: encryptedData,
+                ...options,
+                _isInternalCall: true,
             })
+        })
+    },
+    async decrypt({ pathToDecrypt, outputPath, password, method="basic", _isInternalCall = false, ...options }) {
+        pathToDecrypt = pathToDecrypt.path || pathToDecrypt
+        return withPathLock(pathToDecrypt, _isInternalCall, async function () {
+            const encoder = new TextEncoder()
+            const passwordBuffer = typeof password == "string" ? encoder.encode(password) : password
 
-            console.log("Encrypted data:", encryptedData);
+            // Derive a key from the password using PBKDF2
+            const keyMaterial = await window.crypto.subtle.importKey("raw", passwordBuffer, { name: "PBKDF2" }, false, ["deriveBits"])
 
-            // Perform decryption using AES-GCM
+            const salt = new Uint8Array(16) // You should use a random salt for production use.
+            const iterations = 100000
+            const keyLength = 256 // Use 128 or 192 for lower key strength.
+
+            const derivedKeyBits = await window.crypto.subtle.deriveBits(
+                {
+                    name: "PBKDF2",
+                    salt: salt,
+                    iterations: iterations,
+                    hash: "SHA-256",
+                },
+                keyMaterial,
+                keyLength
+            )
+
+            const key = await window.crypto.subtle.importKey("raw", derivedKeyBits, { name: "AES-GCM" }, false, ["encrypt", "decrypt"])
+
+            const encryptedData = await FileSystem.readBytes(pathToDecrypt, {isInternalCall: true,})
+
             const decryptedData = await window.crypto.subtle.decrypt(
-            {
-                name: "AES-GCM",
-                iv: iv,
-            },
-            passwordBuffer,
-            encryptedData
-            );
+                {
+                    name: "AES-GCM",
+                    iv: new Uint8Array(12),
+                },
+                key,
+                encryptedData
+            )
 
-            // Convert the ArrayBuffer back to a string
-            const decoder = new TextDecoder();
-            const decryptedString = decoder.decode(decryptedData);
-
-            console.log("Decrypted data:", decryptedString);
-        } catch (error) {
-            console.error("Encryption/Decryption error:", error);
-        }
-    }
+            await FileSystem.write({
+                path: outputPath,
+                data: decryptedData,
+                ...options,
+                _isInternalCall: true,
+            })
+        })
+    },
     async ensureIsFile(path, options={overwrite:false, renameExtension:null}) {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
         await FileSystem.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
@@ -810,7 +860,7 @@ export const FileSystem = {
         return [ folderList, result.name, result.ext ]
     },
     async * iterateBasenamesIn(pathOrFileInfo){
-        const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
+        const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo, { isInternalCall: true })
         // if file or doesnt exist
         if (info.isFolder) {
             for await (const each of Deno.readDir(pathOrFileInfo.path)) {
@@ -822,9 +872,10 @@ export const FileSystem = {
         return asyncIteratorToList(FileSystem.iterateBasenamesIn(pathOrFileInfo))
     },
     async * iteratePathsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, dontFollowSymlinks: false, dontReturnSymlinks: false }) {
+        console.log(`iteratePathsIn: ${pathOrFileInfo}`)
         let info
         try {
-            info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
+            info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo, { isInternalCall: true })
         } catch (error) {
             if (!error.message.match(/^PermissionDenied:/)) {
                 throw error
@@ -1207,42 +1258,44 @@ export const FileSystem = {
     },
     // alias
     setPermissions(...args) { return FileSystem.addPermissions(...args) },
-    async write({path, data, force=true, overwrite=false, renameExtension=null}) {
+    async write({path, data, force=true, overwrite=false, renameExtension=null, _isInternalCall=false}) {
         path = pathStandardize(path)
-        await grabPathLock(path)
-        if (force) {
-            FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
-            const info = FileSystem.sync.info(path)
-            if (info.isDirectory) {
-                FileSystem.sync.remove(path)
-            }
-        }
-        let output
-        // incremental data
-        if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
-            const file = await Deno.open(path, {read:true, write: true, create: true, truncate: true})
-            const encoder = new TextEncoder()
-            const encode = encoder.encode.bind(encoder)
-            try {
-                let index = 0
-                for await (let packet of data) {
-                    if (typeof packet == 'string') {
-                        packet = encode(packet)
-                    }
-                    await Deno.write(file.rid, packet)
+        console.log(`6`)
+        return withPathLock(path, _isInternalCall, async function(){
+            if (force) {
+                FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
+                const info = FileSystem.sync.info(path)
+                if (info.isDirectory) {
+                    FileSystem.sync.remove(path)
                 }
-            } finally {
-                Deno.close(file.rid)
             }
-        // string
-        } else if (typeof data == 'string') {
-            output = await Deno.writeTextFile(path, data)
-        // assuming bytes (maybe in the future, readables and pipes will be supported)
-        } else {
-            output = await Deno.writeFile(path, data)
-        }
-        delete locker[path]
-        return output
+            let output
+            // incremental data
+            if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
+                const file = await Deno.open(path, {read:true, write: true, create: true, truncate: true})
+                const encoder = new TextEncoder()
+                const encode = encoder.encode.bind(encoder)
+                try {
+                    let index = 0
+                    for await (let packet of data) {
+                        if (typeof packet == 'string') {
+                            packet = encode(packet)
+                        }
+                        await Deno.write(file.rid, packet)
+                    }
+                } finally {
+                    Deno.close(file.rid)
+                }
+            // string
+            } else if (typeof data == 'string') {
+                output = await Deno.writeTextFile(path, data)
+            // assuming bytes (maybe in the future, readables and pipes will be supported)
+            } else {
+                output = await Deno.writeFile(path, data)
+            }
+            return output
+        })
+
     },
     async append({path, data, force=true, overwrite=false, renameExtension=null}) {
         path = pathStandardize(path)
