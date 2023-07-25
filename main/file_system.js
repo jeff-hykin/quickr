@@ -1,13 +1,14 @@
 import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy } from "https://deno.land/std@0.133.0/fs/mod.ts"
-import { findAll } from "https://deno.land/x/good@1.1.1.2/string.js"
-import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.1.1.2/iterable.js"
+import { findAll } from "https://deno.land/x/good@1.4.4.0/string.js"
+import { makeIterable, asyncIteratorToList, concurrentlyTransform, after } from "https://deno.land/x/good@1.4.4.0/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
-import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
+import { isGeneratorType, isAsyncIterable, isIterableObjectOrContainer } from "https://deno.land/x/good@1.4.4.0/value.js"
 
 // TODO:
+    // switch from grabPathLock to withPathLock
     // ensure that all path arguments also accept ItemInfo objects
     // make sure the .sync api is in parity with the async API
     // check LF vs CRLF detection
@@ -232,6 +233,31 @@ const defaultOptionsHelper = (options)=>({
 // might seem dumb to have locking in a single threaded JS application but I assure you it is required for async file operations to not fight eachother
 const fileLockSymbol = Symbol.for("fileLock")
 const locker = globalThis[fileLockSymbol] || {}
+const withPathLock = async (path, isInternalCall, handler)=>{
+    if (!isInternalCall) {
+        while (locker[path]) {
+            await new Promise((resolve)=>setTimeout(resolve, 70))
+        }
+        locker[path] = true
+    }
+    let output
+    let isBeingHandledWithAfter = false
+    try {
+        output = await handler()
+        // annoying but necessary to run the "finally" after 
+        if (isIterableObjectOrContainer(output)) {
+            isBeingHandledWithAfter = true
+            return after(output).finally(()=>{
+                delete locker[path]
+            })
+        }
+    } finally {
+        if (!isBeingHandledWithAfter) {
+            delete locker[path]
+        }
+    }
+    return output
+}
 const grabPathLock = async (path)=> {
     while (locker[path]) {
         await new Promise((resolve)=>setTimeout(resolve, 70))
@@ -318,78 +344,77 @@ export const FileSystem = {
         // if in an interpreter
         return Deno.cwd()
     },
-    async read(path) {
+    async read(path, _extra={isInternalCall:false}) {
+        const { isInternalCall } = _extra
         path = pathStandardize(path)
-        await grabPathLock(path)
-        let output
-        try {
-            output = await Deno.readTextFile(path)
-        } catch (error) {
-        }
-        delete locker[path]
-        return output
+        return withPathLock(path, isInternalCall, async ()=>{
+            try {
+                return await Deno.readTextFile(path)
+            } catch (error) {
+            }
+        })
     },
-    async readBytes(path) {
+    async readBytes(path, _extra={isInternalCall:false}) {
+        const { isInternalCall } = _extra
         path = pathStandardize(path)
-        await grabPathLock(path)
-        let output
-        try {
-            output = await Deno.readFile(path)
-        } catch (error) {
-        }
-        delete locker[path]
-        return output
+        return withPathLock(path, isInternalCall, async ()=>{
+            try {
+                return await Deno.readFile(path)
+            } catch (error) {
+            }
+        })
     },
-    async * readLinesIteratively(path) {
+    async readLinesIteratively(path, _extra={isInternalCall:false}) {
+        const { isInternalCall } = _extra
         path = pathStandardize(path)
-        await grabPathLock(path)
-        try {
+        return withPathLock(path, isInternalCall, async function *(){
             const file = await Deno.open(path)
             try {
                 yield* readLines(file)
             } finally {
                 Deno.close(file.rid)
             }
-        } finally {
-            delete locker[path]
-        }
+        })
     },
-    async info(fileOrFolderPath, _cachedLstat=null) {
-        fileOrFolderPath = pathStandardize(fileOrFolderPath)
-        await grabPathLock(fileOrFolderPath)
-        try {
-            // compute lstat and stat before creating ItemInfo (so its async for performance)
-            const lstat = _cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
-            let stat = {}
-            if (!lstat.isSymlink) {
-                stat = {
-                    isBrokenLink: false,
-                    isLoopOfLinks: false,
-                }
-            // if symlink
-            } else {
-                try {
-                    stat = await Deno.stat(fileOrFolderPath)
-                } catch (error) {
-                    if (error.message.match(/^Too many levels of symbolic links/)) {
-                        stat.isBrokenLink = true
-                        stat.isLoopOfLinks = true
-                    } else if (error.message.match(/^No such file or directory/)) {
-                        stat.isBrokenLink = true
-                    } else {
-                        if (!error.message.match(/^PermissionDenied:/)) {
-                            return {doesntExist: true, permissionDenied: true}
+    async info(fileOrFolderPath, _extra={cachedLstat:null, isInternalCall:false}) {
+        const { cachedLstat, isInternalCall } = _extra
+        return withPathLock(path, isInternalCall, async ()=>{
+            fileOrFolderPath = pathStandardize(fileOrFolderPath)
+            await grabPathLock(fileOrFolderPath)
+            try {
+                // compute lstat and stat before creating ItemInfo (so its async for performance)
+                const lstat = cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
+                let stat = {}
+                if (!lstat.isSymlink) {
+                    stat = {
+                        isBrokenLink: false,
+                        isLoopOfLinks: false,
+                    }
+                // if symlink
+                } else {
+                    try {
+                        stat = await Deno.stat(fileOrFolderPath)
+                    } catch (error) {
+                        if (error.message.match(/^Too many levels of symbolic links/)) {
+                            stat.isBrokenLink = true
+                            stat.isLoopOfLinks = true
+                        } else if (error.message.match(/^No such file or directory/)) {
+                            stat.isBrokenLink = true
+                        } else {
+                            if (!error.message.match(/^PermissionDenied:/)) {
+                                return {doesntExist: true, permissionDenied: true}
+                            }
+                            // probably a permission error
+                            // TODO: improve how this is handled
+                            throw error
                         }
-                        // probably a permission error
-                        // TODO: improve how this is handled
-                        throw error
                     }
                 }
+                return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
+            } finally {
+                delete locker[fileOrFolderPath]
             }
-            return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
-        } finally {
-            delete locker[fileOrFolderPath]
-        }
+        })
     },
     async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
         // force     => will MOVE other things out of the way until the job is done
@@ -527,6 +552,47 @@ export const FileSystem = {
             }
         }
     },
+    async encrypt({ pathToEncrypt, outputPath, password, method={ name: "AES-GCM", iv: new Uint8Array(12), } }) {
+        pathToEncrypt = pathToEncrypt.path
+        const dataBuffer = await Deno.readFile(pathToEncrypt)
+        const { iv } = method
+        const encoder = new TextEncoder()
+        const passwordBuffer = typeof password == 'string' ? encoder.encode(password) : password
+
+        // Perform encryption using AES-GCM
+        try {
+            const encryptedData = await window.crypto.subtle.encrypt(
+                method,
+                passwordBuffer,
+                dataBuffer,
+            )
+
+            await FileSystem.write({
+                path: outputPath,
+                data: encryptedData,
+            })
+
+            console.log("Encrypted data:", encryptedData);
+
+            // Perform decryption using AES-GCM
+            const decryptedData = await window.crypto.subtle.decrypt(
+            {
+                name: "AES-GCM",
+                iv: iv,
+            },
+            passwordBuffer,
+            encryptedData
+            );
+
+            // Convert the ArrayBuffer back to a string
+            const decoder = new TextDecoder();
+            const decryptedString = decoder.decode(decryptedData);
+
+            console.log("Decrypted data:", decryptedString);
+        } catch (error) {
+            console.error("Encryption/Decryption error:", error);
+        }
+    }
     async ensureIsFile(path, options={overwrite:false, renameExtension:null}) {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
         await FileSystem.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
