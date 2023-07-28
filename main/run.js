@@ -47,6 +47,17 @@ export const AppendTo  = (fileOrFilePath)=>[appendSymbol, fileOrFilePath]
 const isReadable = (obj) => obj instanceof Object && obj.read instanceof Function
 const isWritable = (obj) => obj instanceof Object && obj.write instanceof Function
 
+const encoder = new TextDecoder()
+const toBytes = (stringOrBytes)=>{
+    if (typeof stringOrBytes == 'string') {
+        return encoder.encode(stringOrBytes)
+    } else if (stringOrBytes instanceof Uint8Array) {
+        return stringOrBytes
+    } else {
+        throw Error(`Tried to convert this to Uint8Array but couldn't, ${toRepresentation(stringOrBytes)}`)
+    }
+}
+
 const concatUint8Arrays = (arrays) => new Uint8Array( // simplified from: https://stackoverflow.com/questions/49129643/how-do-i-merge-an-array-of-uint8arrays
         arrays.reduce((acc, curr) => (acc.push(...curr),acc), [])
     )
@@ -593,7 +604,23 @@ export const run = (maybeStrings, ...args) => {
                 process.stdin.write(stdinWriter).then(()=>process.stdin.close())
             } else if (stdinWriter instanceof ReadableStream) {
                 // actually pipe data
-                writableStreamFromWriter(process.stdin)
+                const writeableStream = writableStreamFromWriter(process.stdin)
+                const readable = stdinWriter.getReader()
+                // asyncly dump everything needed into the writer
+                ;((async ()=>{
+                    while (true) {
+                        try {
+                            const { done, value } = await readable.read()
+                            if (done) {
+                                await process.stdin.close()
+                                break
+                            }
+                            await process.stdin.write(toBytes(value))
+                        } catch (error) {
+                            // TODO: this should be handled, but throwing it to the correct place is nontrivial
+                        }
+                    }
+                })())
             }
         }
 

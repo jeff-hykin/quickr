@@ -8,6 +8,18 @@ console.debug(`hasCommand(\`blah\`) is:`, await hasCommand(`blah`))
 // runs async
 run("echo", "hello")
 
+// alternative syntax
+await run`echo hello`
+
+// get stdout as string
+var outputString = await run`echo hello ${Stdout(returnAsString)}`
+
+// get stdout+stderr as string
+var outputString = await run`echo hello ${Out(returnAsString)}`
+
+// get stderr as string
+var outputString = await run`echo hello ${Out(returnAsString)}`
+
 // wait for a command
 await run("echo", "hello")
 
