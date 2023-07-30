@@ -1425,6 +1425,41 @@ export const FileSystem = {
             // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
             file.close()
         },
+        write({path, data, force=true, overwrite=false, renameExtension=null, _isInternalCall=false}) {
+            path = pathStandardize(path)
+            if (force) {
+                FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
+                const info = FileSystem.sync.info(path)
+                if (info.isDirectory) {
+                    FileSystem.sync.remove(path)
+                }
+            }
+            let output
+            // incremental data
+            if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
+                const file = Deno.openSync(path, {read:true, write: true, create: true, truncate: true})
+                const encoder = new TextEncoder()
+                const encode = encoder.encode.bind(encoder)
+                try {
+                    let index = 0
+                    for await (let packet of data) {
+                        if (typeof packet == 'string') {
+                            packet = encode(packet)
+                        }
+                        Deno.writeSync(file.rid, packet)
+                    }
+                } finally {
+                    Deno.close(file.rid)
+                }
+            // string
+            } else if (typeof data == 'string') {
+                output = Deno.writeTextFileSync(path, data)
+            // assuming bytes (maybe in the future, readables and pipes will be supported)
+            } else {
+                output = Deno.writeFileSync(path, data)
+            }
+            return output
+        },
     },
 }
 
