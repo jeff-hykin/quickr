@@ -1436,13 +1436,13 @@ export const FileSystem = {
             }
             let output
             // incremental data
-            if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
+            if (isGeneratorType(data) || data[Symbol.iterator]) {
                 const file = Deno.openSync(path, {read:true, write: true, create: true, truncate: true})
                 const encoder = new TextEncoder()
                 const encode = encoder.encode.bind(encoder)
                 try {
                     let index = 0
-                    for await (let packet of data) {
+                    for (let packet of data) {
                         if (typeof packet == 'string') {
                             packet = encode(packet)
                         }
