@@ -775,7 +775,7 @@ export const FileSystem = {
         const info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
         // if file or doesnt exist
         if (info.isFolder) {
-            for await (const each of Deno.readDir(pathOrFileInfo.path)) {
+            for await (const dirEntry of Deno.readDir(info.path)) {
                 yield dirEntry.name
             }
         }
