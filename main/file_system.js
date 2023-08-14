@@ -650,7 +650,8 @@ export const FileSystem = {
         return allPaths
     },
     async walkUpUntil(fileToFind, startPath=null){
-        let here = startPath || Deno.cwd()
+        const cwd = Deno.cwd()
+        let here = startPath || cwd
         if (!Path.isAbsolute(here)) {
             here = Path.join(cwd, fileToFind)
         }
