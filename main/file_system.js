@@ -649,7 +649,31 @@ export const FileSystem = {
         }
         return allPaths
     },
-    async walkUpUntil(fileToFind, startPath=null){
+    /**
+     * find a root folder based on a child path
+     *
+     * @example
+     *     import { FileSystem } from "https://deno.land/x/quickr/main/file_system.js"
+     * 
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git")
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil({
+     *         subPath:".git",
+     *         startPath: FileSystem.pwd,
+     *     })
+     *
+     *     // below will result in that^ same folder (assuming all your .git folders have config files)
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git/config")
+     * 
+     *     // below will result in the same folder, but only if theres a local master branch
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git/refs/heads/master")
+     *
+     */
+    async walkUpUntil(subPath, startPath=null) {
+        subPath = subPath instanceof ItemInfo ? subPath.path : subPath
+        // named arguments
+        if (subPath instanceof Object) {
+            var {subPath, startPath} = subPath
+        }
         let here
         if (!startPath) {
             here = Deno.cwd()
@@ -659,7 +683,7 @@ export const FileSystem = {
             here = Path.join(here, startPath)
         }
         while (1) {
-            let checkPath = Path.join(here, fileToFind)
+            let checkPath = Path.join(here, subPath)
             const pathInfo = await Deno.lstat(checkPath).catch(()=>({doesntExist: true}))
             if (!pathInfo.doesntExist) {
                 return here
