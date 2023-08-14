@@ -8,7 +8,7 @@ import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
 
 // TODO:
-    // ensure that all path arguments also accept ItemInfo objects
+    // ensure that all path arguments also accept PathInfo objects
     // make sure the .sync api is in parity with the async API
     // check LF vs CRLF detection
     // add API's
@@ -31,7 +31,7 @@ import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
 const emptyIterator = (async function *() {})()
 const cache = {}
 
-class ItemInfo {
+class PathInfo {
     constructor({path,_lstatData,_statData}) {
         this.path = path
         // expects doesntExist, path,
@@ -239,7 +239,7 @@ const grabPathLock = async (path)=> {
     locker[path] = true
 }
 const pathStandardize = (path)=>{
-    // ItemInfo object to path
+    // PathInfo object to path
     path = path.path||path
     // url-like file path to POSIX path
     if (typeof path == 'string' && path.startsWith("file:///")) {
@@ -358,7 +358,7 @@ export const FileSystem = {
         fileOrFolderPath = pathStandardize(fileOrFolderPath)
         await grabPathLock(fileOrFolderPath)
         try {
-            // compute lstat and stat before creating ItemInfo (so its async for performance)
+            // compute lstat and stat before creating PathInfo (so its async for performance)
             const lstat = _cachedLstat || await Deno.lstat(fileOrFolderPath).catch(()=>({doesntExist: true}))
             let stat = {}
             if (!lstat.isSymlink) {
@@ -386,7 +386,7 @@ export const FileSystem = {
                     }
                 }
             }
-            return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
+            return new PathInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
         } finally {
             delete locker[fileOrFolderPath]
         }
@@ -397,15 +397,15 @@ export const FileSystem = {
         
         const oldPath = item.path || item
         const oldName = FileSystem.basename(oldPath)
-        const itemInfo = item instanceof Object || await FileSystem.info(oldPath)
+        const pathInfo = item instanceof Object || await FileSystem.info(oldPath)
         const newPath = `${newParentFolder}/${newName || oldName}`
 
         // if its a relative-linked item the the relative link will need to be adjusted after the move
         // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
-        if (itemInfo.isSymlink && !item.isBrokenLink) {
-            const link = Deno.readLinkSync(itemInfo.path)
+        if (pathInfo.isSymlink && !item.isBrokenLink) {
+            const link = Deno.readLinkSync(pathInfo.path)
             if (!Path.isAbsolute(link)) {
-                const linkTargetBeforeMove = `${FileSystem.parentPath(itemInfo.path)}/${link}`
+                const linkTargetBeforeMove = `${FileSystem.parentPath(pathInfo.path)}/${link}`
                 await FileSystem.relativeLink({
                     existingItem: linkTargetBeforeMove,
                     newItem: newPath,
@@ -414,7 +414,7 @@ export const FileSystem = {
                     renameExtension,
                 })
                 // remove the original since it was "moved"
-                await FileSystem.remove(itemInfo)
+                await FileSystem.remove(pathInfo)
             }
         }
         
@@ -436,11 +436,11 @@ export const FileSystem = {
             return Promise.all(fileOrFolder.map(FileSystem.remove))
         }
         fileOrFolder = fileOrFolder.path || fileOrFolder
-        const itemInfo = await FileSystem.info(fileOrFolder)
-        if (itemInfo.isFile || itemInfo.isSymlink) {
-            return Deno.remove(itemInfo.path.replace(/\/+$/,""))
-        } else if (itemInfo.exists) {
-            return Deno.remove(itemInfo.path.replace(/\/+$/,""), {recursive: true})
+        const pathInfo = await FileSystem.info(fileOrFolder)
+        if (pathInfo.isFile || pathInfo.isSymlink) {
+            return Deno.remove(pathInfo.path.replace(/\/+$/,""))
+        } else if (pathInfo.exists) {
+            return Deno.remove(pathInfo.path.replace(/\/+$/,""), {recursive: true})
         }
     },
     normalize: (path)=>Path.normalize(pathStandardize(path)).replace(/\/$/,""),
@@ -456,8 +456,8 @@ export const FileSystem = {
     },
     async finalTargetOf(path, options={}) {
         const { _parentsHaveBeenChecked, cache } = { _parentsHaveBeenChecked: false , cache: {}, ...options }
-        const originalWasItem = path instanceof ItemInfo
-        path = (path.path || path) // if given ItemInfo object
+        const originalWasItem = path instanceof PathInfo
+        path = (path.path || path) // if given PathInfo object
         let result = await Deno.lstat(path).catch(()=>({doesntExist: true}))
         if (result.doesntExist) {
             return null
@@ -494,27 +494,27 @@ export const FileSystem = {
 
         path = FileSystem.normalize(path)
         if (originalWasItem) {
-            return new ItemInfo({path})
+            return new PathInfo({path})
         } else {
             return path
         }
     },
     async nextTargetOf(path, options={}) {
-        const originalWasItem = path instanceof ItemInfo
-        const item = originalWasItem ? path : new ItemInfo({path})
+        const originalWasItem = path instanceof PathInfo
+        const item = originalWasItem ? path : new PathInfo({path})
         const lstat = item.lstat
         if (lstat.isSymlink) {
             const relativeOrAbsolutePath = Deno.readLinkSync(item.path)
             if (Path.isAbsolute(relativeOrAbsolutePath)) {
                 if (originalWasItem) {
-                    return new ItemInfo({path:relativeOrAbsolutePath})
+                    return new PathInfo({path:relativeOrAbsolutePath})
                 } else {
                     return relativeOrAbsolutePath
                 }
             } else {
                 const path = `${await FileSystem.makeHardPathTo(Path.dirname(item.path))}/${relativeOrAbsolutePath}`
                 if (originalWasItem) {
-                    return new ItemInfo({path})
+                    return new PathInfo({path})
                 } else {
                     return path
                 }
@@ -531,7 +531,7 @@ export const FileSystem = {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
         await FileSystem.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
 
-        path = path.path || path // if given ItemInfo object
+        path = path.path || path // if given PathInfo object
         const pathInfo = await FileSystem.info(path)
         if (pathInfo.isFile && !pathInfo.isDirectory) { // true for symbolic links to non-directories
             return path
@@ -542,7 +542,7 @@ export const FileSystem = {
     },
     async ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
-        path = path.path || path // if given ItemInfo object
+        path = path.path || path // if given PathInfo object
         path = FileSystem.makeAbsolutePath(path)
         const parentPath = Path.dirname(path)
         // root is always a folder
@@ -669,7 +669,7 @@ export const FileSystem = {
      *
      */
     async walkUpUntil(subPath, startPath=null) {
-        subPath = subPath instanceof ItemInfo ? subPath.path : subPath
+        subPath = subPath instanceof PathInfo ? subPath.path : subPath
         // named arguments
         if (subPath instanceof Object) {
             var {subPath, startPath} = subPath
@@ -711,7 +711,7 @@ export const FileSystem = {
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null}) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
-        const newItemPath = FileSystem.normalize((newItem.path || newItem).replace(/\/+$/, "")) // if given ItemInfo object
+        const newItemPath = FileSystem.normalize((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -734,7 +734,7 @@ export const FileSystem = {
     },
     async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null}) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
-        const newItemPath = FileSystem.normalize(newItem.path || newItem).replace(/\/+$/, "") // if given ItemInfo object
+        const newItemPath = FileSystem.normalize(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -756,7 +756,7 @@ export const FileSystem = {
     },
     pathPieces(path) {
         // const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(path)
-        path = (path.path || path) // if given ItemInfo object
+        path = (path.path || path) // if given PathInfo object
         const result = Path.parse(path)
         const folderList = []
         let dirname = result.dir
@@ -772,7 +772,7 @@ export const FileSystem = {
         return [ folderList, result.name, result.ext ]
     },
     async * iterateBasenamesIn(pathOrFileInfo){
-        const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
+        const info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
         // if file or doesnt exist
         if (info.isFolder) {
             for await (const each of Deno.readDir(pathOrFileInfo.path)) {
@@ -786,7 +786,7 @@ export const FileSystem = {
     async * iteratePathsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, dontFollowSymlinks: false, dontReturnSymlinks: false }) {
         let info
         try {
-            info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
+            info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
         } catch (error) {
             if (!error.message.match(/^PermissionDenied:/)) {
                 throw error
@@ -913,7 +913,7 @@ export const FileSystem = {
         options.searchOrder = options.searchOrder || 'breadthFirstSearch' // allow null/undefined to equal the default
         const { shouldntExplore, shouldntInclude } = options
         // setup args
-        const info = pathOrFileInfo instanceof ItemInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
+        const info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
         const path = info.path
         // check args
         if (!(['breadthFirstSearch', 'depthFirstSearch'].includes(options.searchOrder))) {
@@ -1306,7 +1306,7 @@ export const FileSystem = {
     },
     sync: {
         info(fileOrFolderPath, _cachedLstat=null) {
-            // compute lstat and stat before creating ItemInfo (so its async for performance)
+            // compute lstat and stat before creating PathInfo (so its async for performance)
             let lstat = _cachedLstat
             try {
                 lstat = Deno.lstatSync(fileOrFolderPath)
@@ -1337,7 +1337,7 @@ export const FileSystem = {
                     }
                 }
             }
-            return new ItemInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
+            return new PathInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
         },
         remove(fileOrFolder) {
             if (fileOrFolder instanceof Array) {
@@ -1372,7 +1372,7 @@ export const FileSystem = {
         ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
             path = pathStandardize(path)
             const {overwrite, renameExtension} = defaultOptionsHelper(options)
-            path = path.path || path // if given ItemInfo object
+            path = path.path || path // if given PathInfo object
             path = FileSystem.makeAbsolutePath(path)
             const parentPath = Path.dirname(path)
             // root is always a folder
