@@ -2,7 +2,7 @@ FileSystem.thisFile is: /Users/jeffhykin/repos/quickr/main/file_system.js
 FileSystem.thisFolder is: /Users/jeffhykin/repos/quickr/main
 FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 [
-  ItemInfo {
+  PathInfo {
     path: "../main/stream_tools.js",
     _lstat: {
       isFile: true,
@@ -12,7 +12,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2023-02-13T13:13:48.746Z,
       atime: 2023-02-13T13:13:53.775Z,
       birthtime: 2022-11-27T00:46:17.958Z,
-      dev: 16777235,
+      dev: 16777230,
       ino: 8186842,
       mode: 33188,
       nlink: 1,
@@ -24,17 +24,17 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  ItemInfo {
+  PathInfo {
     path: "../main/console.js",
     _lstat: {
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 25412,
-      mtime: 2023-05-25T13:34:19.085Z,
-      atime: 2023-05-25T13:34:19.147Z,
+      size: 26439,
+      mtime: 2023-06-30T15:58:59.204Z,
+      atime: 2023-06-30T15:58:59.235Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777235,
+      dev: 16777230,
       ino: 2917673,
       mode: 33188,
       nlink: 1,
@@ -46,18 +46,18 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  ItemInfo {
+  PathInfo {
     path: "../main/run.js",
     _lstat: {
       isFile: true,
       isDirectory: false,
       isSymlink: false,
       size: 32941,
-      mtime: 2023-06-02T19:07:47.243Z,
-      atime: 2023-06-02T19:07:58.400Z,
-      birthtime: 2023-02-14T21:17:04.801Z,
-      dev: 16777235,
-      ino: 20909010,
+      mtime: 2023-07-30T22:06:30.602Z,
+      atime: 2023-07-30T22:06:31.742Z,
+      birthtime: 2023-07-30T22:06:30.602Z,
+      dev: 16777230,
+      ino: 36186781,
       mode: 33188,
       nlink: 1,
       uid: 501,
@@ -68,29 +68,29 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  ItemInfo {
+  PathInfo {
     path: "../main/file_system.js",
     _lstat: {
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 60240,
-      mtime: 2023-06-11T18:50:42.277Z,
-      atime: 2023-06-11T18:50:43.289Z,
-      birthtime: 2022-11-27T00:46:17.956Z,
-      dev: 16777235,
-      ino: 8186839,
+      size: 64874,
+      mtime: 2023-08-14T15:04:31.345Z,
+      atime: 2023-08-14T15:04:33.425Z,
+      birthtime: 2023-07-30T22:06:36.106Z,
+      dev: 16777230,
+      ino: 36186809,
       mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 120
+      blocks: 128
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  ItemInfo {
+  PathInfo {
     path: "../main/operating_system.js",
     _lstat: {
       isFile: true,
@@ -100,7 +100,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T16:23:39.690Z,
       atime: 2022-11-27T00:43:24.359Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777235,
+      dev: 16777230,
       ino: 2917675,
       mode: 33188,
       nlink: 1,
@@ -112,7 +112,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  ItemInfo {
+  PathInfo {
     path: "../main/test.ignore.js",
     _lstat: {
       isFile: true,
@@ -122,7 +122,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T18:40:58.703Z,
       atime: 2022-11-06T18:40:59.129Z,
       birthtime: 2022-11-06T18:27:31.934Z,
-      dev: 16777235,
+      dev: 16777230,
       ino: 6675855,
       mode: 33188,
       nlink: 1,
@@ -143,10 +143,12 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../tests",
   "../dependencies",
   "../.keep",
+  "../todo.md",
   "../readme.md",
   "../logs",
   "../.gitignore",
   "../run",
+  "../output.ignore",
   "../main",
   "../reference",
   "../tests/console.js",
@@ -196,6 +198,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../dependencies/babel_runtime@v0.13.9.js",
   "../dependencies/babel@v7.13.8.js",
   "../.keep",
+  "../todo.md",
   "../readme.md",
   "../logs",
   "../logs/operating_system.js.log",
@@ -212,6 +215,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../run/made-with-webassembly",
   "../run/made-with-webassembly/.git",
   "../run/tests.ps1",
+  "../output.ignore",
   "../.git",
   "../main",
   "../main/stream_tools.js",
@@ -254,6 +258,7 @@ shouldntInclude uniquely has: Set {}
 
 # FileSystem.walkUpImport
 Howdy!
+Howdy! im red true undefined null im blue im not
 Module {}
 
 # await FileSystem.glob('*.log')
