@@ -1225,9 +1225,9 @@ export const FileSystem = {
         await grabPathLock(path)
         if (force) {
             FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension })
-            const info = await FileSystem.info(path)
+            const info = FileSystem.sync.info(path)
             if (info.isDirectory) {
-                await FileSystem.remove(path)
+                FileSystem.sync.remove(path)
             }
         }
         const file = await Deno.open(path, {read:true, write: true, create: true})
