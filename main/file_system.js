@@ -907,6 +907,19 @@ export const FileSystem = {
     listPathsIn(pathOrFileInfo, options){
         return asyncIteratorToList(FileSystem.iteratePathsIn(pathOrFileInfo, options))
     },
+    pathDepth(path) {
+        path = FileSystem.normalize(path)
+        let count = 0
+        for (const eachChar of (path.path||path)) {
+            if (eachChar == "/") {
+                count++
+            }
+        }
+        if (path[0] == "/") {
+            count--
+        }
+        return count+1
+    },
     async * iterateItemsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, }) {
         // merge defaults
         options = { exclude: new Set(), searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
