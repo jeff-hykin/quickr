@@ -428,7 +428,7 @@ export const Console = {
         // However; this may need to be changed for pipe operations that will be piped back out to a terminal
         // reliableColorSupport treats "false" as the safe default when there is uncertainity in support
         let terminalSupport
-        if (!Deno.isatty()) {
+        if (!Deno.isatty(0)) {
             terminalSupport = {
                 includesAnsi: false,
                 includes256: false,
