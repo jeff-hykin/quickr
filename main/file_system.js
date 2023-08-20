@@ -792,6 +792,7 @@ export const FileSystem = {
                 throw error
             }
         }
+        options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
         const path = info.path
         if (!options.recursively) {
             // if its a file or if doesnt exist
@@ -893,11 +894,14 @@ export const FileSystem = {
                         }
                     }
                     // BFS
-                    for (const eachParentItem of searchAfterwords) {
+                    options.recursively = false
+                    while (searchAfterwords.length > 0) {
+                        const next = searchAfterwords.shift()
                         // "yield*" doesn't seem to work for async iterators
-                        for await (const eachSubPath of FileSystem.iteratePathsIn(eachParentItem, options)) {
+                        for await (const eachSubPath of FileSystem.iteratePathsIn(next, options)) {
                             // shouldntInclude would already have been executed by ^ so dont re-check
                             yield eachSubPath
+                            searchAfterwords.push(eachSubPath)
                         }
                     }
                 }
@@ -924,6 +928,8 @@ export const FileSystem = {
         // merge defaults
         options = { exclude: new Set(), searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
         options.searchOrder = options.searchOrder || 'breadthFirstSearch' // allow null/undefined to equal the default
+        // maxDepth == 1 forces recursively to false
+        options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
         const { shouldntExplore, shouldntInclude } = options
         // setup args
         const info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
@@ -972,11 +978,16 @@ export const FileSystem = {
                     }
                 }
                 // BFS
-                for (const eachParentItem of searchAfterwords) {
+                options.recursively = false
+                while (searchAfterwords.length > 0) {
+                    const next = searchAfterwords.shift()
                     // "yield*" doesn't seem to work for async iterators
-                    for await (const eachSubPath of FileSystem.iterateItemsIn(eachParentItem, options)) {
+                    for await (const eachSubItem of FileSystem.iterateItemsIn(next, options)) {
                         // shouldntInclude would already have been executed by ^ so dont re-check
-                        yield eachSubPath
+                        yield eachSubItem
+                        if (eachSubItem.isFolder) {
+                            searchAfterwords.push(eachSubItem)
+                        }
                     }
                 }
             }

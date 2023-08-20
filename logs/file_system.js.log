@@ -12,7 +12,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2023-02-13T13:13:48.746Z,
       atime: 2023-02-13T13:13:53.775Z,
       birthtime: 2022-11-27T00:46:17.958Z,
-      dev: 16777230,
+      dev: 16777233,
       ino: 8186842,
       mode: 33188,
       nlink: 1,
@@ -20,7 +20,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 16
+      blocks: 16,
+      isBlockDevice: false,
+      isCharDevice: false,
+      isFifo: false,
+      isSocket: false
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -30,11 +34,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 26439,
-      mtime: 2023-06-30T15:58:59.204Z,
-      atime: 2023-06-30T15:58:59.235Z,
+      size: 26440,
+      mtime: 2023-08-20T15:10:39.489Z,
+      atime: 2023-08-20T15:10:39.522Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777230,
+      dev: 16777233,
       ino: 2917673,
       mode: 33188,
       nlink: 1,
@@ -42,7 +46,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 56
+      blocks: 56,
+      isBlockDevice: false,
+      isCharDevice: false,
+      isFifo: false,
+      isSocket: false
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -56,7 +64,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2023-07-30T22:06:30.602Z,
       atime: 2023-07-30T22:06:31.742Z,
       birthtime: 2023-07-30T22:06:30.602Z,
-      dev: 16777230,
+      dev: 16777233,
       ino: 36186781,
       mode: 33188,
       nlink: 1,
@@ -64,7 +72,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 72
+      blocks: 72,
+      isBlockDevice: false,
+      isCharDevice: false,
+      isFifo: false,
+      isSocket: false
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -74,19 +86,23 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 64874,
-      mtime: 2023-08-14T15:04:31.345Z,
-      atime: 2023-08-14T15:04:33.425Z,
-      birthtime: 2023-07-30T22:06:36.106Z,
-      dev: 16777230,
-      ino: 36186809,
+      size: 66418,
+      mtime: 2023-08-20T15:12:59.358Z,
+      atime: 2023-08-20T15:13:05.504Z,
+      birthtime: 2023-08-20T14:27:58.024Z,
+      dev: 16777233,
+      ino: 40021316,
       mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 128
+      blocks: 136,
+      isBlockDevice: false,
+      isCharDevice: false,
+      isFifo: false,
+      isSocket: false
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -100,7 +116,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T16:23:39.690Z,
       atime: 2022-11-27T00:43:24.359Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777230,
+      dev: 16777233,
       ino: 2917675,
       mode: 33188,
       nlink: 1,
@@ -108,7 +124,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 16
+      blocks: 16,
+      isBlockDevice: false,
+      isCharDevice: false,
+      isFifo: false,
+      isSocket: false
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -122,7 +142,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T18:40:58.703Z,
       atime: 2022-11-06T18:40:59.129Z,
       birthtime: 2022-11-06T18:27:31.934Z,
-      dev: 16777230,
+      dev: 16777233,
       ino: 6675855,
       mode: 33188,
       nlink: 1,
@@ -130,7 +150,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 8
+      blocks: 8,
+      isBlockDevice: false,
+      isCharDevice: false,
+      isFifo: false,
+      isSocket: false
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   }
@@ -162,8 +186,6 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../logs/console.js.log",
   "../logs/tests",
   "../logs/run.js.log",
-  "../logs/tests/run.errors.log",
-  "../logs/tests/run.grep_path.txt",
   "../run/make_babel_bundle",
   "../run/tests",
   "../run/made-with-webassembly",
@@ -175,14 +197,16 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../main/operating_system.js",
   "../main/wip",
   "../main/test.ignore.js",
+  "../reference/readable.ps1",
+  "../reference/portable.ps1",
+  "../logs/tests/run.errors.log",
+  "../logs/tests/run.grep_path.txt",
   "../main/wip/lg2.wasm.binaryified.js",
   "../main/wip/_convert.js",
   "../main/wip/sprinter.js",
   "../main/wip/smash.js",
   "../main/wip/git.js",
-  "../main/wip/runner.js",
-  "../reference/readable.ps1",
-  "../reference/portable.ps1"
+  "../main/wip/runner.js"
 ]
 # 
 # depthFirstSearch
@@ -235,8 +259,8 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../reference/readable.ps1",
   "../reference/portable.ps1"
 ]
-shouldntExplore uniquely has: Set { "../run/made-with-webassembly/.git", "../.git" }
-shouldntInclude uniquely has: Set {}
+shouldntExplore uniquely has: Set(2) { "../run/made-with-webassembly/.git", "../.git" }
+shouldntInclude uniquely has: Set(0) {}
 # 
 # All parent paths of /Users/jeffhykin/repos/quickr/main/run.errors.log
 # 
@@ -259,7 +283,7 @@ shouldntInclude uniquely has: Set {}
 # FileSystem.walkUpImport
 Howdy!
 Howdy! im red true undefined null im blue im not
-Module {}
+[Module: null prototype] {  }
 
 # await FileSystem.glob('*.log')
 [
