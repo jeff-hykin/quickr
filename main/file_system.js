@@ -783,7 +783,7 @@ export const FileSystem = {
     listBasenamesIn(pathOrFileInfo) {
         return asyncIteratorToList(FileSystem.iterateBasenamesIn(pathOrFileInfo))
     },
-    async * iteratePathsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, dontFollowSymlinks: false, dontReturnSymlinks: false }) {
+    async * iteratePathsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, dontFollowSymlinks: false, dontReturnSymlinks: false, maxDepthFromRoot: null }) {
         let info
         try {
             info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
@@ -792,8 +792,17 @@ export const FileSystem = {
                 throw error
             }
         }
-        options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
         const path = info.path
+        const startingDepth = FileSystem.makeAbsolutePath(path).split("/").length-1
+        options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
+        if (options.maxDepthFromRoot == null) {
+            options.maxDepthFromRoot = Infinity
+        }
+        if (options.maxDepth != Infinity && options.maxDepth != null) {
+            options.maxDepthFromRoot = startingDepth+options.maxDepth
+        }
+        options.maxDepth = null // done for recursive calles
+        if (startingDepth < options.maxDepthFromRoot) {
         if (!options.recursively) {
             // if its a file or if doesnt exist
             if (info.isFolder) {
@@ -823,7 +832,6 @@ export const FileSystem = {
                     }
                 }
             }
-        // if recursively
         } else {
             // merge defaults
             options = { exclude: new Set(), searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
@@ -835,16 +843,14 @@ export const FileSystem = {
             }
             const useBreadthFirstSearch = options.searchOrder == 'breadthFirstSearch'
             const shouldntExploreThis = shouldntExplore && await shouldntExplore(info.path, info)
-            if (!shouldntExploreThis && options.maxDepth > 0 && info.isFolder) {
+            if (!shouldntExploreThis && info.isFolder) {
                 options.exclude = options.exclude instanceof Set ? options.exclude : new Set(options.exclude)
-                
+
                 // note: exclude includes already-searched paths in the recursive case
                 if (!options.exclude.has(path)) {
                     const followSymlinks = !options.dontFollowSymlinks
                     const absolutePathVersion = FileSystem.makeAbsolutePath(path)
                     options.exclude.add(absolutePathVersion)
-                    options.maxDepth -= 1
-                    
                     const searchAfterwords = []
                     for await (const entry of Deno.readDir(path)) {
                         const eachPath = Path.join(path, entry.name)
@@ -906,6 +912,7 @@ export const FileSystem = {
                     }
                 }
             }
+        }
         }
     },
     listPathsIn(pathOrFileInfo, options){
