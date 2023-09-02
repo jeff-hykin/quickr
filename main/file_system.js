@@ -803,116 +803,116 @@ export const FileSystem = {
         }
         options.maxDepth = null // done for recursive calles
         if (startingDepth < options.maxDepthFromRoot) {
-        if (!options.recursively) {
-            // if its a file or if doesnt exist
-            if (info.isFolder) {
-                // no filter
-                if (!options.shouldntInclude) {
-                    for await (const each of Deno.readDir(path)) {
-                        if (options.dontReturnSymlinks && each.isSymlink) {
-                            continue
-                        }
-                        yield Path.join(path, each.name)
-                    }
-                // filter
-                } else {
-                    const shouldntInclude = options.shouldntInclude
-                    for await (const each of Deno.readDir(path)) {
-                        const eachPath = Path.join(path, each.name)
-                        if (options.dontReturnSymlinks && each.isSymlink) {
-                            continue
-                        }
-                        // 
-                        // add the path
-                        // 
-                        const shouldntIncludeThis = shouldntInclude && await shouldntInclude(eachPath)
-                        if (!shouldntIncludeThis) {
-                            yield eachPath
-                        }
-                    }
-                }
-            }
-        } else {
-            // merge defaults
-            options = { exclude: new Set(), searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
-            options.searchOrder = options.searchOrder || 'breadthFirstSearch' // allow null/undefined to equal the default
-            const { shouldntExplore, shouldntInclude } = options
-            // check args
-            if (!(['breadthFirstSearch', 'depthFirstSearch'].includes(options.searchOrder))) {
-                throw Error(`when calling FileSystem.iterateItemsIn('${path}', { searchOrder: ${options.searchOrder} })\n\n    The searchOrder currently can only be 'depthFirstSearch' or 'breadthFirstSearch'\n    However, it was not either of those: ${options.searchOrder}`)
-            }
-            const useBreadthFirstSearch = options.searchOrder == 'breadthFirstSearch'
-            const shouldntExploreThis = shouldntExplore && await shouldntExplore(info.path, info)
-            if (!shouldntExploreThis && info.isFolder) {
-                options.exclude = options.exclude instanceof Set ? options.exclude : new Set(options.exclude)
-
-                // note: exclude includes already-searched paths in the recursive case
-                if (!options.exclude.has(path)) {
-                    const followSymlinks = !options.dontFollowSymlinks
-                    const absolutePathVersion = FileSystem.makeAbsolutePath(path)
-                    options.exclude.add(absolutePathVersion)
-                    const searchAfterwords = []
-                    for await (const entry of Deno.readDir(path)) {
-                        const eachPath = Path.join(path, entry.name)
-                        if (options.dontReturnSymlinks && each.isSymlink) {
-                            continue
-                        }
-
-                        // 
-                        // add the path
-                        // 
-                        const shouldntIncludeThis = shouldntInclude && await shouldntInclude(eachPath)
-                        if (!shouldntIncludeThis) {
-                            yield eachPath
-                        }
-                        
-                        // 
-                        // schedule children
-                        // 
-                        
-                        // skip files
-                        if (entry.isFile) {
-                            continue
-                        }
-                        // skip symlink-ed files (but not symlinked folders)
-                        if (followSymlinks && !entry.isDirectory) {
-                            let isSymlinkToDirectory = false
-                            // must be a symlink
-                            try {
-                                isSymlinkToDirectory = (await Deno.stat(eachPath)).isDirectory
-                            } catch (error) {}
-                            
-                            // if not a directory, skip
-                            if (!isSymlinkToDirectory) {
+            if (!options.recursively) {
+                // if its a file or if doesnt exist
+                if (info.isFolder) {
+                    // no filter
+                    if (!options.shouldntInclude) {
+                        for await (const each of Deno.readDir(path)) {
+                            if (options.dontReturnSymlinks && each.isSymlink) {
                                 continue
                             }
+                            yield Path.join(path, each.name)
                         }
-                        
-                        // then actually schedule children
-                        if (useBreadthFirstSearch) {
-                            searchAfterwords.push(eachPath)
-                        } else {
-                            // yield* doesn't seem to work for async iterators
-                            for await (const eachSubPath of FileSystem.iteratePathsIn(eachPath, options)) {
-                                // shouldntInclude would already have been executed by ^ so dont re-check
-                                yield eachSubPath
+                    // filter
+                    } else {
+                        const shouldntInclude = options.shouldntInclude
+                        for await (const each of Deno.readDir(path)) {
+                            const eachPath = Path.join(path, each.name)
+                            if (options.dontReturnSymlinks && each.isSymlink) {
+                                continue
+                            }
+                            // 
+                            // add the path
+                            // 
+                            const shouldntIncludeThis = shouldntInclude && await shouldntInclude(eachPath)
+                            if (!shouldntIncludeThis) {
+                                yield eachPath
                             }
                         }
                     }
-                    // BFS
-                    options.recursively = false
-                    while (searchAfterwords.length > 0) {
-                        const next = searchAfterwords.shift()
-                        // "yield*" doesn't seem to work for async iterators
-                        for await (const eachSubPath of FileSystem.iteratePathsIn(next, options)) {
-                            // shouldntInclude would already have been executed by ^ so dont re-check
-                            yield eachSubPath
-                            searchAfterwords.push(eachSubPath)
+                }
+            } else {
+                // merge defaults
+                options = { exclude: new Set(), searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
+                options.searchOrder = options.searchOrder || 'breadthFirstSearch' // allow null/undefined to equal the default
+                const { shouldntExplore, shouldntInclude } = options
+                // check args
+                if (!(['breadthFirstSearch', 'depthFirstSearch'].includes(options.searchOrder))) {
+                    throw Error(`when calling FileSystem.iterateItemsIn('${path}', { searchOrder: ${options.searchOrder} })\n\n    The searchOrder currently can only be 'depthFirstSearch' or 'breadthFirstSearch'\n    However, it was not either of those: ${options.searchOrder}`)
+                }
+                const useBreadthFirstSearch = options.searchOrder == 'breadthFirstSearch'
+                const shouldntExploreThis = shouldntExplore && await shouldntExplore(info.path, info)
+                if (!shouldntExploreThis && info.isFolder) {
+                    options.exclude = options.exclude instanceof Set ? options.exclude : new Set(options.exclude)
+
+                    // note: exclude includes already-searched paths in the recursive case
+                    if (!options.exclude.has(path)) {
+                        const followSymlinks = !options.dontFollowSymlinks
+                        const absolutePathVersion = FileSystem.makeAbsolutePath(path)
+                        options.exclude.add(absolutePathVersion)
+                        const searchAfterwords = []
+                        for await (const entry of Deno.readDir(path)) {
+                            const eachPath = Path.join(path, entry.name)
+                            if (options.dontReturnSymlinks && each.isSymlink) {
+                                continue
+                            }
+
+                            // 
+                            // add the path
+                            // 
+                            const shouldntIncludeThis = shouldntInclude && await shouldntInclude(eachPath)
+                            if (!shouldntIncludeThis) {
+                                yield eachPath
+                            }
+                            
+                            // 
+                            // schedule children
+                            // 
+                            
+                            // skip files
+                            if (entry.isFile) {
+                                continue
+                            }
+                            // skip symlink-ed files (but not symlinked folders)
+                            if (followSymlinks && !entry.isDirectory) {
+                                let isSymlinkToDirectory = false
+                                // must be a symlink
+                                try {
+                                    isSymlinkToDirectory = (await Deno.stat(eachPath)).isDirectory
+                                } catch (error) {}
+                                
+                                // if not a directory, skip
+                                if (!isSymlinkToDirectory) {
+                                    continue
+                                }
+                            }
+                            
+                            // then actually schedule children
+                            if (useBreadthFirstSearch) {
+                                searchAfterwords.push(eachPath)
+                            } else {
+                                // yield* doesn't seem to work for async iterators
+                                for await (const eachSubPath of FileSystem.iteratePathsIn(eachPath, options)) {
+                                    // shouldntInclude would already have been executed by ^ so dont re-check
+                                    yield eachSubPath
+                                }
+                            }
+                        }
+                        // BFS
+                        options.recursively = false
+                        while (searchAfterwords.length > 0) {
+                            const next = searchAfterwords.shift()
+                            // "yield*" doesn't seem to work for async iterators
+                            for await (const eachSubPath of FileSystem.iteratePathsIn(next, options)) {
+                                // shouldntInclude would already have been executed by ^ so dont re-check
+                                yield eachSubPath
+                                searchAfterwords.push(eachSubPath)
+                            }
                         }
                     }
                 }
             }
-        }
         }
     },
     listPathsIn(pathOrFileInfo, options){
