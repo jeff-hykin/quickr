@@ -1081,12 +1081,6 @@ export const FileSystem = {
         return asyncIteratorToList(FileSystem.recursivelyIterateItemsIn(pathOrFileInfo, options))
     },
     async * globIterator(pattern, options={startPath:null}) {
-        let maxDepth
-        if (pattern.match(/\*\*/)) {
-            maxDepth = Infinity
-        } else {
-            maxDepth = pattern.split("/").length
-        }
         var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "."
         const originalStartPath = startPath
@@ -1101,9 +1095,19 @@ export const FileSystem = {
                     startPath = `${startPath}/${pattern.slice(0, furthestConstantSlash)}`
                 }
             }
+            pattern = pattern.slice(furthestConstantSlash+1, )
         }
-        const regex = globToRegExp(pattern)
-        const partials = pattern.split("/")
+
+        let maxDepthFromRoot
+        if (pattern.match(/\*\*/)) {
+            maxDepthFromRoot = Infinity
+        } else {
+            maxDepthFromRoot = `${FileSystem.makeAbsolutePath(startPath)}/${pattern}`.split("/").length-1
+        }
+        
+        const fullPattern = `${startPath}/${pattern}`
+        const regex = globToRegExp(fullPattern)
+        const partials = fullPattern.split("/")
         let partialPattern = partials.shift()
         let partialRegexString = `^\\.$|${globToRegExp(partialPattern).source}`
         for (const each of partials) {
@@ -1111,7 +1115,7 @@ export const FileSystem = {
             partialRegexString += "|" + globToRegExp(partialPattern).source
         }
         const partialRegex = new RegExp(partialRegexString)
-        for await (const eachPath of FileSystem.iteratePathsIn(startPath, { recursively: true, maxDepth, ...iteratePathsOptions, shouldntExplore: (eachPath3) => !eachPath3.match(partialRegex) })) {
+        for await (const eachPath of FileSystem.iteratePathsIn(startPath, { recursively: true, maxDepthFromRoot, ...iteratePathsOptions, shouldntExplore: (eachPath3) => !eachPath3.match(partialRegex) })) {
             if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
                 yield FileSystem.makeRelativePath({
                     from: originalStartPath,
