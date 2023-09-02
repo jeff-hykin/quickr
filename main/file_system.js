@@ -1080,21 +1080,34 @@ export const FileSystem = {
         } else {
             maxDepth = pattern.split("/").length
         }
-        var {startPath, ...iteratePathsOptions} = options
+        var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "."
+        const originalStartPath = startPath
+        const firstGlob = pattern.indexOf("*")
+        if (firstGlob != -1) {
+            const startingString = pattern.slice(0,firstGlob)
+            const furthestConstantSlash = startingString.lastIndexOf("/")
+            if (furthestConstantSlash != -1) {
+                if (pattern[0] == "/") {
+                    startPath = pattern.slice(0, furthestConstantSlash)
+                } else {
+                    startPath = `${startPath}/${pattern.slice(0, furthestConstantSlash)}`
+                }
+            }
+        }
         const regex = globToRegExp(pattern)
         const partials = pattern.split("/")
         let partialPattern = partials.shift()
         let partialRegexString = `^\\.$|${globToRegExp(partialPattern).source}`
         for (const each of partials) {
-            partialPattern+="/"+each
-            partialRegexString+="|"+globToRegExp(partialPattern).source
+            partialPattern += "/" + each
+            partialRegexString += "|" + globToRegExp(partialPattern).source
         }
         const partialRegex = new RegExp(partialRegexString)
-        for await (const eachPath of FileSystem.iteratePathsIn(startPath, {recursively: true, maxDepth, ...iteratePathsOptions, shouldntExplore:(eachPath)=>!eachPath.match(partialRegex) })) {
+        for await (const eachPath of FileSystem.iteratePathsIn(startPath, { recursively: true, maxDepth, ...iteratePathsOptions, shouldntExplore: (eachPath3) => !eachPath3.match(partialRegex) })) {
             if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
                 yield FileSystem.makeRelativePath({
-                    from: startPath,
+                    from: originalStartPath,
                     to: eachPath,
                 })
             }
