@@ -1081,9 +1081,11 @@ export const FileSystem = {
         return asyncIteratorToList(FileSystem.recursivelyIterateItemsIn(pathOrFileInfo, options))
     },
     async * globIterator(pattern, options={startPath:null}) {
+        pattern = FileSystem.normalize(pattern)
         var { startPath, ...iteratePathsOptions } = options
-        startPath = startPath || "."
+        startPath = startPath || "./"
         const originalStartPath = startPath
+        startPath = FileSystem.makeAbsolutePath(startPath)
         const firstGlob = pattern.indexOf("*")
         if (firstGlob != -1) {
             const startingString = pattern.slice(0,firstGlob)

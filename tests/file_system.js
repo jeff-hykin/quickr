@@ -2,9 +2,9 @@
 const { FileSystem } = await import(`../main/file_system.js`)
 import { intersection, subtract } from "https://deno.land/x/good@0.7.8/set.js"
 
-console.debug(`FileSystem.thisFile is:`,FileSystem.thisFile)
-console.debug(`FileSystem.thisFolder is:`,FileSystem.thisFolder)
-console.debug(`FileSystem.workingDirectory is:`,FileSystem.workingDirectory)
+console.log(`FileSystem.thisFile is:`,FileSystem.thisFile)
+console.log(`FileSystem.thisFolder is:`,FileSystem.thisFolder)
+console.log(`FileSystem.workingDirectory is:`,FileSystem.workingDirectory)
 
 await FileSystem.clearAPathFor(`${FileSystem.thisFolder}/run.errors.log`)
 
@@ -24,8 +24,8 @@ console.log(dfsResults)
 
 const shouldntExplore = subtract({value: bfsResults, from: dfsResults, })
 const shouldntInclude = subtract({value: dfsResults, from: bfsResults, })
-console.debug(`shouldntExplore uniquely has:`,shouldntExplore)
-console.debug(`shouldntInclude uniquely has:`,shouldntInclude)
+console.log(`shouldntExplore uniquely has:`,shouldntExplore)
+console.log(`shouldntInclude uniquely has:`,shouldntInclude)
 
 const anAbsolutePath = `${FileSystem.thisFolder}/run.errors.log`
 console.log("# ")
