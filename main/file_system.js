@@ -6,6 +6,7 @@ import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https:
 import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
+import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
 
 // TODO:
     // ensure that all path arguments also accept PathInfo objects
@@ -1244,8 +1245,12 @@ export const FileSystem = {
             }
         }
         let output
+        if (typeof data == 'string') {
+            output = await Deno.writeTextFile(path, data)
+        } else if (typedArrayClasses.some(dataClass=>(data instanceof dataClass))) {
+            output = await Deno.writeFile(path, data)
         // incremental data
-        if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
+        } else if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
             const file = await Deno.open(path, {read:true, write: true, create: true, truncate: true})
             const encoder = new TextEncoder()
             const encode = encoder.encode.bind(encoder)
@@ -1260,12 +1265,6 @@ export const FileSystem = {
             } finally {
                 Deno.close(file.rid)
             }
-        // string
-        } else if (typeof data == 'string') {
-            output = await Deno.writeTextFile(path, data)
-        // assuming bytes (maybe in the future, readables and pipes will be supported)
-        } else {
-            output = await Deno.writeFile(path, data)
         }
         delete locker[path]
         return output
