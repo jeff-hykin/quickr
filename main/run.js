@@ -8,9 +8,6 @@ import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
 import { debugValueAsString } from "https://deno.land/x/good@0.7.8/debug.js"
 
-// TODO:
-    // fix hasCommand: on windows it doesnt take into account commands that windows auto-hides the .bat or .ps1 from
-
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
 const cwdSymbol          = Symbol("cwd")
@@ -103,7 +100,9 @@ export const pathsToCommands = async (commands) => {
         each=>FileSystem.listFilePathsIn(each, {
             shouldntInclude: async (path)=>{
                 const basename = FileSystem.basename(path)
-                if (isWindows) {
+                if (isWindows) { 
+                    // TODO: figure out if there is a "isExecutable" check on window
+
                     // check all possible executable sources
                     if (!(commands.has(basename) || commands.has(basename+".exe") || commands.has(basename+".bat") || commands.has(basename+".ps1"))) {
                         return true
@@ -141,7 +140,14 @@ export const checkCommands = async (commands) => {
     }
 }
 
-export const hasCommand = (commandName)=>checkCommands([commandName]).then(({missing})=>missing.length==0)
+export const hasCommand = (commandName)=>{
+    if (isWindows) {
+        if (!commandName.match(/\.(bat|exe|ps1)/)) {
+            return checkCommands([commandName, `${commandName}.exe`, `${commandName}.bat`, `${commandName}.ps1`, ]).then(({available})=>available.length!=0)
+        }
+    }
+    return checkCommands([commandName]).then(({missing})=>missing.length==0)
+}
 
 // 
 // 
