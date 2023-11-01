@@ -298,6 +298,24 @@ export const FileSystem = {
         return [ folderList, result.name, result.ext ]
     },
     /**
+     * add to name, preserve file extension
+     *
+     * @example
+     * ```js
+     * let newName = FileSystem.extendName({ path: "a/blah.thing.js", string: ".old" })
+     * newName == "a/blah.old.thing.js"
+     * ```
+     *
+     * @param arg1.path - item path
+     * @param arg1.string - the string to append to the name
+     * @return {string} - the new path
+     */
+    extendName({path, string}) {
+        path = pathStandardize(path)
+        const [name, ...extensions] = Path.basename(path).split(".")
+        return `${Path.dirname(path)}/${name}${string}${extensions.length==0?"":`.${extensions.join(".")}`}`
+    },
+    /**
      * All Parent Paths
      *
      * @param {String} path - path doesnt need to exist
@@ -490,14 +508,15 @@ export const FileSystem = {
             delete locker[fileOrFolderPath]
         }
     },
-    async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
+    async move({ path, item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
+        item = item||path
         // force     => will MOVE other things out of the way until the job is done
         // overwrite => will DELETE things out of the way until the job is done 
         
         const oldPath = item.path || item
         const oldName = FileSystem.basename(oldPath)
         const pathInfo = item instanceof Object || FileSystem.sync.info(oldPath)
-        const newPath = `${newParentFolder}/${newName || oldName}`
+        const newPath = `${newParentFolder||FileSystem.parentPath(oldPath)}/${newName || oldName}`
 
         // if its a relative-linked item then the relative link will need to be adjusted after the move
         // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
@@ -668,7 +687,9 @@ export const FileSystem = {
      *     very agressive: will change whatever is necessary to make sure a parent exists
      * 
      * @example
-     *     await FileSystem.clearAPathFor("./something")
+     * ```js
+     * await FileSystem.clearAPathFor("./something")
+     * ```
      */
     async clearAPathFor(path, options={overwrite:false, renameExtension:null}) {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
@@ -708,6 +729,7 @@ export const FileSystem = {
      * find a root folder based on a child path
      *
      * @example
+     * ```js
      *     import { FileSystem } from "https://deno.land/x/quickr/main/file_system.js"
      * 
      *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git")
@@ -721,7 +743,7 @@ export const FileSystem = {
      * 
      *     // below will result in the same folder, but only if theres a local master branch
      *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git/refs/heads/master")
-     *
+     *```
      */
     async walkUpUntil(subPath, startPath=null) {
         subPath = subPath instanceof PathInfo ? subPath.path : subPath
@@ -1195,6 +1217,7 @@ export const FileSystem = {
     * @return {null} 
     *
     * @example
+    * ```js
     *  await FileSystem.addPermissions({
     *      path: fileOrFolderPath,
     *      permissions: {
@@ -1203,6 +1226,7 @@ export const FileSystem = {
     *          },
     *      }
     *  })
+    * ```
     */
     async addPermissions({path, permissions={owner:{}, group:{}, others:{}}, recursively=false}) {
         // just ensure the names exist
@@ -1382,6 +1406,7 @@ export const FileSystem = {
         get makeAbsolutePath()  { return FileSystem.makeAbsolutePath },
         get pathDepth()         { return FileSystem.pathDepth        },
         get pathPieces()        { return FileSystem.pathPieces       },
+        get extendName()        { return FileSystem.extendName       },
         get allParentPaths()    { return FileSystem.allParentPaths   },
         get pathOfCaller()      { return FileSystem.pathOfCaller     },
         get home()              { return FileSystem.home             },
@@ -1458,6 +1483,7 @@ export const FileSystem = {
          * find a root folder based on a child path
          *
          * @example
+         * ```js
          *     import { FileSystem } from "https://deno.land/x/quickr/main/file_system.js"
          * 
          *     var gitParentFolderOrNull = FileSystem.sync.walkUpUntil(".git")
@@ -1471,7 +1497,7 @@ export const FileSystem = {
          * 
          *     // below will result in the same folder, but only if theres a local master branch
          *     var gitParentFolderOrNull = FileSystem.sync.walkUpUntil(".git/refs/heads/master")
-         *
+         *```
          */
         walkUpUntil(subPath, startPath=null) {
             subPath = subPath instanceof PathInfo ? subPath.path : subPath
@@ -1684,7 +1710,9 @@ export const FileSystem = {
          * @param options.extension - the string to append when renaming files to get them out of the way
          * 
          * @example
+         * ```js
          *     FileSystem.sync.clearAPathFor("./something")
+         * ```
          */
         clearAPathFor(path, options={overwrite:false, renameExtension:null}) {
             const {overwrite, renameExtension} = defaultOptionsHelper(options)
