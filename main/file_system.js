@@ -249,13 +249,111 @@ const pathStandardize = (path)=>{
     return path
 }
 export const FileSystem = {
+    defaultRenameExtension: ".old",
     denoExecutablePath: Deno.execPath(),
     parentPath: Path.dirname,
     dirname: Path.dirname,
     basename: Path.basename,
     extname: Path.extname,
     join: Path.join,
-    defaultRenameExtension: ".old",
+    normalize: (path)=>Path.normalize(pathStandardize(path)).replace(/\/$/,""),
+    isAbsolutePath: Path.isAbsolute,
+    isRelativePath: (...args)=>!Path.isAbsolute(...args),
+    makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
+    makeAbsolutePath: (path)=> {
+        if (!Path.isAbsolute(path)) {
+            return Path.normalize(Path.join(Deno.cwd(), path))
+        } else {
+            return Path.normalize(path)
+        }
+    },
+    pathDepth(path) {
+        path = FileSystem.normalize(path)
+        let count = 0
+        for (const eachChar of (path.path||path)) {
+            if (eachChar == "/") {
+                count++
+            }
+        }
+        if (path[0] == "/") {
+            count--
+        }
+        return count+1
+    },
+    pathPieces(path) {
+        // const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(path)
+        path = (path.path || path) // if given PathInfo object
+        const result = Path.parse(path)
+        const folderList = []
+        let dirname = result.dir
+        while (true) {
+            folderList.push(Path.basename(dirname))
+            // if at the top 
+            if (dirname == Path.dirname(dirname)) {
+                break
+            }
+            dirname = Path.dirname(dirname)
+        }
+        folderList.reverse()
+        return [ folderList, result.name, result.ext ]
+    },
+    /**
+     * All Parent Paths
+     *
+     * @param {String} path - path doesnt need to exist
+     * @return {[String]} longest to shortest parent path
+     */
+    allParentPaths(path) {
+        const pathStartsWithDotSlash = path.startsWith("./")
+        path = FileSystem.normalize(path)
+        // just dot (or dot-slash) has no parents
+        if (path === ".") {
+            return []
+        }
+        // if there was a dot but normalize removed it, that means it was ./thing 
+        const dotGotRemoved = pathStartsWithDotSlash && !path.startsWith("./")
+        
+        let previousPath = null
+        let allPaths = []
+        while (1) {
+            previousPath = path
+            path = FileSystem.parentPath(path)
+            if (previousPath === path) {
+                break
+            }
+            allPaths.push(path)
+        }
+        allPaths.reverse()
+        allPaths = allPaths.filter(each=>each!=".")
+        if (dotGotRemoved) {
+            allPaths.push(".")
+        }
+        return allPaths
+    },
+    pathOfCaller(callerNumber=undefined) {
+        const err = new Error()
+        let filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
+        if (callerNumber) {
+            filePaths = filePaths.slice(callerNumber)
+        }
+        
+        // TODO: make sure this works inside of anonymous functions (not sure if error stack handles that well)
+        try {
+            const secondPath = filePaths[1]
+            if (secondPath) {
+                try {
+                    // if valid file
+                    if (Deno.statSync(secondPath).isFile) {
+                        return secondPath
+                    }
+                } catch (error) {
+                }
+            }
+        } catch (error) {
+        }
+        // if in an interpreter
+        return Deno.cwd()
+    },
     get home() {
         if (!cache.home) {
             if (Deno.build.os!="windows") {
@@ -394,14 +492,14 @@ export const FileSystem = {
     },
     async move({ item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
         // force     => will MOVE other things out of the way until the job is done
-        // overwrite => will DELETE things out of the way until the job is done
+        // overwrite => will DELETE things out of the way until the job is done 
         
         const oldPath = item.path || item
         const oldName = FileSystem.basename(oldPath)
-        const pathInfo = item instanceof Object || await FileSystem.info(oldPath)
+        const pathInfo = item instanceof Object || FileSystem.sync.info(oldPath)
         const newPath = `${newParentFolder}/${newName || oldName}`
 
-        // if its a relative-linked item the the relative link will need to be adjusted after the move
+        // if its a relative-linked item then the relative link will need to be adjusted after the move
         // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
         if (pathInfo.isSymlink && !item.isBrokenLink) {
             const link = Deno.readLinkSync(pathInfo.path)
@@ -442,17 +540,6 @@ export const FileSystem = {
             return Deno.remove(pathInfo.path.replace(/\/+$/,""))
         } else if (pathInfo.exists) {
             return Deno.remove(pathInfo.path.replace(/\/+$/,""), {recursive: true})
-        }
-    },
-    normalize: (path)=>Path.normalize(pathStandardize(path)).replace(/\/$/,""),
-    isAbsolutePath: Path.isAbsolute,
-    isRelativePath: (...args)=>!Path.isAbsolute(...args),
-    makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
-    makeAbsolutePath: (path)=> {
-        if (!Path.isAbsolute(path)) {
-            return Path.normalize(Path.join(Deno.cwd(), path))
-        } else {
-            return Path.normalize(path)
         }
     },
     async finalTargetOf(path, options={}) {
@@ -618,39 +705,6 @@ export const FileSystem = {
         }
     },
     /**
-     * All Parent Paths
-     *
-     * @param {String} path - path doesnt need to exist
-     * @return {[String]} longest to shortest parent path
-     */
-    allParentPaths(path) {
-        const pathStartsWithDotSlash = path.startsWith("./")
-        path = FileSystem.normalize(path)
-        // just dot (or dot-slash) has no parents
-        if (path === ".") {
-            return []
-        }
-        // if there was a dot but normalize removed it, that means it was ./thing 
-        const dotGotRemoved = pathStartsWithDotSlash && !path.startsWith("./")
-        
-        let previousPath = null
-        let allPaths = []
-        while (1) {
-            previousPath = path
-            path = FileSystem.parentPath(path)
-            if (previousPath === path) {
-                break
-            }
-            allPaths.push(path)
-        }
-        allPaths.reverse()
-        allPaths = allPaths.filter(each=>each!=".")
-        if (dotGotRemoved) {
-            allPaths.push(".")
-        }
-        return allPaths
-    },
-    /**
      * find a root folder based on a child path
      *
      * @example
@@ -707,7 +761,6 @@ export const FileSystem = {
         if (force) {
             FileSystem.sync.clearAPathFor(to, { overwrite, renameExtension })
         }
-        const fromInfo = await FileSystem.info(from)
         return basicCopy(from, to, {force, preserveTimestamps: true})
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null}) {
@@ -754,23 +807,6 @@ export const FileSystem = {
                 newItemPath,
             )
         }
-    },
-    pathPieces(path) {
-        // const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(path)
-        path = (path.path || path) // if given PathInfo object
-        const result = Path.parse(path)
-        const folderList = []
-        let dirname = result.dir
-        while (true) {
-            folderList.push(Path.basename(dirname))
-            // if at the top 
-            if (dirname == Path.dirname(dirname)) {
-                break
-            }
-            dirname = Path.dirname(dirname)
-        }
-        folderList.reverse()
-        return [ folderList, result.name, result.ext ]
     },
     async * iterateBasenamesIn(pathOrFileInfo){
         const info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : await FileSystem.info(pathOrFileInfo)
@@ -918,19 +954,6 @@ export const FileSystem = {
     },
     listPathsIn(pathOrFileInfo, options){
         return asyncIteratorToList(FileSystem.iteratePathsIn(pathOrFileInfo, options))
-    },
-    pathDepth(path) {
-        path = FileSystem.normalize(path)
-        let count = 0
-        for (const eachChar of (path.path||path)) {
-            if (eachChar == "/") {
-                count++
-            }
-        }
-        if (path[0] == "/") {
-            count--
-        }
-        return count+1
     },
     async * iterateItemsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, }) {
         // merge defaults
@@ -1343,31 +1366,33 @@ export const FileSystem = {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
         }
     },
-    pathOfCaller(callerNumber=undefined) {
-        const err = new Error()
-        let filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
-        if (callerNumber) {
-            filePaths = filePaths.slice(callerNumber)
-        }
-        
-        // TODO: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-        try {
-            const secondPath = filePaths[1]
-            if (secondPath) {
-                try {
-                    // if valid file
-                    if (Deno.statSync(secondPath).isFile) {
-                        return secondPath
-                    }
-                } catch (error) {
-                }
-            }
-        } catch (error) {
-        }
-        // if in an interpreter
-        return Deno.cwd()
-    },
     sync: {
+        // things that are already sync
+        get parentPath()        { return FileSystem.parentPath       },
+        get dirname()           { return FileSystem.dirname          },
+        get basename()          { return FileSystem.basename         },
+        get extname()           { return FileSystem.extname          },
+        get join()              { return FileSystem.join             },
+        get thisFile()          { return FileSystem.thisFile         },
+        get thisFolder()        { return FileSystem.thisFolder       },
+        get normalize()         { return FileSystem.normalize        },
+        get isAbsolutePath()    { return FileSystem.isAbsolutePath   },
+        get isRelativePath()    { return FileSystem.isRelativePath   },
+        get makeRelativePath()  { return FileSystem.makeRelativePath },
+        get makeAbsolutePath()  { return FileSystem.makeAbsolutePath },
+        get pathDepth()         { return FileSystem.pathDepth        },
+        get pathPieces()        { return FileSystem.pathPieces       },
+        get allParentPaths()    { return FileSystem.allParentPaths   },
+        get pathOfCaller()      { return FileSystem.pathOfCaller     },
+        get home()              { return FileSystem.home             },
+        get workingDirectory()  { return FileSystem.workingDirectory },
+        get cwd()               { return FileSystem.cwd              },
+        get pwd()               { return FileSystem.pwd              },
+        get cd()                { return FileSystem.cd               },
+        get changeDirectory()   { return FileSystem.changeDirectory  },
+        set workingDirectory(value) { return FileSystem.workingDirectory = value },
+        set cwd(value)              { return FileSystem.workingDirectory = value },
+        set pwd(value)              { return FileSystem.workingDirectory = value },
         info(fileOrFolderPath, _cachedLstat=null) {
             // compute lstat and stat before creating PathInfo (so its async for performance)
             let lstat = _cachedLstat
@@ -1401,6 +1426,195 @@ export const FileSystem = {
                 }
             }
             return new PathInfo({path:fileOrFolderPath, _lstatData: lstat, _statData: stat})
+        },
+        read(path) {
+            path = pathStandardize(path)
+            let output
+            try {
+                output = Deno.readTextFileSync(path)
+            } catch (error) {
+            }
+            return output
+        },
+        readBytes(path) {
+            path = pathStandardize(path)
+            let output
+            try {
+                output = Deno.readFileSync(path)
+            } catch (error) {
+            }
+            return output
+        },
+        * readLinesIteratively(path) {
+            path = pathStandardize(path)
+            const file = Deno.openSync(path)
+            try {
+                yield* readLines(file)
+            } finally {
+                Deno.close(file.rid)
+            }
+        },
+        /**
+         * find a root folder based on a child path
+         *
+         * @example
+         *     import { FileSystem } from "https://deno.land/x/quickr/main/file_system.js"
+         * 
+         *     var gitParentFolderOrNull = FileSystem.sync.walkUpUntil(".git")
+         *     var gitParentFolderOrNull = FileSystem.sync.walkUpUntil({
+         *         subPath:".git",
+         *         startPath: FileSystem.pwd,
+         *     })
+         *
+         *     // below will result in that^ same folder (assuming all your .git folders have config files)
+         *     var gitParentFolderOrNull = FileSystem.sync.walkUpUntil(".git/config")
+         * 
+         *     // below will result in the same folder, but only if theres a local master branch
+         *     var gitParentFolderOrNull = FileSystem.sync.walkUpUntil(".git/refs/heads/master")
+         *
+         */
+        walkUpUntil(subPath, startPath=null) {
+            subPath = subPath instanceof PathInfo ? subPath.path : subPath
+            // named arguments
+            if (subPath instanceof Object) {
+                var {subPath, startPath} = subPath
+            }
+            let here
+            if (!startPath) {
+                here = Deno.cwd()
+            } else if (Path.isAbsolute(startPath)) {
+                here = startPath
+            } else {
+                here = Path.join(here, startPath)
+            }
+            while (1) {
+                let checkPath = Path.join(here, subPath)
+                const pathInfo = Deno.lstatSync(checkPath).catch(()=>({doesntExist: true}))
+                if (!pathInfo.doesntExist) {
+                    return here
+                }
+                // reached the top
+                if (here == Path.dirname(here)) {
+                    return null
+                } else {
+                    // go up a folder
+                    here =  Path.dirname(here)
+                }
+            }
+        },
+        nextTargetOf(path, options={}) {
+            const originalWasItem = path instanceof PathInfo
+            const item = originalWasItem ? path : new PathInfo({path})
+            const lstat = item.lstat
+            if (lstat.isSymlink) {
+                const relativeOrAbsolutePath = Deno.readLinkSync(item.path)
+                if (Path.isAbsolute(relativeOrAbsolutePath)) {
+                    if (originalWasItem) {
+                        return new PathInfo({path:relativeOrAbsolutePath})
+                    } else {
+                        return relativeOrAbsolutePath
+                    }
+                } else {
+                    const path = `${FileSystem.sync.makeHardPathTo(Path.dirname(item.path))}/${relativeOrAbsolutePath}`
+                    if (originalWasItem) {
+                        return new PathInfo({path})
+                    } else {
+                        return path
+                    }
+                }
+            } else {
+                if (originalWasItem) {
+                    return item
+                } else {
+                    return item.path
+                }
+            }
+        },
+        finalTargetOf(path, options={}) {
+            const { _parentsHaveBeenChecked, cache } = { _parentsHaveBeenChecked: false , cache: {}, ...options }
+            const originalWasItem = path instanceof PathInfo
+            path = (path.path || path) // if given PathInfo object
+            let result = Deno.lstatSync(path).catch(()=>({doesntExist: true}))
+            if (result.doesntExist) {
+                return null
+            }
+        
+            // 
+            // naively follow the path chain to build up a full chain
+            // 
+            path = FileSystem.sync.makeHardPathTo(path, {cache})
+            const pathChain = []
+            while (result.isSymlink) {
+                // get the path to the target
+                const relativeOrAbsolutePath = Deno.readLinkSync(path)
+                if (Path.isAbsolute(relativeOrAbsolutePath)) {
+                    // absolute
+                    path = relativeOrAbsolutePath
+                } else {
+                    // relative
+                    path = `${FileSystem.parentPath(path)}/${relativeOrAbsolutePath}`
+                }
+                result = Deno.lstatSync(path).catch(()=>({doesntExist: true}))
+                // check if target exists
+                if (result.doesntExist) {
+                    return null
+                }
+                // regardless of if absolute or relative, we need to re-harden
+                path = FileSystem.sync.makeHardPathTo(path, {cache})
+                if (pathChain.includes(path)) {
+                    // circular loop of links
+                    return null
+                }
+                pathChain.push(path)
+            }
+
+            path = FileSystem.normalize(path)
+            if (originalWasItem) {
+                return new PathInfo({path})
+            } else {
+                return path
+            }
+        },
+        makeHardPathTo(path, options={}) {
+            var { cache } = { cache:{}, ...options}
+            if (cache[path]) {
+                return cache[path]
+            }
+            // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
+            const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
+            let topDownPath = ``
+            for (const eachFolderName of folders) {
+                topDownPath += `/${eachFolderName}`
+                if (cache[topDownPath]) {
+                    topDownPath = cache[topDownPath]
+                    continue
+                }
+                const unchangedPath = topDownPath
+                const info = FileSystem.sync.info(topDownPath)
+                if (info.isSymlink) {
+                    const absolutePathToIntermediate = FileSystem.sync.finalTargetOf(info.path, {_parentsHaveBeenChecked: true, cache })
+                    // shouldn't be true/possible outside of a race condition, but good to handle it anyways
+                    if (absolutePathToIntermediate == null) {
+                        return null
+                    }
+                    // remove the path to the syslink parent folder + the slash
+                    topDownPath = topDownPath.slice(0, -(eachFolderName.length+1))
+
+                    const relativePath = FileSystem.makeRelativePath({
+                        from: topDownPath,
+                        to: absolutePathToIntermediate,
+                    })
+                    // replace it with the real intermediate path
+                    topDownPath += `/${relativePath}`
+                    topDownPath = Path.normalize(topDownPath)
+                }
+                cache[unchangedPath] = topDownPath
+            }
+            const hardPath = Path.normalize(`${topDownPath}/${name}${extension}`)
+            cache[path] = hardPath
+            
+            // now all parents are verified as real folders 
+            return hardPath
         },
         remove(fileOrFolder) {
             if (fileOrFolder instanceof Array) {
@@ -1498,7 +1712,7 @@ export const FileSystem = {
         append({path, data, force=true, overwrite=false, renameExtension=null}) {
             path = pathStandardize(path)
             if (force) {
-                FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
+                FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension })
                 const info = FileSystem.sync.info(path)
                 if (info.isDirectory) {
                     FileSystem.sync.remove(path)
@@ -1516,7 +1730,7 @@ export const FileSystem = {
             // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
             file.close()
         },
-        write({path, data, force=true, overwrite=false, renameExtension=null, _isInternalCall=false}) {
+        write({path, data, force=true, overwrite=false, renameExtension=null}) {
             path = pathStandardize(path)
             if (force) {
                 FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), { overwrite, renameExtension, })
@@ -1526,14 +1740,18 @@ export const FileSystem = {
                 }
             }
             let output
+            if (typeof data == 'string') {
+                output = Deno.writeTextFileSync(path, data)
+            } else if (typedArrayClasses.some(dataClass=>(data instanceof dataClass))) {
+                output = Deno.writeFileSync(path, data)
             // incremental data
-            if (isGeneratorType(data) || data[Symbol.iterator]) {
+            } else if (isGeneratorType(data) || data[Symbol.iterator] || data[Symbol.asyncIterator]) {
                 const file = Deno.openSync(path, {read:true, write: true, create: true, truncate: true})
                 const encoder = new TextEncoder()
                 const encode = encoder.encode.bind(encoder)
                 try {
                     let index = 0
-                    for (let packet of data) {
+                    for await (let packet of data) {
                         if (typeof packet == 'string') {
                             packet = encode(packet)
                         }
@@ -1542,15 +1760,31 @@ export const FileSystem = {
                 } finally {
                     Deno.close(file.rid)
                 }
-            // string
-            } else if (typeof data == 'string') {
-                output = Deno.writeTextFileSync(path, data)
-            // assuming bytes (maybe in the future, readables and pipes will be supported)
-            } else {
-                output = Deno.writeFileSync(path, data)
             }
             return output
         },
+        // TODO:
+            // move
+            // ensureIsFile
+            // copy
+            // relativeLink
+            // absoluteLink
+            // iterateBasenamesIn
+            // iteratePathsIn
+            // iterateItemsIn
+            // listItemsIn
+            // listFileItemsIn
+            // listFilePathsIn
+            // listFileBasenamesIn
+            // listFolderItemsIn
+            // listFolderPathsIn
+            // listFolderBasenamesIn
+            // globIterator
+            // getPermissions
+            // addPermissions
+        // Note:
+            // cannot be sync:
+                // walkUpImport 
     },
 }
 
