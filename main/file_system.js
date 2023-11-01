@@ -1779,7 +1779,7 @@ export const FileSystem = {
                 const encode = encoder.encode.bind(encoder)
                 try {
                     let index = 0
-                    for await (let packet of data) {
+                    for (let packet of data) {
                         if (typeof packet == 'string') {
                             packet = encode(packet)
                         }
