@@ -586,8 +586,8 @@ export const run = (maybeStrings, ...args) => {
                     writableToWriter.set(eachWritable, eachWritable.getWriter())
                 }
             }
-            const stdoutWriters = stdoutWritables.map(each=>writableToWriter.get(eachWritable))
-            const stderrWriters = stderrWritables.map(each=>writableToWriter.get(eachWritable))
+            const stdoutWriters = stdoutWritables.map(each=>writableToWriter.get(each))
+            const stderrWriters = stderrWritables.map(each=>writableToWriter.get(each))
 
             // 
             // NOTE: this process is kind of complicated because of checking
