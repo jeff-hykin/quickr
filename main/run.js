@@ -1,12 +1,12 @@
 import { FileSystem } from "./file_system.js"
 import { Console } from "./console.js"
 import { OperatingSystem } from "./operating_system.js"
-import { keyify } from "https://deno.land/x/good@0.7.8/map.js"
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
 import { debugValueAsString } from "https://deno.land/x/good@0.7.8/debug.js"
+import { deepCopy, deepCopySymbol, allKeyDescriptions, deepSortObject, shallowSortObject, isGeneratorType,isAsyncIterable, isSyncIterable, isTechnicallyIterable, isSyncIterableObjectOrContainer, allKeys } from "https://deno.land/x/good@1.5.1.0/value.js"
 
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
@@ -148,6 +148,45 @@ export const hasCommand = (commandName)=>{
     }
     return checkCommands([commandName]).then(({missing})=>missing.length==0)
 }
+
+// 
+// 
+// patch Deno.open as to have a means of doing ridToPath
+// 
+// 
+    const alreadyOpenFiles = {}
+    const ridToPath = {}
+    const realDenoOpen = Deno.open.bind(Deno)
+    Deno.open = (function(...args) {
+        const path = FileSystem.makeAbsolutePath(args[0])
+        if (!alreadyOpenFiles[path]) {
+            alreadyOpenFiles[path] = realDenoOpen(...args).then(file=>{
+                ridToPath[file.rid] = path
+                const realClose = file.close
+                file.close = (function(...args) {
+                    delete alreadyOpenFiles[path]
+                    realClose(...args)
+                }).bind(file)
+                return file
+            })
+        }
+        return alreadyOpenFiles[path]
+    }).bind(Deno)
+    const realDenoOpenSync = Deno.openSync.bind(Deno)
+    Deno.openSync = (function(...args) {
+        const path = FileSystem.makeAbsolutePath(args[0])
+        if (!alreadyOpenFiles[path]) {
+            const file = realDenoOpenSync(...args)
+            ridToPath[file.rid] = path
+            const realClose = file.close
+            file.close = (function(...args) {
+                delete alreadyOpenFiles[path]
+                realClose(...args)
+            }).bind(file)
+            alreadyOpenFiles[path] = file
+        }
+        return alreadyOpenFiles[path]
+    }).bind(Deno)
 
 // 
 // 
@@ -399,6 +438,7 @@ export const run = (maybeStrings, ...args) => {
                 }
             }
         }
+        const openFiles = {}
         const convertReturnStreamArg = async (arg) => {
             // save this kind of arg for later
             if (arg === returnAsString) {
@@ -413,10 +453,14 @@ export const run = (maybeStrings, ...args) => {
                     // 
                     if (symbol === overwriteSymbol) {
                         if (typeof value == 'string') {
-                            // ensure parent folders exist
-                            await FileSystem.clearAPathFor(value, {overwrite: true})
-                            // convert string to a folder
-                            value = await Deno.open(value, {write: true, truncate: true, create: true})
+                            const path = FileSystem.makeAbsolutePath(value)
+                            if (!openFiles[path]) {
+                                // ensure parent folders exist
+                                await FileSystem.clearAPathFor(value, {overwrite: true})
+                                // convert string to a folder
+                                openFiles[path] = await Deno.open(value, {write: true, truncate: true, create: true})
+                            }
+                            value = openFiles[path]
                         }
                         
                         if (value instanceof Deno.File) {
@@ -430,10 +474,14 @@ export const run = (maybeStrings, ...args) => {
                     // 
                     } else if (symbol === appendSymbol) {
                         if (typeof value == 'string') {
-                            // ensure parent folders exist
-                            await FileSystem.ensureIsFolder(FileSystem.parentPath(value))
-                            // convert string to a folder
-                            value = await Deno.open(value, {write: true, create: true})
+                            const path = FileSystem.makeAbsolutePath(value)
+                            if (!openFiles[path]) {
+                                // ensure parent folders exist
+                                await FileSystem.ensureIsFolder(FileSystem.parentPath(value))
+                                // convert string to a folder
+                                openFiles[path] = await Deno.open(value, {write: true, create: true})
+                            }
+                            value = openFiles[path]
                             // FIXME: this file never gets closed! it needs to be, but only if it was opened here
                         }
                         
@@ -463,7 +511,25 @@ export const run = (maybeStrings, ...args) => {
         // stdin, stdout seperatly
         const alreadyComputed = new Map()
         const convertArgsToWritables = (...args) => args.map(eachArg=>{
-            const key = keyify(eachArg)
+            let key
+            if (eachArg instanceof Array) {
+                key = JSON.stringify(eachArg.map(each=>{
+                    if (typeof each == "symbol") {
+                        return each.toString()
+                    } else if (each instanceof Deno.File) {
+                        if (ridToPath[each.id]) {
+                            return FileSystem.makeAbsolutePath(ridToPath[each.id])
+                        }
+                        return `Deno.File(${each.rid})`
+                    } else if (typeof each == 'string') {
+                        return FileSystem.makeAbsolutePath(each)
+                    } else {
+                        return JSON.stringify(each)
+                    }
+                }))
+            } else {
+                key = JSON.stringify(eachArg)
+            }
             // do not duplicate work (because of files/streams)
             if (alreadyComputed.has(key)) {
                 return alreadyComputed.get(key)
@@ -514,79 +580,48 @@ export const run = (maybeStrings, ...args) => {
         // 
         let returnStream = undefined
         if (runArg.stdout == 'piped' || runArg.stderr == 'piped') {
+            const writableToWriter = new Map()
+            for (const eachWritable of stdoutWritables.concat(stderrWritables)) {
+                if (!writableToWriter.has(eachWritable)) {
+                    writableToWriter.set(eachWritable, eachWritable.getWriter())
+                }
+            }
+            const stdoutWriters = stdoutWritables.map(each=>writableToWriter.get(eachWritable))
+            const stderrWriters = stderrWritables.map(each=>writableToWriter.get(eachWritable))
+
             // 
             // NOTE: this process is kind of complicated because of checking
             //       for stderr/stdout to the same source 
             //       and for outputing them to mulitple sources
-            // 
-
-            // 
-            // figure out how many streams are needed
-            // 
-            const neededByStdout = new Map()
-            const neededByStderr = new Map()
-            // what needs stdout
-            for (const each of stdoutWritables) {
-                // init to set if doesnt exist
-                neededByStdout.set(each, true)
-                neededByStderr.set(each, false)
-            }
-            // what needs stderr
-            for (const each of stderrWritables) {
-                neededByStderr.set(each, true)
-                if (!neededByStdout.has(each)) {
-                    neededByStdout.set(each, false)
-                }
+            //
+            if (runArg.stdout == 'piped') {
+                const reader = readableStreamFromReader(process.stdout).getReader()
+                setTimeout(async ()=>{
+                    while (1) {
+                        const {value, done} = await reader.read()
+                        if (done) {
+                            break
+                        }
+                        for (const each of stdoutWriters) {
+                            each.write(value)
+                        }
+                    }
+                })
             }
             
-            // 
-            // generate all of the streams
-            // 
-            // complicated because tee-ing a stream kind of destroys the original 
-            // and its better to tee in a branching way than in a all-on-one-side way (BFS-style not DFS-style)
-            const stdoutStreamSplitQue = []
-            const stderrStreamSplitQue = []
-            // the initial ones are edgecases
-            if (stdoutWritables.length > 0) {
-                stdoutStreamSplitQue.push(readableStreamFromReader(process.stdout))
-            }
-            if (stderrWritables.length > 0) {
-                stderrStreamSplitQue.push(readableStreamFromReader(process.stderr))
-            }
-            while (stdoutStreamSplitQue.length < stdoutWritables.length) {
-                // take off the front of the que (back of the list), create two more items (tee) put them at the back of the que (front of the list)
-                stdoutStreamSplitQue = stdoutStreamSplitQue.pop().tee().concat(stdoutStreamSplitQue)
-            }
-            while (stderrStreamSplitQue.length < stderrWritables.length) {
-                // take off the front of the que (back of the list), create two more items put them at the back of the que (front of the list)
-                stderrStreamSplitQue = stderrStreamSplitQue.pop().tee().concat(stderrStreamSplitQue)
-            }
-            // now we should have the appropriate number of streams
-            const stdoutStreams = stdoutStreamSplitQue
-            const stderrStreams = stderrStreamSplitQue
-
-            // 
-            // convert/connect all to streams
-            // 
-            for (const eachStreamArg of [...new Set(stdoutWritables.concat(stderrWritables))]) {
-                let sourceStream
-                const wasNeededByStdout = neededByStdout.get(eachStreamArg)
-                // needs one of: [both, stdout, or stderr]
-                if (wasNeededByStdout && neededByStderr.get(eachStreamArg)) {
-                    sourceStream = zipReadableStreams(stdoutStreams.pop(), stderrStreams.pop())
-                } else if (wasNeededByStdout) {
-                    sourceStream = stdoutStreams.pop()
-                } else {
-                    sourceStream = stderrStreams.pop()
-                }
-
-                // pipe it to the correct thing (returnAsString is the only special case)
-                if (eachStreamArg === returnAsString) {
-                    returnStream = sourceStream
-                } else {
-                    // every stream arg should be a writable stream by this point
-                    sourceStream.pipeTo(eachStreamArg)
-                }
+            if (runArg.stderr == 'piped') {
+                const reader = readableStreamFromReader(process.stderr).getReader()
+                setTimeout(async ()=>{
+                    while (1) {
+                        const {value, done} = await reader.read()
+                        if (done) {
+                            break
+                        }
+                        for (const each of stderrWriters) {
+                            each.write(value)
+                        }
+                    }
+                })
             }
         }
 
