@@ -29,7 +29,7 @@ await stdin.close()
 
 // get output string as return value
 const pathToGrep = await run("which", "grep", Out(returnAsString))
-console.debug(`pathToGrep is:`,pathToGrep)
+console.debug(`pathToGrep is:`,JSON.stringify(pathToGrep))
 
 // get output string as return value
 const miscOutput = await run("deno", "eval", "console.log('hi1')\nsetTimeout(()=>console.log('bye'),1000)", Out(returnAsString))

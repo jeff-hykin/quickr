@@ -7,6 +7,7 @@ import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
 import { debugValueAsString } from "https://deno.land/x/good@0.7.8/debug.js"
 import { deepCopy, deepCopySymbol, allKeyDescriptions, deepSortObject, shallowSortObject, isGeneratorType,isAsyncIterable, isSyncIterable, isTechnicallyIterable, isSyncIterableObjectOrContainer, allKeys } from "https://deno.land/x/good@1.5.1.0/value.js"
+import { deferredPromise, recursivePromiseAll } from "https://deno.land/x/good@1.5.1.0/async.js"
 
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
@@ -578,12 +579,28 @@ export const run = (maybeStrings, ...args) => {
         // 
         // handle stdout/stderr
         // 
-        let returnStream = undefined
+        let hasReturnString = false
+        let stdoutAndStderrDoneWritingPromise = { then(func) { func() } } // dummy (e.g. immediately-done promise)
+        const returnStringChunks = []
         if (runArg.stdout == 'piped' || runArg.stderr == 'piped') {
+            stdoutAndStderrDoneWritingPromise = deferredPromise()
+            let stdoutIsDone = false
+            let stderrIsDone = false
             const writableToWriter = new Map()
             for (const eachWritable of stdoutWritables.concat(stderrWritables)) {
                 if (!writableToWriter.has(eachWritable)) {
-                    writableToWriter.set(eachWritable, eachWritable.getWriter())
+                    if (eachWritable == returnAsString) {
+                        hasReturnString = true
+                        const decoder = new TextDecoder()
+                        writableToWriter.set(eachWritable, {
+                            write(value) {
+                                const stringValue = decoder.decode(value)
+                                returnStringChunks.push(stringValue)
+                            }
+                        })
+                    } else {
+                        writableToWriter.set(eachWritable, eachWritable.getWriter())
+                    }
                 }
             }
             const stdoutWriters = stdoutWritables.map(each=>writableToWriter.get(each))
@@ -594,12 +611,18 @@ export const run = (maybeStrings, ...args) => {
             //       for stderr/stdout to the same source 
             //       and for outputing them to mulitple sources
             //
-            if (runArg.stdout == 'piped') {
+            if (runArg.stdout != 'piped') {
+                stdoutIsDone = true
+            } else {
                 const reader = readableStreamFromReader(process.stdout).getReader()
                 setTimeout(async ()=>{
                     while (1) {
                         const {value, done} = await reader.read()
                         if (done) {
+                            stdoutIsDone = true
+                            if (stderrIsDone) {
+                                stdoutAndStderrDoneWritingPromise.resolve()
+                            }
                             break
                         }
                         for (const each of stdoutWriters) {
@@ -609,12 +632,18 @@ export const run = (maybeStrings, ...args) => {
                 })
             }
             
-            if (runArg.stderr == 'piped') {
+            if (runArg.stderr != 'piped') {
+                stderrIsDone = true
+            } else {
                 const reader = readableStreamFromReader(process.stderr).getReader()
                 setTimeout(async ()=>{
                     while (1) {
                         const {value, done} = await reader.read()
                         if (done) {
+                            stderrIsDone = true
+                            if (stdoutIsDone) {
+                                stdoutAndStderrDoneWritingPromise.resolve()
+                            }
                             break
                         }
                         for (const each of stderrWriters) {
@@ -650,8 +679,8 @@ export const run = (maybeStrings, ...args) => {
         
         // await string
         let processFinishedValue
-        if (returnStream) {
-            processFinishedValue = statusPromise.then(()=>streamToString(returnStream))
+        if (hasReturnString) {
+            processFinishedValue = statusPromise.then(()=>stdoutAndStderrDoneWritingPromise.then(()=>returnStringChunks.join("")))
         // await object
         } else {
             processFinishedValue = statusPromise.then(({ success, code })=>{

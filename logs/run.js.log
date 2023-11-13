@@ -6,12 +6,10 @@ hello
 Bang
 Bang Bang
 Bang Bang
-pathToGrep is: /usr/bin/grep
-
+pathToGrep is: "/usr/bin/grep\n"
 miscOutput is: hi1
 bye
 
-process.isDone? is: false
 process.isDone? is: false
 process.isDone? is: false
 process.isDone? is: false
