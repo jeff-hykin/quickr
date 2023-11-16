@@ -599,7 +599,9 @@ export const run = (maybeStrings, ...args) => {
                             }
                         })
                     } else {
-                        writableToWriter.set(eachWritable, eachWritable.getWriter())
+                        if (eachWritable!=null) {
+                            writableToWriter.set(eachWritable, eachWritable.getWriter())
+                        }
                     }
                 }
             }
