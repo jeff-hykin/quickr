@@ -13,6 +13,13 @@ await run("echo", "hello")
 
 // get outcome
 var { success, exitCode } = await run("echo", "hello").outcome
+var { success, exitCode } = await run("echo", "hello")
+
+// split the output
+var inputReceiver = {
+    write:(chunk)=>console.log("writing", chunk)
+}
+await run`echo hello ${Stdout(inputReceiver, Deno.stdout)}`
 
 // send stdin (a string, a file, or a stream)
 await run("cat", Stdin("Bang\n")).outcome

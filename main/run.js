@@ -529,7 +529,7 @@ export const run = (maybeStrings, ...args) => {
                     }
                 }))
             } else {
-                key = JSON.stringify(eachArg)
+                key = JSON.stringify(eachArg) + Deno.inspect(eachArg)
             }
             // do not duplicate work (because of files/streams)
             if (alreadyComputed.has(key)) {
@@ -600,7 +600,8 @@ export const run = (maybeStrings, ...args) => {
                         })
                     } else {
                         if (eachWritable!=null) {
-                            writableToWriter.set(eachWritable, eachWritable.getWriter())
+                            const writer = eachWritable.getWriter()
+                            writableToWriter.set(eachWritable, writer)
                         }
                     }
                 }
