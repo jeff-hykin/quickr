@@ -190,6 +190,7 @@ globalThis.console = new Proxy(originalThing, {
                 return clearAnsiStylesFrom(asString)
             }
         }
+        topLevelStyleAccumulator.toJSON = topLevelStyleAccumulator.toString
         return Object.defineProperties(topLevelStyleAccumulator, Object.fromEntries(Object.entries(styleStrings).map(
             ([eachStyleName, eachStyleString])=>[
                 eachStyleName,
