@@ -143,7 +143,8 @@ export const checkCommands = async (commands) => {
 
 export const hasCommand = (commandName)=>{
     if (isWindows) {
-        if (!commandName.match(/\.(bat|exe|ps1)/)) {
+        // TODO: check if something like "hi.bat.bat" is allowed and what gets executed when './hi.bat' is attempted to be run
+        if (!(commandName.endsWith(".exe")||commandName.endsWith(".ps1")||commandName.endsWith(".bat")))) {
             return checkCommands([commandName, `${commandName}.exe`, `${commandName}.bat`, `${commandName}.ps1`, ]).then(({available})=>available.length!=0)
         }
     }
