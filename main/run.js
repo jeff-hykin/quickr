@@ -94,6 +94,37 @@ export const pathsToAllCommands = async () => {
     }
     return mapping
 }
+
+/**
+ * @example
+ * ```js
+ * const path = Deno.env.get("PATH").split(":")[0])
+ * if (await pathHasCommand({command: "git", path })) {
+ *     console.log(`which git = ${path}/git`)
+ * }
+ * ```
+ *
+ * @param {String} arg1.path - 
+ * @param {String} arg1.command - 
+ * @returns {Boolean} output - 
+ *
+ */
+export const pathHasCommand = ({path, command})=> {
+    if (isWindows) {
+        // TODO: figure out if there is a "isExecutable" check on window
+        return Promise.any([
+            FileSystem.info(`${path}/${command}`).then(pathInfo=>{ if (!pathInfo.isFile) { throw Error() } else { return true; } }),
+            FileSystem.info(`${path}/${command}.exe`).then(pathInfo=>{ if (!pathInfo.isFile) { throw Error() } else { return true; } }),
+            FileSystem.info(`${path}/${command}.bat`).then(pathInfo=>{ if (!pathInfo.isFile) { throw Error() } else { return true; } }),
+            FileSystem.info(`${path}/${command}.ps1`).then(pathInfo=>{ if (!pathInfo.isFile) { throw Error() } else { return true; } }),
+        ]).catch(_=>false)
+    } else {
+        // TODO: currently this is misleading if, for example, only the group can execute, but the current user is not part of the group
+        //       this requires an interface for getting the current user group and username, which isnt created yet
+        return FileSystem.getPermissions({path}).then((permissions)=>(permissions.owner.canExecute||permissions.group.canExecute||permissions.others.canExecute)).catch(_=>false)
+    }
+}
+
 export const pathsToCommands = async (commands) => {
     commands = new Set(commands)
     const paths = Console.paths
