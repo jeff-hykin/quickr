@@ -1702,6 +1702,19 @@ export const FileSystem = {
             // finally create the folder
             return path
         },
+        ensureIsFile(path, options={overwrite:false, renameExtension:null}) {
+            const {overwrite, renameExtension} = defaultOptionsHelper(options)
+            FileSystem.sync.ensureIsFolder(FileSystem.parentPath(path), {overwrite, renameExtension})
+
+            path = path.path || path // if given PathInfo object
+            const pathInfo = FileSystem.sync.info(path)
+            if (pathInfo.isFile && !pathInfo.isDirectory) { // true for symbolic links to non-directories
+                return path
+            } else {
+                FileSystem.sync.write({path, data:""}) // this will clear everything out of the way
+                return path
+            }
+        },
         /**
          * Move/Remove everything and Ensure parent folders
          *
