@@ -198,7 +198,7 @@ export const hasCommand = (commandName)=>{
                 const realClose = file.close
                 file.close = (function(...args) {
                     delete alreadyOpenFiles[path]
-                    realClose(...args)
+                    realClose.apply(file, ...args)
                 }).bind(file)
                 return file
             })
