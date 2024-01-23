@@ -1390,6 +1390,19 @@ export const FileSystem = {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
         }
     },
+    async withPwd(tempPwd,func) {
+        const originalPwd = FileSystem.pwd
+        const originalPwdEnvVar = Deno.env.get("PWD")
+        tempPwd = FileSystem.makeAbsolutePath(tempPwd)
+        try {
+            FileSystem.pwd = tempPwd
+            Deno.env.set("PWD",tempPwd)
+            await func(originalPwd)
+        } finally {
+            FileSystem.pwd = originalPwd
+            Deno.env.set("PWD",originalPwdEnvVar)
+        }
+    },
     sync: {
         // things that are already sync
         get parentPath()        { return FileSystem.parentPath       },
