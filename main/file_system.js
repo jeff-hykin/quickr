@@ -1175,8 +1175,8 @@ export const FileSystem = {
     glob(pattern, options={startPath:null}) {
         return asyncIteratorToList(FileSystem.globIterator(pattern, options))
     },
-    async getPermissions({path}) {
-        const {mode} = await Deno.lstat(path)
+    async getPermissions(path) {
+        const {mode} = await Deno.lstat(path?.path||path)
         // see: https://stackoverflow.com/questions/15055634/understanding-and-decoding-the-file-mode-value-from-stat-function-output#15059931
         return {
             owner: {        //          rwxrwxrwx
