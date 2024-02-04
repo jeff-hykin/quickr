@@ -2,6 +2,9 @@ import { readableStreamFromReader, writableStreamFromWriter } from "https://deno
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async/mod.ts"
 import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
+import { toRepresentation } from "https://deno.land/x/good@0.7.8/string.js"
+import { allKeys } from "https://deno.land/x/good@1.6.0.0/value.js"
+
 
 // TODO: move this whole file to good-js
 // for await (let each of Deno.stdin.readable.pipeThrough(new TextDecoderStream())) { console.log("each", each) }
@@ -107,15 +110,15 @@ export class FlowingString extends WritableStream {
                         chunk = view
                     }
                     const decoded = this._decoder.decode(chunk, { stream: true })
-                    trigger(this.writeEvent, decoded, chunk, this).catch(error=>console.error(`There was an error when a FlowingString called a callback for the write event.\nThe error was this error: ${error.message}\nThe callback was one of these functions: ${[...this.writeEvent].map(each=>each.toString()).join("\n\n")}`))
+                    trigger(this.writeEvent, decoded, chunk, this).catch(error=>console.error(`There was an error when a FlowingString called a callback for the write event.\nThe error was this error: ${error.message}\nThe callback was one of these functions: ${[...this.writeEvent].map(each=>toRepresentation(each)).join("\n\n")}`))
                     this._string += decoded
                 },
                 close: () => {
-                    trigger(this.closeEvent, this._string, this).catch(error=>console.error(`There was an error when a FlowingString called a callback for the close event.\nThe error was this error: ${error.message}\nThe callback was one of these functions: ${[...this.closeEvent].map(each=>each.toString()).join("\n\n")}`))
+                    trigger(this.closeEvent, this._string, this).catch(error=>console.error(`There was an error when a FlowingString called a callback for the close event.\nThe error was this error: ${error.message}\nThe callback was one of these functions: ${[...this.closeEvent].map(each=>toRepresentation(each)).join("\n\n")}`))
                     this.string.resolve(this._string)
                 },
                 abort(err) {
-                    trigger(this.errorEvent, err).catch(error=>console.error(`There was an error when a FlowingString called a callback for the error event.\nHowever the callback itself threw an error: ${error.message}\nThe callback was one of these functions: ${[...this.errorEvent].map(each=>each.toString()).join("\n\n")}`))
+                    trigger(this.errorEvent, err).catch(error=>console.error(`There was an error when a FlowingString called a callback for the error event.\nHowever the callback itself threw an error: ${error.message}\nThe callback was one of these functions: ${[...this.errorEvent].map(each=>toRepresentation(each)).join("\n\n")}`))
                     if (!this.onError || !this.onError(err)) {
                         throw err
                     }
@@ -148,4 +151,180 @@ export function duplicateReadableStream({stream, numberOfDuplicates}) {
     }
     // now we should have the appropriate number of streams
     return streamSplitterQue
+}
+
+const didClose = Symbol()
+export class EzWriteStream {
+    constructor(streamThing, options) {
+        const { name } = {...options}
+        let writer
+        if (streamThing instanceof EzWriteStream) {
+            //  
+            writer = streamThing.writer
+        } else if (streamThing?.write instanceof Function) {
+            writer = streamThing
+        } else if (streamThing instanceof WritableStream) {
+            writer = streamThing.getWriter()
+        } else {
+            throw Error(`Called new EzWriteStream(obj), but I don't think obj is writable: ${toRepresentation(streamThing)}`)
+        }
+        // carry over methods
+        for (const each of allKeys(writer)) {
+            if (each != "constructor" && each != "write" && each != "close" && writer[each] instanceof Function) {
+                this[each]=(...args)=>writer[each](...args)
+            }
+        }
+        this.writer = writer
+        this.name = name
+        this.closed = false
+    }
+    close(...args) {
+        this.closed = true
+        return this.writer.close(...args)
+    }
+    write(data, ...args) {
+        if (this.closed) {
+            console.warn(`Trying to write to a closed EzWriteStream(obj, {name: ${this.name}})`)
+            return Promise.resolve()
+        }
+        if (typeof data == 'string') {
+            return this.writer.write(new TextEncoder().encode(data))
+        } else if (data instanceof Uint8Array) {
+            return this.writer.write(data)
+        } else if (data instanceof ReadableStream || isReadable(data)) {
+            let reader = data
+            if (data instanceof ReadableStream) {
+                reader = data?.getReader()
+            }
+            const closedPromise = reader.closed().finally(()=>didClose)
+            // NOTE: there is some behavior to be considered here
+            //       writing two streams (this.write(s1), this.write(s1)) means
+            //       their writes will be performed in an undetermined order (not zipped or sequential)
+            return new Promise(async (resolve, reject)=>{
+                while (1) {
+                    try {
+                        const result = Promise.any([ reader.read(), closedPromise ])
+                        if (result === didClose) {
+                            resolve()
+                        } else {
+                            if (typeof result == 'string') {
+                                this.writer.write(new TextEncoder().encode(result))
+                            } else {
+                                this.writer.write(result)
+                            }
+                        }
+                    } catch (err) {
+                        reject(err)
+                    }
+                }
+            })
+        } else {
+            throw Error(`When performing a .write(input) I was unable to handle the input type. I received an input of ${toRepresentation(input)}`)
+        }
+    }
+}
+
+export class EzReadStream {
+    constructor(streamThing, options) {
+        const { name } = {...options}
+        let reader
+        if (streamThing instanceof EzReadStream) {
+            // pass
+            reader = streamThing.reader
+        } else if (streamThing?.readable) {
+            reader = streamThing.readable.getReader()
+        } else if (streamThing?.read instanceof Function) {
+            reader = streamThing
+        } else if (streamThing instanceof WritableStream) {
+            reader = streamThing.getReader()
+        } else {
+            throw Error(`Called new EzReadStream(obj), but I don't think obj is readable: ${toRepresentation(streamThing)}`)
+        }
+        // carry over methods
+        for (const each of allKeys(reader)) {
+            if (each != "constructor" && each != "read" && each != "close" && reader[each] instanceof Function) {
+                this[each]=(...args)=>reader[each](...args)
+            }
+        }
+        this.name = name
+        this.reader = reader
+        this.onClose = []
+        this.onRead = []
+        this.closed = false
+        this.chunks = []
+        
+        const that = this
+        this.iterable = (async function*() {
+            while(!this.closed) {
+                const {value:chunk, done} = await reader.read()
+                if (done) {
+                    this.closed = true
+                    for (const callback of that.onClose) {
+                        // TODO: might want to catch each callback instead of the first callback causing all of them to fail
+                        callback(that)
+                    }
+                    break
+                }
+                that.chunks.push(chunk)
+                for (const callback of that.onRead) {
+                    // TODO: might want to catch each callback instead of the first callback causing all of them to fail
+                    callback(chunk)
+                }
+                yield chunk
+            }
+        })()
+    }
+    addEventListener(type, callback) {
+        if (type=="close") {
+            this.onClose.push(callback)
+        }
+        if (type=="read") {
+            // bring the callback up to speed on previous chunks
+            for (const chunk of this.chunks) {
+                try {
+                    callback(chunk)
+                } catch (error) {
+                }
+            }
+            this.onRead.push(callback)
+        }
+        return this
+    }
+    async partialString() {
+        let i = 0
+        for (const each of this.chunks) {
+            if (typeof each != 'string') {
+                this.chunks[i] = new TextDecoder().decode(each)
+            }
+            i += 1
+        }
+        return this.chunks.join("")
+    }
+    async asString() {
+        if (!this.closed) {
+            for await (const iterator of this.iterable) {
+                // just consume everything
+            }
+        }
+        
+        return this.partialString()
+    }
+    async partialBytes() {
+        let i = 0
+        for (const each of this.chunks) {
+            if (typeof each == 'string') {
+                this.chunks[i] = new TextEncoder().encode(each)
+            }
+            i += 1
+        }
+        return concatUint8Arrays(this.chunks)
+    }
+    async asBytes() {
+        if (!this.closed) {
+            for await (const iterator of this.iterable) {
+                // just consume everything
+            }
+        }
+        return this.partialBytes()
+    }
 }
