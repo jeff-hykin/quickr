@@ -4,6 +4,8 @@ import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async
 import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
 import { toRepresentation } from "https://deno.land/x/good@0.7.8/string.js"
 import { allKeys } from "https://deno.land/x/good@1.6.0.0/value.js"
+import { zip } from "https://deno.land/x/good@1.6.0.0/iterable.js"
+
 
 
 // TODO: move this whole file to good-js
@@ -224,55 +226,106 @@ export class EzWriteStream {
     }
 }
 
+const husk = Symbol()
 export class EzReadStream {
-    constructor(streamThing, options) {
-        const { name } = {...options}
-        let reader
-        if (streamThing instanceof EzReadStream) {
-            // pass
-            reader = streamThing.reader
-        } else if (streamThing?.readable) {
-            reader = streamThing.readable.getReader()
-        } else if (streamThing?.read instanceof Function) {
-            reader = streamThing
-        } else if (streamThing instanceof WritableStream) {
-            reader = streamThing.getReader()
-        } else {
-            throw Error(`Called new EzReadStream(obj), but I don't think obj is readable: ${toRepresentation(streamThing)}`)
-        }
-        // carry over methods
-        for (const each of allKeys(reader)) {
-            if (each != "constructor" && each != "read" && each != "close" && reader[each] instanceof Function) {
-                this[each]=(...args)=>reader[each](...args)
-            }
-        }
-        this.name = name
-        this.reader = reader
-        this.onClose = []
-        this.onRead = []
-        this.closed = false
-        this.chunks = []
+    static zip(...streams) {
+        const output = new EzReadStream(husk)
+        output.onClose = []
+        output.onRead = []
+        output.closed = false
+        output.chunks = []
+        output.error = null
+        let yeildIndex = 0
         
-        const that = this
-        this.iterable = (async function*() {
-            while(!this.closed) {
-                const {value:chunk, done} = await reader.read()
-                if (done) {
-                    this.closed = true
-                    for (const callback of that.onClose) {
-                        // TODO: might want to catch each callback instead of the first callback causing all of them to fail
+        const that = output
+        for (const each of streams) {
+            each.addEventListener("read",(chunk)=>{
+                output.chunks.push(chunk)
+                try {
+                    for (const callback of output.onRead) {
+                        callback(chunk)
+                    }
+                } catch (error) {
+                    output.error = error
+                }
+            })
+        }
+        output.iterable = (async function*() {
+            while (1) {
+                while (output.chunks.length > yeildIndex) {
+                    yeildIndex+=1
+                    yield output.chunks[yeildIndex]
+                }
+                if (output.error) {
+                    throw output.error
+                }
+                that.closed = streams.every(each=>each.closed)
+                if (that.closed) {
+                    for (const callback of output.onClose) {
                         callback(that)
                     }
                     break
                 }
-                that.chunks.push(chunk)
-                for (const callback of that.onRead) {
-                    // TODO: might want to catch each callback instead of the first callback causing all of them to fail
-                    callback(chunk)
-                }
-                yield chunk
+                await new Promise((resolve)=>setTimeout(resolve, output.stallTime))
             }
         })()
+    }
+
+    constructor(streamThing, options) {
+        const { name } = {...options}
+        if (streamThing==husk) {
+            return
+        }
+        this.stallTime = 30 // milliseconds
+        if (streamThing instanceof EzReadStream) {
+            Object.assign(this, streamThing)
+            this.name = name
+        } else {
+            let reader
+            if (streamThing instanceof EzReadStream) {
+                reader = streamThing.reader
+            } else if (streamThing?.readable) {
+                reader = streamThing.readable.getReader()
+            } else if (streamThing?.read instanceof Function) {
+                reader = streamThing
+            } else if (streamThing instanceof WritableStream) {
+                reader = streamThing.getReader()
+            } else {
+                throw Error(`Called new EzReadStream(obj), but I don't think obj is readable: ${toRepresentation(streamThing)}`)
+            }
+            // carry over methods
+            for (const each of allKeys(reader)) {
+                if (each != "constructor" && each != "read" && each != "close" && reader[each] instanceof Function) {
+                    this[each]=(...args)=>reader[each](...args)
+                }
+            }
+            this.name = name
+            this.onClose = []
+            this.onRead = []
+            this.closed = false
+            this.chunks = []
+            
+            const that = this
+            this.iterable = (async function*() {
+                while(!that.closed) {
+                    const {value:chunk, done} = await reader.read()
+                    if (done) {
+                        that.closed = true
+                        for (const callback of that.onClose) {
+                            // TODO: might want to catch each callback instead of the first callback causing all of them to fail
+                            callback(that)
+                        }
+                        break
+                    }
+                    that.chunks.push(chunk)
+                    for (const callback of that.onRead) {
+                        // TODO: might want to catch each callback instead of the first callback causing all of them to fail
+                        callback(chunk)
+                    }
+                    yield chunk
+                }
+            })()
+        }
     }
     addEventListener(type, callback) {
         if (type=="close") {
