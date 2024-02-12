@@ -32,6 +32,13 @@ import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
 const emptyIterator = (async function *() {})()
 const cache = {}
 
+function setTrueBit(n, bit) {
+    return n | (1 << bit)
+}
+function setFalseBit(n, bit) {
+    return ~(~n | (1 << bit))
+}
+
 class PathInfo {
     constructor({path,_lstatData,_statData}) {
         this.path = path
@@ -1234,23 +1241,24 @@ export const FileSystem = {
         let permissionNumber = 0b000000000
         let fileInfo
         // if not all permissions are specified, go get the existing permissions
-        if (!(Object.keys(permissions.owner).length === Object.keys(permissions.group).length === Object.keys(permissions.others).length === 3)) {
+        if ([permissions.owner, permissions.group, permissions.others].some(each=>(!each)||Object.keys(each).length!=3)) {
             fileInfo = await FileSystem.info(path)
             // just grab the last 9 binary digits of the mode number. See: https://stackoverflow.com/questions/15055634/understanding-and-decoding-the-file-mode-value-from-stat-function-output#15059931
             permissionNumber = fileInfo.lstat.mode & 0b0000000111111111
         }
+
         // 
         // set bits for the corrisponding permissions
         // 
-        if (permissions.owner.canRead     != null ) { if (permissions.owner.canRead)     { permissionNumber |= 0b0100000000 } else { permissionNumber &= 0b1011111111 } }
-        if (permissions.owner.canWrite    != null ) { if (permissions.owner.canWrite)    { permissionNumber |= 0b0010000000 } else { permissionNumber &= 0b1101111111 } }
-        if (permissions.owner.canExecute  != null ) { if (permissions.owner.canExecute)  { permissionNumber |= 0b0001000000 } else { permissionNumber &= 0b1110111111 } }
-        if (permissions.group.canRead     != null ) { if (permissions.group.canRead)     { permissionNumber |= 0b0000100000 } else { permissionNumber &= 0b1111011111 } }
-        if (permissions.group.canWrite    != null ) { if (permissions.group.canWrite)    { permissionNumber |= 0b0000010000 } else { permissionNumber &= 0b1111101111 } }
-        if (permissions.group.canExecute  != null ) { if (permissions.group.canExecute)  { permissionNumber |= 0b0000001000 } else { permissionNumber &= 0b1111110111 } }
-        if (permissions.others.canRead    != null ) { if (permissions.others.canRead)    { permissionNumber |= 0b0000000100 } else { permissionNumber &= 0b1111111011 } }
-        if (permissions.others.canWrite   != null ) { if (permissions.others.canWrite)   { permissionNumber |= 0b0000000010 } else { permissionNumber &= 0b1111111101 } }
-        if (permissions.others.canExecute != null ) { if (permissions.others.canExecute) { permissionNumber |= 0b0000000001 } else { permissionNumber &= 0b1111111110 } }
+        if (permissions.owner.canRead     != null ) {  permissionNumber = (permissions.owner.canRead)      ? setTrueBit(permissionNumber, 8) : setFalseBit(permissionNumber, 8) }
+        if (permissions.owner.canWrite    != null ) {  permissionNumber = (permissions.owner.canWrite)     ? setTrueBit(permissionNumber, 7) : setFalseBit(permissionNumber, 7) }
+        if (permissions.owner.canExecute  != null ) {  permissionNumber = (permissions.owner.canExecute)   ? setTrueBit(permissionNumber, 6) : setFalseBit(permissionNumber, 6) }
+        if (permissions.group.canRead     != null ) {  permissionNumber = (permissions.group.canRead)      ? setTrueBit(permissionNumber, 5) : setFalseBit(permissionNumber, 5) }
+        if (permissions.group.canWrite    != null ) {  permissionNumber = (permissions.group.canWrite)     ? setTrueBit(permissionNumber, 4) : setFalseBit(permissionNumber, 4) }
+        if (permissions.group.canExecute  != null ) {  permissionNumber = (permissions.group.canExecute)   ? setTrueBit(permissionNumber, 3) : setFalseBit(permissionNumber, 3) }
+        if (permissions.others.canRead    != null ) {  permissionNumber = (permissions.others.canRead)     ? setTrueBit(permissionNumber, 2) : setFalseBit(permissionNumber, 2) }
+        if (permissions.others.canWrite   != null ) {  permissionNumber = (permissions.others.canWrite)    ? setTrueBit(permissionNumber, 1) : setFalseBit(permissionNumber, 1) }
+        if (permissions.others.canExecute != null ) {  permissionNumber = (permissions.others.canExecute)  ? setTrueBit(permissionNumber, 0) : setFalseBit(permissionNumber, 0) }
         
         // 
         // actually set the permissions
@@ -1260,7 +1268,7 @@ export const FileSystem = {
             || (fileInfo instanceof Object && fileInfo.isFile) // if already computed, dont make a 2nd system call
             || (!(fileInfo instanceof Object) && (await FileSystem.info(path)).isFile)
         ) {
-            return Deno.chmod(path.path || path, permissionNumber)
+            return Deno.chmod(path?.path || path, permissionNumber)
         } else {
             const promises = []
             const paths = await FileSystem.recursivelyListPathsIn(path, {onlyHardlinks: false, dontFollowSymlinks: false, ...recursively})
@@ -1271,12 +1279,7 @@ export const FileSystem = {
                 )
             }
             // create a promise to then wait on all of them
-            return new Promise(async (resolve, reject)=>{
-                for (const each of promises) {
-                    await each
-                }
-                resolve()
-            })
+            return Promise.all(promises)
         }
     },
     // alias
