@@ -182,17 +182,17 @@ export class EzWriteStream {
     }
     close(...args) {
         this.closed = true
-        return this.writer.close(...args)
+        return Promise.resolve(this.writer.close(...args)).then(()=>this)
     }
     write(data, ...args) {
         if (this.closed) {
             console.warn(`Trying to write to a closed EzWriteStream(obj, {name: ${this.name}})`)
-            return Promise.resolve()
+            return Promise.resolve(this)
         }
         if (typeof data == 'string') {
-            return this.writer.write(new TextEncoder().encode(data))
+            return Promise.resolve(this.writer.write(new TextEncoder().encode(data))).then(()=>this)
         } else if (data instanceof Uint8Array) {
-            return this.writer.write(data)
+            return Promise.resolve(this.writer.write(data)).then(()=>this)
         } else if (data instanceof ReadableStream || isReadable(data)) {
             let reader = data
             if (data instanceof ReadableStream) {
@@ -207,7 +207,7 @@ export class EzWriteStream {
                     try {
                         const result = Promise.any([ reader.read(), closedPromise ])
                         if (result === didClose) {
-                            resolve()
+                            resolve(this)
                         } else {
                             if (typeof result == 'string') {
                                 this.writer.write(new TextEncoder().encode(result))
@@ -221,7 +221,7 @@ export class EzWriteStream {
                 }
             })
         } else {
-            throw Error(`When performing a .write(input) I was unable to handle the input type. I received an input of ${toRepresentation(input)}`)
+            return Promise.reject(Error(`When performing a .write(input) I was unable to handle the input type. I received an input of ${toRepresentation(input)}`))
         }
     }
 }
