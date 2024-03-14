@@ -1,11 +1,11 @@
 import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy } from "https://deno.land/std@0.133.0/fs/mod.ts"
-import { findAll } from "https://deno.land/x/good@1.1.1.2/string.js"
-import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.1.1.2/iterable.js"
+import { findAll } from "https://deno.land/x/good@1.6.0.1/string.js"
+import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.6.0.1/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
-import { isGeneratorType } from "https://deno.land/x/good@1.1.1.2/value.js"
+import { isGeneratorType } from "https://deno.land/x/good@1.6.0.1/value.js"
 import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
 
 // TODO:

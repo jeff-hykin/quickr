@@ -560,4 +560,9 @@ export const Console = {
         colorSupportCache.includes16m  = terminalSupport.includes16m
         return colorSupportCache
     },
+    clearScreen(){
+        if (!isBrowserContext) {
+            console.log('\x1B[2J')
+        }
+    }
 }
