@@ -1,1 +1,0 @@
-/Users/jeffhykin/repos/quickr/logs/fs_test/dummy.txt

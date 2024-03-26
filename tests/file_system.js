@@ -61,9 +61,10 @@ console.log(await FileSystem.glob("**/*.log", { startPath: ".." }))
 
 const exampleFile = `${FileSystem.workingDirectory}/fs_test/dummy.txt`
 await FileSystem.write({path: exampleFile, data: "hello", overwrite: true})
-const hardlinkPath = `${FileSystem.workingDirectory}/dummy_hardlink_absolute.txt`
-FileSystem.absoluteLink({ existingItem: exampleFile, newItem: `${FileSystem.workingDirectory}/dummy_hardlink_absolute.txt`, hardLink: true, overwrite: true })
-FileSystem.absoluteLink({ existingItem: exampleFile, newItem: hardlinkPath, hardLink: false, overwrite: true })
+const hardlinkPath = `${FileSystem.workingDirectory}/dummy_hardlink.txt`
+FileSystem.hardLink({ existingItem: exampleFile, newItem: hardlinkPath, overwrite: true })
+FileSystem.absoluteLink({ existingItem: exampleFile, newItem: `${FileSystem.workingDirectory}/dummy_absolute.txt`, overwrite: true })
+FileSystem.relativeLink({ existingItem: exampleFile, newItem: `${FileSystem.workingDirectory}/dummy_relative.txt`, overwrite: true })
 console.log(`writing hello2 to ${hardlinkPath}`)
 await FileSystem.append({path: hardlinkPath, data: "hello2"})
 console.log(`exampleFile contents ${await FileSystem.read(exampleFile)}`)
