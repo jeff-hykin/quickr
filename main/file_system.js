@@ -792,7 +792,7 @@ export const FileSystem = {
         }
         return basicCopy(from, to, {force, preserveTimestamps: true})
     },
-    async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null}) {
+    async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null, hardLink=false}) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
         const newItemPath = FileSystem.normalize((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
         
@@ -809,13 +809,20 @@ export const FileSystem = {
             if (force) {
                 FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
             }
-            return Deno.symlink(
-                pathFromNewToExisting,
-                hardPathToNewItem,
-            )
+            if (hardLink) {
+                return Deno.link(
+                    pathFromNewToExisting,
+                    hardPathToNewItem
+                )
+            } else {
+                return Deno.symlink(
+                    pathFromNewToExisting,
+                    hardPathToNewItem,
+                )
+            }
         }
     },
-    async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null}) {
+    async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null, hardLink=false}) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
         const newItemPath = FileSystem.normalize(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
         
@@ -831,10 +838,17 @@ export const FileSystem = {
                 FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
             }
             
-            return Deno.symlink(
-                FileSystem.makeAbsolutePath(existingItem), 
-                newItemPath,
-            )
+            if (hardLink) {
+                return Deno.link(
+                    FileSystem.makeAbsolutePath(existingItem), 
+                    newItemPath,
+                )
+            } else {
+                return Deno.symlink(
+                    FileSystem.makeAbsolutePath(existingItem), 
+                    newItemPath,
+                )
+            }
         }
     },
     async * iterateBasenamesIn(pathOrFileInfo){
