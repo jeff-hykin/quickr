@@ -3,6 +3,9 @@ const Deno = { lstatSync, statSync }
 import { Path } from "./path.js"
 
 export function pathInfo(fileOrFolderPath, _cachedLstat=null) {
+    if (fileOrFolderPath instanceof Path) {
+        return fileOrFolderPath
+    }
     // compute lstat and stat before creating PathInfo (so its async for performance)
     let lstat = _cachedLstat
     try {
