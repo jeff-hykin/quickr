@@ -8,6 +8,8 @@ import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 import { isGeneratorType } from "https://deno.land/x/good@1.6.0.1/value.js"
 import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
 
+import { makeAbsolutePath } from "./flat/make_absolute_path.js"
+
 // TODO:
     // ensure that all path arguments also accept PathInfo objects
     // make sure the .sync api is in parity with the async API
@@ -267,13 +269,7 @@ export const FileSystem = {
     isAbsolutePath: Path.isAbsolute,
     isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
-    makeAbsolutePath: (path)=> {
-        if (!Path.isAbsolute(path)) {
-            return Path.normalize(Path.join(Deno.cwd(), path))
-        } else {
-            return Path.normalize(path)
-        }
-    },
+    makeAbsolutePath,
     pathDepth(path) {
         path = FileSystem.normalize(path)
         let count = 0
@@ -657,7 +653,7 @@ export const FileSystem = {
     async ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
         path = path.path || path // if given PathInfo object
-        path = FileSystem.makeAbsolutePath(path)
+        path = makeAbsolutePath(path)
         const parentPath = Path.dirname(path)
         // root is always a folder
         if (parentPath == path) {
@@ -832,7 +828,7 @@ export const FileSystem = {
             }
             
             return Deno.symlink(
-                FileSystem.makeAbsolutePath(existingItem), 
+                makeAbsolutePath(existingItem), 
                 newItemPath,
             )
         }
@@ -853,7 +849,7 @@ export const FileSystem = {
             }
             
             return Deno.link(
-                FileSystem.makeAbsolutePath(existingItem), 
+                makeAbsolutePath(existingItem), 
                 newItemPath,
             )
         }
@@ -880,7 +876,7 @@ export const FileSystem = {
             }
         }
         const path = info.path
-        const startingDepth = FileSystem.makeAbsolutePath(path).split("/").length-1
+        const startingDepth = makeAbsolutePath(path).split("/").length-1
         options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
         if (options.maxDepthFromRoot == null) {
             options.maxDepthFromRoot = Infinity
@@ -936,7 +932,7 @@ export const FileSystem = {
                     // note: exclude includes already-searched paths in the recursive case
                     if (!options.exclude.has(path)) {
                         const followSymlinks = !options.dontFollowSymlinks
-                        const absolutePathVersion = FileSystem.makeAbsolutePath(path)
+                        const absolutePathVersion = makeAbsolutePath(path)
                         options.exclude.add(absolutePathVersion)
                         const searchAfterwords = []
                         for await (const entry of Deno.readDir(path)) {
@@ -1026,7 +1022,7 @@ export const FileSystem = {
             
             // note: exclude includes already-searched paths in the recursive case
             if (!options.exclude.has(path)) {
-                const absolutePathVersion = FileSystem.makeAbsolutePath(path)
+                const absolutePathVersion = makeAbsolutePath(path)
                 options.exclude.add(absolutePathVersion)
                 options.maxDepth -= 1
                 
@@ -1159,7 +1155,7 @@ export const FileSystem = {
         var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "./"
         const originalStartPath = startPath
-        startPath = FileSystem.makeAbsolutePath(startPath)
+        startPath = makeAbsolutePath(startPath)
         const firstGlob = pattern.indexOf("*")
         if (firstGlob != -1) {
             const startingString = pattern.slice(0,firstGlob)
@@ -1178,7 +1174,7 @@ export const FileSystem = {
         if (pattern.match(/\*\*/)) {
             maxDepthFromRoot = Infinity
         } else {
-            maxDepthFromRoot = `${FileSystem.makeAbsolutePath(startPath)}/${pattern}`.split("/").length-1
+            maxDepthFromRoot = `${makeAbsolutePath(startPath)}/${pattern}`.split("/").length-1
         }
         
         const fullPattern = `${startPath}/${pattern}`
@@ -1192,7 +1188,7 @@ export const FileSystem = {
         }
         const partialRegex = new RegExp(partialRegexString)
         for await (const eachPath of FileSystem.iteratePathsIn(startPath, { recursively: true, maxDepthFromRoot, ...iteratePathsOptions, shouldntExplore: (eachPath3) => !eachPath3.match(partialRegex) })) {
-            if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
+            if (eachPath.match(regex) || makeAbsolutePath(eachPath).match(regex)) {
                 yield FileSystem.makeRelativePath({
                     from: originalStartPath,
                     to: eachPath,
@@ -1369,7 +1365,7 @@ export const FileSystem = {
             return cache[path]
         }
         // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
-        const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
+        const [ folders, name, extension ] = FileSystem.pathPieces(makeAbsolutePath(path))
         let topDownPath = ``
         for (const eachFolderName of folders) {
             topDownPath += `/${eachFolderName}`
@@ -1408,7 +1404,7 @@ export const FileSystem = {
         const startPath = start || FileSystem.pathOfCaller(1)
         const nearestPath = await FileSystem.walkUpUntil(path, startPath)
         if (nearestPath) {
-            const absolutePath = FileSystem.makeAbsolutePath(`${nearestPath}/${path}`)
+            const absolutePath = makeAbsolutePath(`${nearestPath}/${path}`)
             return import(Path.toFileUrl(absolutePath).href)
         } else {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
@@ -1417,7 +1413,7 @@ export const FileSystem = {
     async withPwd(tempPwd,func) {
         const originalPwd = FileSystem.pwd
         const originalPwdEnvVar = Deno.env.get("PWD")
-        tempPwd = FileSystem.makeAbsolutePath(tempPwd)
+        tempPwd = makeAbsolutePath(tempPwd)
         try {
             FileSystem.pwd = tempPwd
             Deno.env.set("PWD",tempPwd)
@@ -1440,7 +1436,7 @@ export const FileSystem = {
         get isAbsolutePath()    { return FileSystem.isAbsolutePath   },
         get isRelativePath()    { return FileSystem.isRelativePath   },
         get makeRelativePath()  { return FileSystem.makeRelativePath },
-        get makeAbsolutePath()  { return FileSystem.makeAbsolutePath },
+        get makeAbsolutePath()  { return makeAbsolutePath },
         get pathDepth()         { return FileSystem.pathDepth        },
         get pathPieces()        { return FileSystem.pathPieces       },
         get extendName()        { return FileSystem.extendName       },
@@ -1644,7 +1640,7 @@ export const FileSystem = {
                 return cache[path]
             }
             // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
-            const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
+            const [ folders, name, extension ] = FileSystem.pathPieces(makeAbsolutePath(path))
             let topDownPath = ``
             for (const eachFolderName of folders) {
                 topDownPath += `/${eachFolderName}`
@@ -1713,7 +1709,7 @@ export const FileSystem = {
             path = pathStandardize(path)
             const {overwrite, renameExtension} = defaultOptionsHelper(options)
             path = path.path || path // if given PathInfo object
-            path = FileSystem.makeAbsolutePath(path)
+            path = makeAbsolutePath(path)
             const parentPath = Path.dirname(path)
             // root is always a folder
             if (parentPath == path) {
@@ -1840,6 +1836,138 @@ export const FileSystem = {
                 }
             }
             return output
+        },
+        * iteratePathsIn(pathOrFileInfo, options={recursively: false, shouldntInclude:null, shouldntExplore:null, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, dontFollowSymlinks: false, dontReturnSymlinks: false, maxDepthFromRoot: null }) {
+            let info
+            try {
+                info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : FileSystem.sync.info(pathOrFileInfo)
+            } catch (error) {
+                if (!error.message.match(/^PermissionDenied:/)) {
+                    throw error
+                }
+            }
+            const path = info.path
+            const startingDepth = makeAbsolutePath(path).split("/").length-1
+            options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
+            if (options.maxDepthFromRoot == null) {
+                options.maxDepthFromRoot = Infinity
+            }
+            if (options.maxDepth != Infinity && options.maxDepth != null) {
+                options.maxDepthFromRoot = startingDepth+options.maxDepth
+            }
+            options.maxDepth = null // done for recursive calles
+            if (startingDepth < options.maxDepthFromRoot) {
+                if (!options.recursively) {
+                    // if its a file or if doesnt exist
+                    if (info.isFolder) {
+                        // no filter
+                        if (!options.shouldntInclude) {
+                            for await (const each of Deno.readDir(path)) {
+                                if (options.dontReturnSymlinks && each.isSymlink) {
+                                    continue
+                                }
+                                yield Path.join(path, each.name)
+                            }
+                        // filter
+                        } else {
+                            const shouldntInclude = options.shouldntInclude
+                            for await (const each of Deno.readDir(path)) {
+                                const eachPath = Path.join(path, each.name)
+                                if (options.dontReturnSymlinks && each.isSymlink) {
+                                    continue
+                                }
+                                // 
+                                // add the path
+                                // 
+                                const shouldntIncludeThis = shouldntInclude && await shouldntInclude(eachPath)
+                                if (!shouldntIncludeThis) {
+                                    yield eachPath
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // merge defaults
+                    options = { exclude: new Set(), searchOrder: 'breadthFirstSearch', maxDepth: Infinity, ...options }
+                    options.searchOrder = options.searchOrder || 'breadthFirstSearch' // allow null/undefined to equal the default
+                    const { shouldntExplore, shouldntInclude } = options
+                    // check args
+                    if (!(['breadthFirstSearch', 'depthFirstSearch'].includes(options.searchOrder))) {
+                        throw Error(`when calling FileSystem.iterateItemsIn('${path}', { searchOrder: ${options.searchOrder} })\n\n    The searchOrder currently can only be 'depthFirstSearch' or 'breadthFirstSearch'\n    However, it was not either of those: ${options.searchOrder}`)
+                    }
+                    const useBreadthFirstSearch = options.searchOrder == 'breadthFirstSearch'
+                    const shouldntExploreThis = shouldntExplore && await shouldntExplore(info.path, info)
+                    if (!shouldntExploreThis && info.isFolder) {
+                        options.exclude = options.exclude instanceof Set ? options.exclude : new Set(options.exclude)
+
+                        // note: exclude includes already-searched paths in the recursive case
+                        if (!options.exclude.has(path)) {
+                            const followSymlinks = !options.dontFollowSymlinks
+                            const absolutePathVersion = makeAbsolutePath(path)
+                            options.exclude.add(absolutePathVersion)
+                            const searchAfterwords = []
+                            for await (const entry of Deno.readDir(path)) {
+                                const eachPath = Path.join(path, entry.name)
+                                if (options.dontReturnSymlinks && each.isSymlink) {
+                                    continue
+                                }
+
+                                // 
+                                // add the path
+                                // 
+                                const shouldntIncludeThis = shouldntInclude && await shouldntInclude(eachPath)
+                                if (!shouldntIncludeThis) {
+                                    yield eachPath
+                                }
+                                
+                                // 
+                                // schedule children
+                                // 
+                                
+                                // skip files
+                                if (entry.isFile) {
+                                    continue
+                                }
+                                // skip symlink-ed files (but not symlinked folders)
+                                if (followSymlinks && !entry.isDirectory) {
+                                    let isSymlinkToDirectory = false
+                                    // must be a symlink
+                                    try {
+                                        isSymlinkToDirectory = (await Deno.stat(eachPath)).isDirectory
+                                    } catch (error) {}
+                                    
+                                    // if not a directory, skip
+                                    if (!isSymlinkToDirectory) {
+                                        continue
+                                    }
+                                }
+                                
+                                // then actually schedule children
+                                if (useBreadthFirstSearch) {
+                                    searchAfterwords.push(eachPath)
+                                } else {
+                                    // yield* doesn't seem to work for async iterators
+                                    for (const eachSubPath of FileSystem.sync.iteratePathsIn(eachPath, options)) {
+                                        // shouldntInclude would already have been executed by ^ so dont re-check
+                                        yield eachSubPath
+                                    }
+                                }
+                            }
+                            // BFS
+                            options.recursively = false
+                            while (searchAfterwords.length > 0) {
+                                const next = searchAfterwords.shift()
+                                // "yield*" doesn't seem to work for async iterators
+                                for await (const eachSubPath of FileSystem.sync.iteratePathsIn(next, options)) {
+                                    // shouldntInclude would already have been executed by ^ so dont re-check
+                                    yield eachSubPath
+                                    searchAfterwords.push(eachSubPath)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         },
         // TODO:
             // move
