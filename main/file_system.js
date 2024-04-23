@@ -8,8 +8,8 @@ import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 import { isGeneratorType } from "https://deno.land/x/good@1.6.0.1/value.js"
 import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
 
-import { makeAbsolutePath } from "./flat/make_absolute_path.js"
 import { pathStandardize } from "./flat/_path_standardize.js"
+import { makeAbsolutePath } from "./flat/make_absolute_path.js"
 import { normalizePath } from "./flat/normalize_path.js"
 import { Path as PathInfo } from "./flat/path.js"
 
@@ -66,12 +66,13 @@ export const FileSystem = {
     extname: Path.extname,
     join: Path.join,
     normalize: normalizePath,
+    normalizePath,
     isAbsolutePath: Path.isAbsolute,
     isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
     makeAbsolutePath,
     pathDepth(path) {
-        path = normalizePath(path)
+        path = FileSystem.normalizePath(path)
         let count = 0
         for (const eachChar of (path.path||path)) {
             if (eachChar == "/") {
@@ -126,7 +127,7 @@ export const FileSystem = {
      */
     allParentPaths(path) {
         const pathStartsWithDotSlash = path.startsWith("./")
-        path = normalizePath(path)
+        path = FileSystem.normalizePath(path)
         // just dot (or dot-slash) has no parents
         if (path === ".") {
             return []
@@ -402,7 +403,7 @@ export const FileSystem = {
             pathChain.push(path)
         }
 
-        path = normalizePath(path)
+        path = FileSystem.normalizePath(path)
         if (originalWasItem) {
             return new PathInfo({path})
         } else {
@@ -453,7 +454,7 @@ export const FileSystem = {
     async ensureIsFolder(path, options={overwrite:false, renameExtension:null}) {
         const {overwrite, renameExtension} = defaultOptionsHelper(options)
         path = path.path || path // if given PathInfo object
-        path = makeAbsolutePath(path)
+        path = FileSystem.makeAbsolutePath(path)
         const parentPath = Path.dirname(path)
         // root is always a folder
         if (parentPath == path) {
@@ -590,7 +591,7 @@ export const FileSystem = {
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null }) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
-        const newItemPath = normalizePath((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
+        const newItemPath = FileSystem.normalizePath((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -613,7 +614,7 @@ export const FileSystem = {
     },
     async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null, }) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
-        const newItemPath = normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
+        const newItemPath = FileSystem.normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -628,14 +629,14 @@ export const FileSystem = {
             }
             
             return Deno.symlink(
-                makeAbsolutePath(existingItem), 
+                FileSystem.makeAbsolutePath(existingItem), 
                 newItemPath,
             )
         }
     },
     async hardLink({existingItem, newItem, force=true, overwrite=false, renameExtension=null, hardLink=false}) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
-        const newItemPath = normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
+        const newItemPath = FileSystem.normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -649,7 +650,7 @@ export const FileSystem = {
             }
             
             return Deno.link(
-                makeAbsolutePath(existingItem), 
+                FileSystem.makeAbsolutePath(existingItem), 
                 newItemPath,
             )
         }
@@ -676,7 +677,7 @@ export const FileSystem = {
             }
         }
         const path = info.path
-        const startingDepth = makeAbsolutePath(path).split("/").length-1
+        const startingDepth = FileSystem.makeAbsolutePath(path).split("/").length-1
         options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
         if (options.maxDepthFromRoot == null) {
             options.maxDepthFromRoot = Infinity
@@ -732,7 +733,7 @@ export const FileSystem = {
                     // note: exclude includes already-searched paths in the recursive case
                     if (!options.exclude.has(path)) {
                         const followSymlinks = !options.dontFollowSymlinks
-                        const absolutePathVersion = makeAbsolutePath(path)
+                        const absolutePathVersion = FileSystem.makeAbsolutePath(path)
                         options.exclude.add(absolutePathVersion)
                         const searchAfterwords = []
                         for await (const entry of Deno.readDir(path)) {
@@ -822,7 +823,7 @@ export const FileSystem = {
             
             // note: exclude includes already-searched paths in the recursive case
             if (!options.exclude.has(path)) {
-                const absolutePathVersion = makeAbsolutePath(path)
+                const absolutePathVersion = FileSystem.makeAbsolutePath(path)
                 options.exclude.add(absolutePathVersion)
                 options.maxDepth -= 1
                 
@@ -951,11 +952,11 @@ export const FileSystem = {
         return asyncIteratorToList(FileSystem.recursivelyIterateItemsIn(pathOrFileInfo, options))
     },
     async * globIterator(pattern, options={startPath:null}) {
-        pattern = normalizePath(pattern)
+        pattern = FileSystem.normalizePath(pattern)
         var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "./"
         const originalStartPath = startPath
-        startPath = makeAbsolutePath(startPath)
+        startPath = FileSystem.makeAbsolutePath(startPath)
         const firstGlob = pattern.indexOf("*")
         if (firstGlob != -1) {
             const startingString = pattern.slice(0,firstGlob)
@@ -974,7 +975,7 @@ export const FileSystem = {
         if (pattern.match(/\*\*/)) {
             maxDepthFromRoot = Infinity
         } else {
-            maxDepthFromRoot = `${makeAbsolutePath(startPath)}/${pattern}`.split("/").length-1
+            maxDepthFromRoot = `${FileSystem.makeAbsolutePath(startPath)}/${pattern}`.split("/").length-1
         }
         
         const fullPattern = `${startPath}/${pattern}`
@@ -988,7 +989,7 @@ export const FileSystem = {
         }
         const partialRegex = new RegExp(partialRegexString)
         for await (const eachPath of FileSystem.iteratePathsIn(startPath, { recursively: true, maxDepthFromRoot, ...iteratePathsOptions, shouldntExplore: (eachPath3) => !eachPath3.match(partialRegex) })) {
-            if (eachPath.match(regex) || makeAbsolutePath(eachPath).match(regex)) {
+            if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
                 yield FileSystem.makeRelativePath({
                     from: originalStartPath,
                     to: eachPath,
@@ -1165,7 +1166,7 @@ export const FileSystem = {
             return cache[path]
         }
         // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
-        const [ folders, name, extension ] = FileSystem.pathPieces(makeAbsolutePath(path))
+        const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
         let topDownPath = ``
         for (const eachFolderName of folders) {
             topDownPath += `/${eachFolderName}`
@@ -1204,7 +1205,7 @@ export const FileSystem = {
         const startPath = start || FileSystem.pathOfCaller(1)
         const nearestPath = await FileSystem.walkUpUntil(path, startPath)
         if (nearestPath) {
-            const absolutePath = makeAbsolutePath(`${nearestPath}/${path}`)
+            const absolutePath = FileSystem.makeAbsolutePath(`${nearestPath}/${path}`)
             return import(Path.toFileUrl(absolutePath).href)
         } else {
             throw Error(`Tried to walkUpImport ${path}, starting at ${startPath}, but was unable to find any files`)
@@ -1213,7 +1214,7 @@ export const FileSystem = {
     async withPwd(tempPwd,func) {
         const originalPwd = FileSystem.pwd
         const originalPwdEnvVar = Deno.env.get("PWD")
-        tempPwd = makeAbsolutePath(tempPwd)
+        tempPwd = FileSystem.makeAbsolutePath(tempPwd)
         try {
             FileSystem.pwd = tempPwd
             Deno.env.set("PWD",tempPwd)
@@ -1232,11 +1233,11 @@ export const FileSystem = {
         get join()              { return FileSystem.join             },
         get thisFile()          { return FileSystem.thisFile         },
         get thisFolder()        { return FileSystem.thisFolder       },
-        get normalize()         { return normalizePath        },
+        get normalize()         { return FileSystem.normalizePath        },
         get isAbsolutePath()    { return FileSystem.isAbsolutePath   },
         get isRelativePath()    { return FileSystem.isRelativePath   },
         get makeRelativePath()  { return FileSystem.makeRelativePath },
-        get makeAbsolutePath()  { return makeAbsolutePath },
+        get makeAbsolutePath()  { return FileSystem.makeAbsolutePath },
         get pathDepth()         { return FileSystem.pathDepth        },
         get pathPieces()        { return FileSystem.pathPieces       },
         get extendName()        { return FileSystem.extendName       },
@@ -1427,7 +1428,7 @@ export const FileSystem = {
                 pathChain.push(path)
             }
 
-            path = normalizePath(path)
+            path = FileSystem.normalizePath(path)
             if (originalWasItem) {
                 return new PathInfo({path})
             } else {
@@ -1440,7 +1441,7 @@ export const FileSystem = {
                 return cache[path]
             }
             // on hardpaths, there are no symbolically linked parent folders, and the path is (must be) absolute
-            const [ folders, name, extension ] = FileSystem.pathPieces(makeAbsolutePath(path))
+            const [ folders, name, extension ] = FileSystem.pathPieces(FileSystem.makeAbsolutePath(path))
             let topDownPath = ``
             for (const eachFolderName of folders) {
                 topDownPath += `/${eachFolderName}`
@@ -1509,7 +1510,7 @@ export const FileSystem = {
             path = pathStandardize(path)
             const {overwrite, renameExtension} = defaultOptionsHelper(options)
             path = path.path || path // if given PathInfo object
-            path = makeAbsolutePath(path)
+            path = FileSystem.makeAbsolutePath(path)
             const parentPath = Path.dirname(path)
             // root is always a folder
             if (parentPath == path) {
