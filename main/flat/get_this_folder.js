@@ -11,11 +11,11 @@ export function getThisFolder() { // FIXME: fails inside of libraries that are p
     
     // if valid file
     // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-    const firstPath = filePaths[0]
-    if (firstPath) {
+    const secondPath = filePaths[1]
+    if (secondPath) {
         try {
-            if (Deno.statSync(firstPath).isFile) {
-                return PathTools.dirname(firstPath)
+            if (Deno.statSync(secondPath).isFile) {
+                return PathTools.dirname(secondPath)
             }
         } catch (error) {
         }
