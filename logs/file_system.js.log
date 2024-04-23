@@ -2,7 +2,7 @@ FileSystem.thisFile is: /Users/jeffhykin/repos/quickr/main/file_system.js
 FileSystem.thisFolder is: /Users/jeffhykin/repos/quickr/main
 FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 [
-  PathInfo {
+  Path {
     path: "../main/stream_tools.js",
     _lstat: {
       isFile: true,
@@ -12,7 +12,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2024-02-05T01:09:57.252Z,
       atime: 2024-02-05T01:09:57.286Z,
       birthtime: 2022-11-27T00:46:17.958Z,
-      dev: 16777232,
+      dev: 16777231,
       ino: 8186842,
       mode: 33188,
       nlink: 1,
@@ -28,7 +28,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  PathInfo {
+  Path {
     path: "../main/console.js",
     _lstat: {
       isFile: true,
@@ -38,7 +38,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2024-02-14T20:24:03.841Z,
       atime: 2024-03-14T21:09:35.360Z,
       birthtime: 2023-11-16T23:50:40.077Z,
-      dev: 16777232,
+      dev: 16777231,
       ino: 51396631,
       mode: 33188,
       nlink: 1,
@@ -54,7 +54,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  PathInfo {
+  Path {
     path: "../main/run.js",
     _lstat: {
       isFile: true,
@@ -64,7 +64,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2024-01-23T22:32:36.858Z,
       atime: 2024-02-22T20:45:05.999Z,
       birthtime: 2023-09-02T21:15:20.179Z,
-      dev: 16777232,
+      dev: 16777231,
       ino: 40800423,
       mode: 33188,
       nlink: 1,
@@ -80,17 +80,17 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  PathInfo {
+  Path {
     path: "../main/file_system.js",
     _lstat: {
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 81585,
-      mtime: 2024-03-26T21:04:21.988Z,
-      atime: 2024-03-26T21:04:22.023Z,
+      size: 75419,
+      mtime: 2024-04-23T12:52:52.032Z,
+      atime: 2024-04-23T12:55:33.036Z,
       birthtime: 2023-08-20T14:27:58.024Z,
-      dev: 16777232,
+      dev: 16777231,
       ino: 40021316,
       mode: 33188,
       nlink: 1,
@@ -98,7 +98,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 160,
+      blocks: 152,
       isBlockDevice: false,
       isCharDevice: false,
       isFifo: false,
@@ -106,7 +106,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  PathInfo {
+  Path {
     path: "../main/operating_system.js",
     _lstat: {
       isFile: true,
@@ -116,7 +116,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T16:23:39.690Z,
       atime: 2022-11-27T00:43:24.359Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777232,
+      dev: 16777231,
       ino: 2917675,
       mode: 33188,
       nlink: 1,
@@ -132,7 +132,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
-  PathInfo {
+  Path {
     path: "../main/test.ignore.js",
     _lstat: {
       isFile: true,
@@ -142,7 +142,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T18:40:58.703Z,
       atime: 2022-11-06T18:40:59.129Z,
       birthtime: 2022-11-06T18:27:31.934Z,
-      dev: 16777232,
+      dev: 16777231,
       ino: 6675855,
       mode: 33188,
       nlink: 1,
@@ -194,6 +194,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../run/tests",
   "../run/made-with-webassembly",
   "../run/tests.ps1",
+  "../main/flat",
   "../main/stream_tools.js",
   "../main/console.js",
   "../main/run.js",
@@ -206,6 +207,13 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../logs/tests/run.errors.log",
   "../logs/tests/run.grep_path.txt",
   "../logs/fs_test/dummy.txt",
+  "../main/flat/_path_standardize.js",
+  "../main/flat/fs_merge.js",
+  "../main/flat/normalize_path.js",
+  "../main/flat/path.js",
+  "../main/flat/make_absolute_path.js",
+  "../main/flat/iterate_items_in.js",
+  "../main/flat/path_info.js",
   "../main/wip/lg2.wasm.binaryified.js",
   "../main/wip/_convert.js",
   "../main/wip/sprinter.js",
@@ -256,6 +264,14 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../output.ignore",
   "../.git",
   "../main",
+  "../main/flat",
+  "../main/flat/_path_standardize.js",
+  "../main/flat/fs_merge.js",
+  "../main/flat/normalize_path.js",
+  "../main/flat/path.js",
+  "../main/flat/make_absolute_path.js",
+  "../main/flat/iterate_items_in.js",
+  "../main/flat/path_info.js",
   "../main/stream_tools.js",
   "../main/console.js",
   "../main/run.js",

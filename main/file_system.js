@@ -9,6 +9,9 @@ import { isGeneratorType } from "https://deno.land/x/good@1.6.0.1/value.js"
 import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
 
 import { makeAbsolutePath } from "./flat/make_absolute_path.js"
+import { pathStandardize } from "./flat/_path_standardize.js"
+import { normalizePath } from "./flat/normalize_path.js"
+import { Path as PathInfo } from "./flat/path.js"
 
 // TODO:
     // ensure that all path arguments also accept PathInfo objects
@@ -41,200 +44,6 @@ function setFalseBit(n, bit) {
     return ~(~n | (1 << bit))
 }
 
-class PathInfo {
-    constructor({path,_lstatData,_statData}) {
-        this.path = path
-        // expects doesntExist, path,
-        this._lstat = _lstatData
-        this._data = _statData
-    }
-
-    // 
-    // core data sources
-    // 
-    refresh() {
-        this._lstat = null
-        this._data = null
-    }
-    get lstat() {
-        if (!this._lstat) {
-            try {
-                this._lstat = Deno.lstatSync(this.path)
-            } catch (error) {
-                this._lstat = {doesntExist: true}
-            }
-        }
-        return this._lstat
-    }
-    get stat() {
-        // compute if not cached
-        if (!this._stat) {
-            const lstat = this.lstat
-            if (!lstat.isSymlink) {
-                this._stat = {
-                    isBrokenLink: false,
-                    isLoopOfLinks: false,
-                }
-            // if symlink
-            } else {
-                try {
-                    this._stat = Deno.statSync(this.path) 
-                } catch (error) {
-                    this._stat = {}
-                    if (error.message.match(/^Too many levels of symbolic links/)) {
-                        this._stat.isBrokenLink = true
-                        this._stat.isLoopOfLinks = true
-                    } else if (error.message.match(/^No such file or directory/)) {
-                        this._stat.isBrokenLink = true
-                    } else {
-                        // probably a permission error
-                        // TODO: improve how this is handled
-                        throw error
-                    }
-                }
-            }
-        }
-        return this._stat
-    }
-
-    // 
-    // main attributes
-    // 
-    get exists() {
-        const lstat = this.lstat
-        return !lstat.doesntExist
-    }
-    get name() {
-        return Path.parse(this.path).name
-    }
-    get extension() {
-        return Path.parse(this.path).ext
-    }
-    get basename() {
-        return this.path && Path.basename(this.path)
-    }
-    get parentPath() {
-        return this.path && Path.dirname(this.path)
-    }
-    relativePathFrom(parentPath) {
-        return Path.relative(parentPath, this.path)
-    }
-    get link() {
-        const lstat = this.lstat
-        if (lstat.isSymlink) {
-            return Deno.readLinkSync(this.path)
-        } else {
-            return null
-        }
-    }
-    get isSymlink() {
-        const lstat = this.lstat
-        return !!lstat.isSymlink
-    }
-    get isRelativeSymlink() {
-        const lstat = this.lstat
-        const isNotSymlink = !lstat.isSymlink
-        if (isNotSymlink) {
-            return false
-        }
-        const relativeOrAbsolutePath = Deno.readLinkSync(this.path)
-        return !Path.isAbsolute(relativeOrAbsolutePath)
-    }
-    get isAbsoluteSymlink() {
-        const lstat = this.lstat
-        const isNotSymlink = !lstat.isSymlink
-        if (isNotSymlink) {
-            return false
-        }
-        const relativeOrAbsolutePath = Deno.readLinkSync(this.path)
-        return Path.isAbsolute(relativeOrAbsolutePath)
-    }
-    get isBrokenLink() {
-        const stat = this.stat
-        return !!stat.isBrokenLink
-    }
-    get isLoopOfLinks() {
-        const stat = this.stat
-        return !!stat.isLoopOfLinks
-    }
-    get isFile() {
-        const lstat = this.lstat
-        // if doesnt exist then its not a file!
-        if (lstat.doesntExist) {
-            return false
-        }
-        // if hardlink
-        if (!lstat.isSymlink) {
-            return lstat.isFile
-        // if symlink
-        } else {
-            return !!this.stat.isFile
-        }
-    }
-    get isFolder() {
-        const lstat = this.lstat
-        // if doesnt exist then its not a folder!
-        if (lstat.doesntExist) {
-            return false
-        }
-        // if hardlink
-        if (!lstat.isSymlink) {
-            return lstat.isDirectory
-        // if symlink
-        } else {
-            return !!this.stat.isDirectory
-        }
-    }
-    get sizeInBytes() {
-        const lstat = this.lstat
-        return lstat.size
-    }
-    get permissions() {
-        const {mode} = this.lstat
-        // see: https://stackoverflow.com/questions/15055634/understanding-and-decoding-the-file-mode-value-from-stat-function-output#15059931
-        return {
-            owner: {        //          rwxrwxrwx
-                canRead:    !!(0b0000000100000000 & mode),
-                canWrite:   !!(0b0000000010000000 & mode),
-                canExecute: !!(0b0000000001000000 & mode),
-            },
-            group: {
-                canRead:    !!(0b0000000000100000 & mode),
-                canWrite:   !!(0b0000000000010000 & mode),
-                canExecute: !!(0b0000000000001000 & mode),
-            },
-            others: {
-                canRead:    !!(0b0000000000000100 & mode),
-                canWrite:   !!(0b0000000000000010 & mode),
-                canExecute: !!(0b0000000000000001 & mode),
-            },
-        }
-    }
-    
-    // aliases
-    get isDirectory() { return this.isFolder }
-    get dirname()     { return this.parentPath }
-
-    toJSON() {
-        return {
-            exists: this.exists,
-            name: this.name,
-            extension: this.extension,
-            basename: this.basename,
-            parentPath: this.parentPath,
-            isSymlink: this.isSymlink,
-            isBrokenLink: this.isBrokenLink,
-            isLoopOfLinks: this.isLoopOfLinks,
-            isFile: this.isFile,
-            isFolder: this.isFolder,
-            sizeInBytes: this.sizeInBytes,
-            permissions: this.permissions,
-            isDirectory: this.isDirectory,
-            dirname: this.dirname,
-        }
-    }
-}
-
 const defaultOptionsHelper = (options)=>({
     renameExtension: options.renameExtension || FileSystem.defaultRenameExtension,
     overwrite: options.overwrite,
@@ -248,15 +57,6 @@ const grabPathLock = async (path)=> {
     }
     locker[path] = true
 }
-const pathStandardize = (path)=>{
-    // PathInfo object to path
-    path = path.path||path
-    // url-like file path to POSIX path
-    if (typeof path == 'string' && path.startsWith("file:///")) {
-        path = Path.fromFileUrl(path)
-    }
-    return path
-}
 export const FileSystem = {
     defaultRenameExtension: ".old",
     denoExecutablePath: Deno.execPath(),
@@ -265,13 +65,13 @@ export const FileSystem = {
     basename: Path.basename,
     extname: Path.extname,
     join: Path.join,
-    normalize: (path)=>Path.normalize(pathStandardize(path)).replace(/\/$/,""),
+    normalize: normalizePath,
     isAbsolutePath: Path.isAbsolute,
     isRelativePath: (...args)=>!Path.isAbsolute(...args),
     makeRelativePath: ({from, to}) => Path.relative(from.path || from, to.path || to),
     makeAbsolutePath,
     pathDepth(path) {
-        path = FileSystem.normalize(path)
+        path = normalizePath(path)
         let count = 0
         for (const eachChar of (path.path||path)) {
             if (eachChar == "/") {
@@ -326,7 +126,7 @@ export const FileSystem = {
      */
     allParentPaths(path) {
         const pathStartsWithDotSlash = path.startsWith("./")
-        path = FileSystem.normalize(path)
+        path = normalizePath(path)
         // just dot (or dot-slash) has no parents
         if (path === ".") {
             return []
@@ -602,7 +402,7 @@ export const FileSystem = {
             pathChain.push(path)
         }
 
-        path = FileSystem.normalize(path)
+        path = normalizePath(path)
         if (originalWasItem) {
             return new PathInfo({path})
         } else {
@@ -790,7 +590,7 @@ export const FileSystem = {
     },
     async relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null }) {
         const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
-        const newItemPath = FileSystem.normalize((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
+        const newItemPath = normalizePath((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -813,7 +613,7 @@ export const FileSystem = {
     },
     async absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null, }) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
-        const newItemPath = FileSystem.normalize(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
+        const newItemPath = normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -835,7 +635,7 @@ export const FileSystem = {
     },
     async hardLink({existingItem, newItem, force=true, overwrite=false, renameExtension=null, hardLink=false}) {
         existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
-        const newItemPath = FileSystem.normalize(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
+        const newItemPath = normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
         
         const existingItemDoesntExist = (await Deno.lstat(existingItem).catch(()=>({doesntExist: true}))).doesntExist
         // if the item doesnt exists
@@ -1151,7 +951,7 @@ export const FileSystem = {
         return asyncIteratorToList(FileSystem.recursivelyIterateItemsIn(pathOrFileInfo, options))
     },
     async * globIterator(pattern, options={startPath:null}) {
-        pattern = FileSystem.normalize(pattern)
+        pattern = normalizePath(pattern)
         var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "./"
         const originalStartPath = startPath
@@ -1432,7 +1232,7 @@ export const FileSystem = {
         get join()              { return FileSystem.join             },
         get thisFile()          { return FileSystem.thisFile         },
         get thisFolder()        { return FileSystem.thisFolder       },
-        get normalize()         { return FileSystem.normalize        },
+        get normalize()         { return normalizePath        },
         get isAbsolutePath()    { return FileSystem.isAbsolutePath   },
         get isRelativePath()    { return FileSystem.isRelativePath   },
         get makeRelativePath()  { return FileSystem.makeRelativePath },
@@ -1627,7 +1427,7 @@ export const FileSystem = {
                 pathChain.push(path)
             }
 
-            path = FileSystem.normalize(path)
+            path = normalizePath(path)
             if (originalWasItem) {
                 return new PathInfo({path})
             } else {
