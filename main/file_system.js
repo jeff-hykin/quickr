@@ -1629,6 +1629,28 @@ export const FileSystem = {
             }
             return output
         },
+        absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null, }) {
+            existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
+            const newItemPath = FileSystem.normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
+            
+            const existingItemDoesntExist = (Deno.lstatSync(existingItem).catch(()=>({doesntExist: true}))).doesntExist
+            // if the item doesnt exists
+            if (!allowNonExistingTarget && existingItemDoesntExist) {
+                throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItemPath:${newItemPath}\nbut existingItem didn't actually exist`)
+            } else {
+                const parentOfNewItem = FileSystem.parentPath(newItemPath)
+                FileSystem.sync.ensureIsFolder(parentOfNewItem, {overwrite, renameExtension})
+                const hardPathToNewItem = `${FileSystem.syncmakeHardPathTo(parentOfNewItem)}/${FileSystem.basename(newItemPath)}`
+                if (force) {
+                    FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
+                }
+                
+                return Deno.symlinkSync(
+                    FileSystem.makeAbsolutePath(existingItem), 
+                    newItemPath,
+                )
+            }
+        },
         relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null }) {
             const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
             const newItemPath = FileSystem.normalizePath((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
