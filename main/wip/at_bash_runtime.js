@@ -1,5 +1,9 @@
 import { deferredPromise } from "https://deno.land/x/good/flattened/deferred_promise.js"
 
+// tasks:
+    // get the "if" statement working
+    // get a bit of the parameter expansion working for basic commands
+
 const reservedCharMap = {
     "&": "\\\\x26",
     "!": "\\\\x21",
