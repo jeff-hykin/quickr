@@ -19,8 +19,6 @@ import { Path as PathInfo } from "./flat/path.js"
     // check LF vs CRLF detection
     // add API's
         // rename function
-        // move function
-            // needs to handle relative symbolic links
         // copy function
             // decide how to handle symlinks
         // merge folders
@@ -343,12 +341,6 @@ export const FileSystem = {
         if (force) {
             FileSystem.sync.clearAPathFor(newPath, { overwrite, renameExtension })
         }
-        // FIXME: this needs to recursively check for realtive symlinks!
-        //          if there is a relative symlink to something OUTSIDE the folder being moved, it needs to be adjusted in order to not break
-        //          if there is a relative symlink to something INSIDE the folder being moved, then it doesn't need to be adjusted
-        //          however "inside" and "outside" are difficult because folders can be symlinks.
-        //              So find the absolute path to the target, check if that hard path is external or internal
-        //          another edgecase is what if the folder contains a symlink with an absolute path of the folder being moved (or something inside of the folder being moved)
         await moveAndRename(oldPath, newPath)
     },
     async remove(fileOrFolder) {
@@ -578,11 +570,10 @@ export const FileSystem = {
             }
         }
     },
-    // FIXME: make this work for folders with many options for how to handle symlinks
     async copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
         const existingItemDoesntExist = (await Deno.stat(from).catch(()=>({doesntExist: true}))).doesntExist
         if (existingItemDoesntExist) {
-            throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
+            throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\ ∝n`)
         }
         if (force) {
             FileSystem.sync.clearAPathFor(to, { overwrite, renameExtension })
@@ -1637,6 +1628,62 @@ export const FileSystem = {
                 }
             }
             return output
+        },
+        relativeLink({existingItem, newItem, force=true, overwrite=false, allowNonExistingTarget=false, renameExtension=null }) {
+            const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
+            const newItemPath = FileSystem.normalizePath((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
+            
+            const existingItemDoesntExist = (Deno.lstatSync(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
+            // if the item doesnt exists
+            if (!allowNonExistingTarget && existingItemDoesntExist) {
+                throw Error(`\nTried to create a relativeLink between existingItem:${existingItemPath}, newItem:${newItemPath}\nbut existingItem didn't actually exist`)
+            } else {
+                const parentOfNewItem = FileSystem.parentPath(newItemPath)
+                FileSystem.sync.ensureIsFolder(parentOfNewItem, {overwrite, renameExtension})
+                const hardPathToNewItem = `${FileSystem.sync.makeHardPathTo(parentOfNewItem)}/${FileSystem.basename(newItemPath)}`
+                const hardPathToExistingItem = FileSystem.sync.makeHardPathTo(existingItemPath)
+                const pathFromNewToExisting = Path.relative(hardPathToNewItem, hardPathToExistingItem).replace(/^\.\.\//,"") // all paths should have the "../" at the begining
+                if (force) {
+                    FileSystem.sync.clearAPathFor(hardPathToNewItem, {overwrite, renameExtension})
+                }
+                return Deno.symlinkSync(
+                    pathFromNewToExisting,
+                    hardPathToNewItem,
+                )
+            }
+        },
+        move({ path, item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
+            item = item||path
+            // force     => will MOVE other things out of the way until the job is done
+            // overwrite => will DELETE things out of the way until the job is done 
+            
+            const oldPath = item.path || item
+            const oldName = FileSystem.basename(oldPath)
+            const pathInfo = item instanceof Object || FileSystem.sync.info(oldPath)
+            const newPath = `${newParentFolder||FileSystem.parentPath(oldPath)}/${newName || oldName}`
+
+            // if its a relative-linked item then the relative link will need to be adjusted after the move
+            // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
+            if (pathInfo.isSymlink && !item.isBrokenLink) {
+                const link = Deno.readLinkSync(pathInfo.path)
+                if (!Path.isAbsolute(link)) {
+                    const linkTargetBeforeMove = `${FileSystem.parentPath(pathInfo.path)}/${link}`
+                    FileSystem.sync.relativeLink({
+                        existingItem: linkTargetBeforeMove,
+                        newItem: newPath,
+                        force,
+                        overwrite,
+                        renameExtension,
+                    })
+                    // remove the original since it was "moved"
+                    FileSystem.sync.remove(pathInfo)
+                }
+            }
+            
+            if (force) {
+                FileSystem.sync.clearAPathFor(newPath, { overwrite, renameExtension })
+            }
+            await moveAndRenameSync(oldPath, newPath)
         },
         // TODO:
             // move
