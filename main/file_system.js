@@ -1,6 +1,5 @@
-import { ensure } from 'https://deno.land/x/ensure/mod.ts'; ensure({ denoVersion: "1.17.1", })
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
-import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy } from "https://deno.land/std@0.133.0/fs/mod.ts"
+import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy, copySync as basicCopySync } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@1.6.0.1/string.js"
 import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.6.0.1/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
@@ -13,14 +12,22 @@ import { makeAbsolutePath } from "./flat/make_absolute_path.js"
 import { normalizePath } from "./flat/normalize_path.js"
 import { Path as PathInfo } from "./flat/path.js"
 
-// TODO:
-    // ensure that all path arguments also accept PathInfo objects
-    // make sure the .sync api is in parity with the async API
+// DONE when:
+    // import Deno api's
+    // all methods are flattened out
+    // slightly redone Path class
+    // good API for file locking
+    // fenced-off file locking
+    // consistent argument interface (probably always named arguments)
+        // consistent handling of path string and path class
+    // sync API on parity with async API
+
+// extra:
+    // folder recursive merge function
     // check LF vs CRLF detection
-    // add API's
+    // smart rate-limiting on concurrent responses to async iterator options
+    // add path API's
         // rename function
-        // copy function
-            // decide how to handle symlinks
         // merge folders
         // get/set item owner
         // current user's username with Deno.getUid()
@@ -32,7 +39,6 @@ import { Path as PathInfo } from "./flat/path.js"
         // tempfolder
         // readFileStream
 
-const emptyIterator = (async function *() {})()
 const cache = {}
 
 function setTrueBit(n, bit) {
@@ -343,6 +349,12 @@ export const FileSystem = {
         }
         await moveAndRename(oldPath, newPath)
     },
+    async rename({ from, to, force=true, overwrite=false, renameExtension=null }) {
+        item = item||path
+        // force     => will MOVE other things out of the way until the job is done
+        // overwrite => will DELETE things out of the way until the job is done 
+        return FileSystem.move({ path: from, newParentFolder: FileSystem.parentPath(to), newName: FileSystem.basename(to), force, overwrite, renameExtension })
+    },
     async remove(fileOrFolder) {
         fileOrFolder = pathStandardize(fileOrFolder)
         // for `await FileSystem.remove(glob(`*.js`))`
@@ -573,7 +585,7 @@ export const FileSystem = {
     async copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
         const existingItemDoesntExist = (await Deno.stat(from).catch(()=>({doesntExist: true}))).doesntExist
         if (existingItemDoesntExist) {
-            throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\ ∝n`)
+            throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
         }
         if (force) {
             FileSystem.sync.clearAPathFor(to, { overwrite, renameExtension })
@@ -1707,12 +1719,17 @@ export const FileSystem = {
             }
             await moveAndRenameSync(oldPath, newPath)
         },
-        // TODO:
-            // move
-            // ensureIsFile
-            // copy
-            // relativeLink
-            // absoluteLink
+        copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
+            const existingItemDoesntExist = (Deno.statSync(from).catch(()=>({doesntExist: true}))).doesntExist
+            if (existingItemDoesntExist) {
+                throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
+            }
+            if (force) {
+                FileSystem.sync.clearAPathFor(to, { overwrite, renameExtension })
+            }
+            return basicCopySync(from, to, {force, preserveTimestamps: true})
+        },
+        // sync TODO:
             // iterateBasenamesIn
             // iteratePathsIn
             // iterateItemsIn
