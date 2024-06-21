@@ -68,3 +68,10 @@ FileSystem.relativeLink({ existingItem: exampleFile, newItem: `${FileSystem.work
 console.log(`writing hello2 to ${hardlinkPath}`)
 await FileSystem.append({path: hardlinkPath, data: "hello2"})
 console.log(`exampleFile contents ${await FileSystem.read(exampleFile)}`)
+
+FileSystem.sync.rename({
+    from: hardlinkPath,
+    to: hardlinkPath+".renamed",
+})
+console.log(`hardlinkPath+".renamed" is:`)
+console.log(FileSystem.sync.read(hardlinkPath+".renamed"))

@@ -350,7 +350,6 @@ export const FileSystem = {
         await moveAndRename(oldPath, newPath)
     },
     async rename({ from, to, force=true, overwrite=false, renameExtension=null }) {
-        item = item||path
         // force     => will MOVE other things out of the way until the job is done
         // overwrite => will DELETE things out of the way until the job is done 
         return FileSystem.move({ path: from, newParentFolder: FileSystem.parentPath(to), newName: FileSystem.basename(to), force, overwrite, renameExtension })
@@ -1717,7 +1716,12 @@ export const FileSystem = {
             if (force) {
                 FileSystem.sync.clearAPathFor(newPath, { overwrite, renameExtension })
             }
-            await moveAndRenameSync(oldPath, newPath)
+            return moveAndRenameSync(oldPath, newPath)
+        },
+        rename({ from, to, force=true, overwrite=false, renameExtension=null }) {
+            // force     => will MOVE other things out of the way until the job is done
+            // overwrite => will DELETE things out of the way until the job is done 
+            return FileSystem.sync.move({ path: from, newParentFolder: FileSystem.parentPath(to), newName: FileSystem.basename(to), force, overwrite, renameExtension })
         },
         copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
             const existingItemDoesntExist = (Deno.statSync(from).catch(()=>({doesntExist: true}))).doesntExist

@@ -5,8 +5,8 @@ hello
 hello
 hello
 writing Uint8Array(6) [ 104, 101, 108, 108, 111, 10 ]
-Bang
 hello
+Bang
 Bang Bang
 Bang Bang
 pathToGrep is: "/usr/bin/grep\n"

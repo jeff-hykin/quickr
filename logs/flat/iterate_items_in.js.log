@@ -8,7 +8,6 @@
   "../../main/wip",
   "../../main/test.ignore.js",
   "../../main/flat/_path_standardize.js",
-  "../../main/flat/fs_merge.js",
   "../../main/flat/normalize_path.js",
   "../../main/flat/path.js",
   "../../main/flat/get_this_folder.js",
@@ -19,10 +18,11 @@
   "../../main/wip/_convert.js",
   "../../main/wip/sprinter.js",
   "../../main/wip/smash.js",
-  "../../main/wip/git_stuff.js",
   "../../main/wip/git.js",
   "../../main/wip/runner.js",
-  "../../main/wip/run2.js",
-  "../../main/wip/base_run.js",
-  "../../main/wip/bash_to_js.js"
+  "../../main/wip/fs_merge.js",
+  "../../main/wip/bash_to_js.ignore.js",
+  "../../main/wip/at_bash_runtime.js",
+  "../../main/wip/git_wrapper.js",
+  "../../main/wip/base_run.js"
 ]
