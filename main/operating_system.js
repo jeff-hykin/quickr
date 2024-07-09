@@ -114,4 +114,24 @@ export const OperatingSystem = {
             return await stdoutRun(['id', '-u', OperatingSystem.username,])
         }
     },
+    async openUrl(url) {
+        if (Deno.build.os == "darwin") {
+            const command = new Deno.Command("open", {
+                args: [url],
+            })
+            return await command.output()
+        } else if (Deno.build.os == "windows") {
+            const command = new Deno.Command("start", {
+                args: [url],
+            })
+            return await command.output()
+        } else if (Deno.build.os == "linux") {
+            const command = new Deno.Command("xdg-open", {
+                args: [url],
+            })
+            return await command.output()
+        } else {
+            throw new Error(`Unsupported OS: ${Deno.build.os}`)
+        }
+    },
 }
