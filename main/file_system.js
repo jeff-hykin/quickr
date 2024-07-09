@@ -209,7 +209,7 @@ export const FileSystem = {
     },
     get thisFile() {
         const err = new Error()
-        const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
+        const filePaths = [...err.stack.matchAll(/^.+(file:\/\/\/[\w\W]*?):/gm)].map(each=>each[1]&&Path.fromFileUrl(each[1]))
         
         // if valid file
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
@@ -227,7 +227,7 @@ export const FileSystem = {
     },
     get thisFolder() { // FIXME: fails inside of libraries that are pulled from URL's
         const err = new Error()
-        const filePaths = findAll(/^.+file:\/\/(\/[\w\W]*?):/gm, err.stack).map(each=>each[1])
+        const filePaths = [...err.stack.matchAll(/^.+(file:\/\/\/[\w\W]*?):/gm)].map(each=>each[1]&&Path.fromFileUrl(each[1]))
         
         // if valid file
         // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
