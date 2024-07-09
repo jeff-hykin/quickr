@@ -65,13 +65,15 @@ const hardlinkPath = `${FileSystem.workingDirectory}/dummy_hardlink.txt`
 FileSystem.hardLink({ existingItem: exampleFile, newItem: hardlinkPath, overwrite: true })
 FileSystem.absoluteLink({ existingItem: exampleFile, newItem: `${FileSystem.workingDirectory}/dummy_absolute.txt`, overwrite: true })
 FileSystem.relativeLink({ existingItem: exampleFile, newItem: `${FileSystem.workingDirectory}/dummy_relative.txt`, overwrite: true })
-console.log(`writing hello2 to ${hardlinkPath}`)
-await FileSystem.append({path: hardlinkPath, data: "hello2"})
+console.log(`appending hello2 to ${hardlinkPath}`)
+await FileSystem.append({path: hardlinkPath, data: "hello2", overwrite: true})
+console.log(`hardlinkPath contents ${await FileSystem.read(hardlinkPath)}`)
 console.log(`exampleFile contents ${await FileSystem.read(exampleFile)}`)
 
 FileSystem.sync.rename({
     from: hardlinkPath,
     to: hardlinkPath+".renamed",
+    overwrite: true,
 })
 console.log(`hardlinkPath+".renamed" is:`)
 console.log(FileSystem.sync.read(hardlinkPath+".renamed"))

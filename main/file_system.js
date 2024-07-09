@@ -1149,17 +1149,19 @@ export const FileSystem = {
                 FileSystem.sync.remove(path)
             }
         }
-        const file = await Deno.open(path, {read:true, write: true, create: true})
-        await file.seek(0, Deno.SeekMode.End)
-        // string
+        // convert string to bytes
         if (typeof data == 'string') {
-            await file.write(new TextEncoder().encode(data))
-        // assuming bytes (maybe in the future, readables and pipes will be supported)
-        } else {
-            await file.write(data)
+            data = new TextEncoder().encode(data)
         }
+        // using the async version and awaiting HAS PROBLEMS
+        // on 1.42.1 (e.g. 2024) it creates a race condition, where reading file immediately after says "no such file"
+        // so we have to use the sync version isntead
+        // in fact, this problem might exist for other API's as well but has not been found yet
+        const file = Deno.openSync(path, {read:true, write: true, create: true})
+        file.seekSync(0, Deno.SeekMode.End)
+        file.writeSync(data)
         // TODO: consider the possibility of this same file already being open somewhere else in the program, address/test how that might lead to problems
-        await file.close()
+        file.close()
         delete locker[path]
     },
     async makeHardPathTo(path, options={}) {
