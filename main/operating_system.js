@@ -121,8 +121,8 @@ export const OperatingSystem = {
             })
             return await command.output()
         } else if (Deno.build.os == "windows") {
-            const command = new Deno.Command("start", {
-                args: [url],
+            const command = new Deno.Command("powershell", {
+                args: ["Start-Process", url],
             })
             return await command.output()
         } else if (Deno.build.os == "linux") {
