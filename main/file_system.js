@@ -954,7 +954,7 @@ export const FileSystem = {
     recursivelyListItemsIn(pathOrFileInfo, options={onlyHardlinks: false, dontFollowSymlinks: false, searchOrder: 'breadthFirstSearch', maxDepth: Infinity, shouldntExplore:null, shouldntInclude:null, }) {
         return asyncIteratorToList(FileSystem.recursivelyIterateItemsIn(pathOrFileInfo, options))
     },
-    async * globIterator(pattern, options={startPath:null}) {
+    async * globIterator(pattern, options={startPath:null, returnFullPaths: false}) {
         pattern = FileSystem.normalizePath(pattern)
         var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "./"
@@ -994,10 +994,14 @@ export const FileSystem = {
         const partialRegex = new RegExp(partialRegexString)
         for await (const eachPath of FileSystem.iteratePathsIn(extendedStartPath, { recursively: true, maxDepthFromRoot, ...iteratePathsOptions, shouldntExplore: (eachInnerPath) => !eachInnerPath.match(partialRegex) })) {
             if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
-                yield FileSystem.makeRelativePath({
-                    from: originalStartPath,
-                    to: eachPath,
-                })
+                if (options.returnFullPaths) {
+                    yield eachPath
+                } else {
+                    yield FileSystem.makeRelativePath({
+                        from: originalStartPath,
+                        to: eachPath,
+                    })
+                }
             }
         }
     },
