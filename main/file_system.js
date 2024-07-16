@@ -2,7 +2,7 @@ import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy, copySync as basicCopySync } from "https://deno.land/std@0.133.0/fs/mod.ts"
 import { findAll } from "https://deno.land/x/good@1.6.0.1/string.js"
 import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.6.0.1/iterable.js"
-import { globToRegExp } from "https://deno.land/std@0.191.0/path/glob.ts"
+import { globToRegExp } from "https://deno.land/std@0.214.0/path/glob.ts";
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 import { isGeneratorType } from "https://deno.land/x/good@1.6.0.1/value.js"
 import { typedArrayClasses } from "https://deno.land/x/good@1.5.0.3/value.js"
@@ -11,6 +11,7 @@ import { pathStandardize } from "./flat/_path_standardize.js"
 import { makeAbsolutePath } from "./flat/make_absolute_path.js"
 import { normalizePath } from "./flat/normalize_path.js"
 import { Path as PathInfo } from "./flat/path.js"
+import { escapeGlob } from "./flat/escape_glob.js"
 
 // DONE when:
     // import Deno api's
@@ -958,39 +959,40 @@ export const FileSystem = {
         var { startPath, ...iteratePathsOptions } = options
         startPath = startPath || "./"
         const originalStartPath = startPath
-        startPath = FileSystem.makeAbsolutePath(startPath)
-        const firstGlob = pattern.indexOf("*")
-        if (firstGlob != -1) {
-            const startingString = pattern.slice(0,firstGlob)
+        const firstGlob = pattern.match(/[\[\*\{\?]/)
+        let extendedStartPath = startPath
+        if (firstGlob) {
+            const startingString = pattern.slice(0,firstGlob.index)
             const furthestConstantSlash = startingString.lastIndexOf("/")
             if (furthestConstantSlash != -1) {
                 if (pattern[0] == "/") {
-                    startPath = pattern.slice(0, furthestConstantSlash)
+                    extendedStartPath = pattern.slice(0, furthestConstantSlash)
                 } else {
-                    startPath = `${startPath}/${pattern.slice(0, furthestConstantSlash)}`
+                    extendedStartPath = `${extendedStartPath}/${pattern.slice(0, furthestConstantSlash)}`
                 }
             }
             pattern = pattern.slice(furthestConstantSlash+1, )
         }
-
+        extendedStartPath = FileSystem.makeAbsolutePath(extendedStartPath)
+        
         let maxDepthFromRoot
         if (pattern.match(/\*\*/)) {
             maxDepthFromRoot = Infinity
         } else {
-            maxDepthFromRoot = `${FileSystem.makeAbsolutePath(startPath)}/${pattern}`.split("/").length-1
+            maxDepthFromRoot = `${extendedStartPath}/${pattern}`.split("/").length-1
         }
         
-        const fullPattern = `${startPath}/${pattern}`
+        const fullPattern = `${escapeGlob(extendedStartPath)}/${pattern}`
         const regex = globToRegExp(fullPattern)
         const partials = fullPattern.split("/")
         let partialPattern = partials.shift()
-        let partialRegexString = `^\\.$|${globToRegExp(partialPattern).source}`
+        let partialRegexString = `^\\.$|${globToRegExp(partialPattern||"/").source}`
         for (const each of partials) {
             partialPattern += "/" + each
             partialRegexString += "|" + globToRegExp(partialPattern).source
         }
         const partialRegex = new RegExp(partialRegexString)
-        for await (const eachPath of FileSystem.iteratePathsIn(startPath, { recursively: true, maxDepthFromRoot, ...iteratePathsOptions, shouldntExplore: (eachPath3) => !eachPath3.match(partialRegex) })) {
+        for await (const eachPath of FileSystem.iteratePathsIn(extendedStartPath, { recursively: true, maxDepthFromRoot, ...iteratePathsOptions, shouldntExplore: (eachInnerPath) => !eachInnerPath.match(partialRegex) })) {
             if (eachPath.match(regex) || FileSystem.makeAbsolutePath(eachPath).match(regex)) {
                 yield FileSystem.makeRelativePath({
                     from: originalStartPath,
@@ -1756,3 +1758,4 @@ export const FileSystem = {
 }
 
 export const glob = FileSystem.glob
+export { escapeGlob as escapeGlob }
