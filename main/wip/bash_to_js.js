@@ -6,15 +6,20 @@ import { escapeJsString } from "https://deno.land/x/good@1.13.2.0/flattened/esca
 
 const parser = await parserFromWasm(bash) // path or Uint8Array 
 
-// TODO: test {}'s for command groups
-// every command (by definition) has:
-    // - return code
-    // - stdin
-    // - stdout
-    // - stderr
-    // - args
-// processes also have:
-    // - pid
+// TODO:
+    // {}'s for command groups
+    // start setting lastStatus at the end of the command
+    // figure out a better wrapper for $
+        // cleaner &&, || handling
+        // allow ENV up front
+    // work with background operator & (make it just run async, call .spawn())
+    // make a shim detector for builtins
+        // custom translate `cd` when its simple
+        // convert echo to console.log when its simple
+        // pwd command
+        // wait command
+        // shift (modifying args)
+    // fix over-inheritance of ENV
 
 const noComments = (list) => list.filter(each=>each.type!="comment")
 
@@ -389,7 +394,7 @@ async function _createAndRun(stringCommand) {
  *
  * @example
  * ```js
- * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi\necho hi > hi.txt\necho hi && echo bye`)
+ * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi\necho hi > hi.txt\necho hi && echo bye\necho "$(echo hi13)"`)
  * ```
  */
 export async function _run(maybeStrings, ...args){
@@ -635,6 +640,10 @@ function commandArgs2Code(node) {
             // <number>
         chunks.push(argInArray2Code(each))
     }
+    // if only one arg, no array needed
+    if (chunks.length == 2) {
+        return chunks[1]
+    }
     chunks.push("]")
     return chunks.join("")
 }
@@ -657,6 +666,7 @@ function argInArray2Code(node, directlyInsideDoubleQuotes=false) {
     if (pureArg != null) {
         return `${pureArg},`
     } else {
+        const { type, children } = node
         if (type == "simple_expansion" || (type == "expansion" && each.children[1].type == "variable_name" && each.text == `\${${each.children[1].text}}`)) {
             const name = each.children.find(each=>each.type=="variable_name")
             if (directlyInsideDoubleQuotes && name == "@") {
@@ -669,7 +679,7 @@ function argInArray2Code(node, directlyInsideDoubleQuotes=false) {
         } else if (type == "expansion" || type == "word") {
             return `...await shell.argExpansionPass(${escapeJsString(each.text)}),`
         } else if (type == "command_substitution") {
-            return `${compoundCommand2Code(each.children[1])},`
+            return `await ${compoundCommand2Code(each.children[1])}.text(),`
         } else if (type == "string") {
             let parts = ["["]
             for (const eachPart of each.children) {
@@ -683,6 +693,9 @@ function argInArray2Code(node, directlyInsideDoubleQuotes=false) {
                     const directlyInsideDoubleQuotes = true // this is needed for the edgecase of $@
                     parts.push(argInArray2Code(eachPart, directlyInsideDoubleQuotes))
                 }
+            }
+            if (parts.length == 2) {
+                return parts[1]
             }
             parts.push("].join('')")
             return parts.join("")

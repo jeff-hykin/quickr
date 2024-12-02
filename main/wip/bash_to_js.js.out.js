@@ -7,3 +7,4 @@ await $`echo hi > hi.txt`
 await $`echo hi`.then(and(()=>
     $`echo bye`
 ))
+await $`${[`echo`,await $`echo hi13`.text(),]}`
