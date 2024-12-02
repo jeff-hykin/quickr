@@ -19,8 +19,9 @@ const parser = await parserFromWasm(bash) // path or Uint8Array
 const noComments = (list) => list.filter(each=>each.type!="comment")
 
 // NOTE: this init function cannot use any closures (e.g. functions or vars) beacuse its .toString()'ed
-async function setup() {
+export async function setup() {
     const $ = (await import("https://deno.land/x/dax@0.39.2/mod.ts")).default
+    const { FileSystem } = (await import("https://deno.land/x/quickr@0.6.72/main/file_system.js"))
     const $$ = (...args)=>$(...args).noThrow()
     const reservedCharMap = {
         "&": "\\\\x26",
@@ -56,7 +57,7 @@ async function setup() {
 
     const RX_REGEXP_ESCAPE = new RegExp(
         `[${Object.values(reservedCharMap).join("")}]`,
-        "gu",
+        "g",
     )
 
     function escapeRegexMatch(str) {
@@ -98,6 +99,7 @@ async function setup() {
             code: 0,
             signal: 0,
         },
+        source,
     }={}) {
         const initial = {
             stdin,
@@ -146,26 +148,26 @@ async function setup() {
                 "sourcepath":              true,
                 "xpg_echo":                false,
             },
-            exportedEnvNames: new Set([...exportedEnvNames]),
+            exportedEnvNames: new Set([...exportedEnvNames||[]]),
             env: {
                 "$": pid,
                 // possible TODO: change this path to be the path of the caller, not the path to where this code is
-                "0": decodeURIComponent(new URL(import.meta.url).pathname.replace(/%(?![0-9A-Fa-f]{2})/g, "%25")), //TODO: check that this replace is still needed
+                // FIXME: get rid of FileSystem.thisFile
+                "0": source||FileSystem.thisFile, // decodeURIComponent(new URL(import.meta.url).pathname.replace(/%(?![0-9A-Fa-f]{2})/g, "%25")), //TODO: check that this replace is still needed
                 "SHLVL": env["SHLVL"] || "0",
                 ...env,
             },
         }
-        delete inital.exportedEnv["SHLVL"]
         const createScope = (prevScope, newArgs)=>{
             const scope = {
                 args: newArgs,
-                env: null,
+                env: {},
                 _localEnvObj: {},
             }
             if (newArgs == null) {
                 // no copy because shift would affect both
                 // TODO: check if this^ is always right
-                scope.args = prevScope.args
+                scope.args = prevScope?.args
             }
             scope.env = new Proxy(scope._localEnvObj, {
                 // ownKeys(target, ...args) {
@@ -197,16 +199,16 @@ async function setup() {
                     if (Reflect.has(original, key)) {
                         return Reflect.get(original, key, ...args)
                     } else {
-                        return Reflect.get(prevScope.env, key, ...args)
+                        return Reflect.get(prevScope?.env||{}, key, ...args)
                     }
                 },
                 set(original, key, ...args) {
                     // if local exists, or external one doesnt, then set local
-                    if (Reflect.has(original, key) || !Reflect.has(prevScope.env, key)) {
+                    if (Reflect.has(original, key) || !Reflect.has(prevScope?.env||{}, key)) {
                         return Reflect.set(original, key, ...args)
                     }
                     // otherwise, set external
-                    return Reflect.set(prevScope.env, key, ...args)
+                    return Reflect.set(prevScope?.env||{}, key, ...args)
                 },
                 // has: Reflect.has,
                 // deleteProperty: Reflect.deleteProperty,
@@ -228,7 +230,7 @@ async function setup() {
             ],
             get exportedEnv() {
                 const vars = {}
-                for (const each of exportedEnvNames) {
+                for (const each of shell.exportedEnvNames) {
                     vars[each] = shell.env[each]
                 }
                 return vars
@@ -353,6 +355,50 @@ async function setup() {
         $,
         $$,
     }
+}
+
+// NOTE: this is just a hack to test the system 
+async function _createAndRun(stringCommand) {
+    const root = parser.parse(stringCommand).rootNode
+    const code = compoundCommand2Code(root.children[0])
+    const finalCode = `((async ()=>{\n${setup.toString()}\nconst {makeShell, $, $$} = await setup()\nconst shell = makeShell()\nreturn ${code}\n})())`
+    await FileSystem.write({
+        data: finalCode,
+        path: FileSystem.thisFile+".out.js",
+    })
+    let output = eval(`((async ()=>{\n${setup.toString()}\nconst {makeShell, $, $$} = await setup()\nconst shell = makeShell()\nreturn ${code}\n})())`)
+    return await output
+}
+
+/**
+ * system test
+ *
+ * @example
+ * ```js
+ * console.log(await _run`VAR1=10 VAR2+=11 echo hi6`)
+ * ```
+ */
+export async function _run(maybeStrings, ...args){
+    // 
+    // template support
+    // 
+    let asStringArg
+    const isTemplateCallProbably = maybeStrings instanceof Array && maybeStrings.length-1 == args.length
+    if (isTemplateCallProbably) {
+        const chunks = []
+        let index = -1
+        for (const each of args) {
+            index++
+            chunks.push(maybeStrings[index])
+            // here's where to handle custom logic on interpolated args
+            //each
+            chunks.push(each)
+        }
+        chunks.push(maybeStrings[index+1])
+        asStringArg = chunks.join("")
+    }
+
+    return _createAndRun(asStringArg)
 }
 /**
  * step1 prefixed env vars
