@@ -3,3 +3,4 @@ const shell = makeShell()
 
 await $$`echo hi6`.env({ ...shell.exportedEnv, "VAR1": `10`, "VAR2": shell.getVar("VAR2")+`11`, })
 await $$`echo hi`
+await $$`echo hi > hi.txt`

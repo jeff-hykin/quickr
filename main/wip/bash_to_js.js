@@ -388,7 +388,7 @@ async function _createAndRun(stringCommand) {
  *
  * @example
  * ```js
- * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi`)
+ * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi\necho hi > hi.txt`)
  * ```
  */
 export async function _run(maybeStrings, ...args){
@@ -455,6 +455,7 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
         if (argsCode.match(/^\[(\`[a-zA-Z0-9_]+\`,)+\]/)) {
             return "$$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+"`"+envCode
         }
+
         return "$$`${"+argsCode+"}`"+envCode
     } else if (type == "redirected_statement") {
         let innerCode
@@ -463,7 +464,7 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
         if (children[0].type == "command") {
             // could be <command> could be <list>, probably could also be <pipeline>
             const commandNode = children[0]
-            const envCode = prefixedVariableAssignment2Code(commandNode)
+            const envObjectCode = prefixedVariableAssignment2Code(commandNode)
             const argsCode = commandArgs2Code(commandNode)
             const redirections = children.filter(each=>each.type == "file_redirect" || each.type == "heredoc_redirect" || each.type == "herestring_redirect")
             const fileRedirections = redirections.filter(each=>each.type == "file_redirect")
@@ -474,12 +475,27 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
                 // FIXME: check what bash does with globs, brackets, etc in the expansion case
                 //        if it expands those then this is not up to spec
                 const redirect = fileRedirections[0]
-                const allowedTypes = new Set(["file_redirect", ">", "file_descriptor", ">&", ">>",  "string", '"', "string_content", "simple_expansion",])
+                const allowedTypes = new Set(["file_redirect", ">", "file_descriptor", "word", "number", ">&", ">>",  "string", '"', "string_content", "simple_expansion", ])
                 // <expansion> does not work with dax, and I'm sure 
                 const daxCanHandleIt = flatNodeList(redirect).every(each=>allowedTypes.has(each.type))
                 if (daxCanHandleIt) {
                     const codeToInject = escapeJsString(redirect.text).slice(1,-1)
-                    const execCode = "$$`${"+argsCode+"} "+codeToInject+"`.env("+envCode+")"
+                    // 
+                    // optimize output of envCode
+                    // 
+                    let envCode = ".env("+envObjectCode+")"
+                    if (envObjectCode == "shell.exportedEnv") {
+                        envCode = ""
+                    }
+
+                    let execCode = "$$`${"+argsCode+"} "+codeToInject+"`"+envCode
+
+                    //
+                    // shortcut for command with simple args
+                    //
+                    if (argsCode.match(/^\[(\`[a-zA-Z0-9_]+\`,)+\]/)) {
+                        execCode = "$$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+" "+codeToInject+"`"+envCode
+                    }
                     return execCode
                 }
             }
