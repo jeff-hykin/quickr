@@ -374,9 +374,9 @@ function _getSetupCode() {
 // NOTE: this is just a hack to test the system 
 async function _createAndRun(stringCommand) {
     const root = parser.parse(stringCommand).rootNode
-    const code = compoundCommand2Code(root.children[0])
+    const code = root.children.map(each=>`await ${compoundCommand2Code(each)}`).join("\n")
     await FileSystem.write({
-        data: `import { makeShell, $, $$ } from ${_getSetupCode()}\nconst shell = makeShell()\n\nawait ${code}\n`,
+        data: `import { makeShell, $, $$ } from ${_getSetupCode()}\nconst shell = makeShell()\n\n${code}\n`,
         path: FileSystem.thisFile+".out.js",
     })
     let output = eval(`((async ()=>{\n\nconst {makeShell, $, $$} = await import(${_getSetupCode()})\nconst shell = makeShell()\nreturn ${code}\n\n})())`)
@@ -388,7 +388,7 @@ async function _createAndRun(stringCommand) {
  *
  * @example
  * ```js
- * console.log(await _run`VAR1=10 VAR2+=11 echo hi6`)
+ * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi`)
  * ```
  */
 export async function _run(maybeStrings, ...args){
@@ -436,10 +436,26 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
     let topLevel
     const { type, children } = node
     if (type == "command") {
-        const envCode = prefixedVariableAssignment2Code(node)
+        const envObjectCode = prefixedVariableAssignment2Code(node)
         const argsCode = commandArgs2Code(node)
+        
         // FIXME: <herestring_redirect> can appear in a normal command
-        return "$$`${"+argsCode+"}`.env("+envCode+")"
+        
+        // 
+        // optimize output of envCode
+        // 
+        let envCode = ".env("+envObjectCode+")"
+        if (envObjectCode == "shell.exportedEnv") {
+            envCode = ""
+        }
+
+        //
+        // shortcut for command with simple args
+        //
+        if (argsCode.match(/^\[(\`[a-zA-Z0-9_]+\`,)+\]/)) {
+            return "$$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+"`"+envCode
+        }
+        return "$$`${"+argsCode+"}`"+envCode
     } else if (type == "redirected_statement") {
         let innerCode
         
