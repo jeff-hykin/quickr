@@ -33,3 +33,4 @@ cat <<< "hi19"
 read -r -d '' VAR <<'HEREDOC_NAME'
 string contents
 HEREDOC_NAME
+echo "hi18" > ${VAR1:1}

@@ -1,4 +1,4 @@
-import { Parser, parserFromWasm, xmlStylePreview } from "https://deno.land/x/deno_tree_sitter@0.2.6.0/main.js"
+import { Parser, parserFromWasm, xmlStylePreview, flatNodeList } from "https://deno.land/x/deno_tree_sitter@0.2.6.0/main.js"
 import bash from "https://github.com/jeff-hykin/common_tree_sitter_languages/raw/676ffa3b93768b8ac628fd5c61656f7dc41ba413/main/bash.js" 
 import { FileSystem, glob } from "https://deno.land/x/quickr@0.6.72/main/file_system.js"
 import { zipShort } from "https://deno.land/x/good@1.13.1.0/flattened/zip_short.js"
@@ -354,29 +354,56 @@ async function setup() {
         $$,
     }
 }
-function compoundCommand2Code(node) {
+function compoundCommand2Code(node, {isTopLevel=true}={}) {
     // will be one of:
+        // <command>
         // <redirected_statement>
         // <pipeline>
         // <list> // which is for &&, ||
-        // <command>
     let topLevel
-    // FIXME
-}
-function exec2Code(node) {
-    // node will be one of:
-        // redirected_statement
-        // command
-    // and redirected_statement will always have a command as its first child (no compound commands)
-    
-    let commandNode = node
-    if (node.type == "redirected_statement") {
-        commandNode = node.children[0]
-    }
-    const envCode = prefixedVariableAssignment2Code(commandNode)
-    const argsCode = commandArgs2Code(commandNode)
-    
-    // FIXME: handle redirections
+    const { type, children } = node
+    if (type == "command") {
+        const envCode = prefixedVariableAssignment2Code(commandNode)
+        const argsCode = commandArgs2Code(commandNode)
+        // FIXME: <herestring_redirect> can appear in a normal command
+        return "$$`${"+argsCode+"}`.env("+envCode+")"
+    } else if (type == "redirected_statement") {
+        let innerCode
+        
+        // optimization for simple case (unpack child and utilize dax features)
+        if (children[0].type == "command") {
+            // could be <command> could be <list>, probably could also be <pipeline>
+            const commandNode = children[0]
+            const envCode = prefixedVariableAssignment2Code(commandNode)
+            const argsCode = commandArgs2Code(commandNode)
+            const redirections = children.filter(each=>each.type == "file_redirect" || each.type == "heredoc_redirect" || each.type == "herestring_redirect")
+            const fileRedirections = redirections.filter(each=>each.type == "file_redirect")
+            // 
+            // check easy case (99% of the time)
+            // 
+            if (redirections.length == 1 && fileRedirections.length == 1) {
+                // FIXME: check what bash does with globs, brackets, etc in the expansion case
+                //        if it expands those then this is not up to spec
+                const redirect = fileRedirections[0]
+                const allowedTypes = new Set(["file_redirect", ">", "file_descriptor", ">&", ">>",  "string", '"', "string_content", "simple_expansion",])
+                // <expansion> does not work with dax, and I'm sure 
+                const daxCanHandleIt = flatNodeList(redirect).every(each=>allowedTypes.has(each.type))
+                if (daxCanHandleIt) {
+                    const codeToInject = escapeJsString(redirect.text).slice(1,-1)
+                    const execCode = "$$`${"+argsCode+"} "+codeToInject+"`.env("+envCode+")"
+                    return execCode
+                }
+            }
+            innerCode = "$$`${"+argsCode+"}`.env("+envCode+")"
+        } else {
+            innerCode = compoundCommand2Code(children[0])
+        }
+        
+        // <file_redirect>  
+        // <heredoc_redirect>  
+        // <herestring_redirect> 
+
+        // FIXME: handle redirections
         // - redirects also need arg parsing/expansion
         // - HEREDOCS
         // manually need to handle:
@@ -387,8 +414,15 @@ function exec2Code(node) {
                 // - append
                 // - stdout to stderr
                 // - stderr to stderr
-    
-    return "$$`${"+argsCode+"}`.env("+envCode+")"
+        console.warn(`got a redirect I was unable to handle`)
+        return innerCode
+    } else if (type == "list") {
+        throw Error(`Currently unable to handle &&, ||`)
+    } else if (type == "pipeline") {
+        throw Error(`Currently unable to handle pipes`)
+    } else {
+        throw Error(`Currently unable to command of type: ${type}`)
+    }
 }
 
 /**
@@ -568,7 +602,12 @@ function tryPureArg2Code(node) {
         return escapeJsString(node.text)
     } else if (node.type == "raw_string") {
         return escapeJsString(node.text.slice(1,-1))
+    } else if (node.type == "string" && node.children.every(each=>each.type =='"' || each.type == "string_content")) {
+        // .join() is a bit uncessary as there should only ever be 1 child
+        const content = node.children.filter(each=>each.type == "string_content").map(each=>each.text).join("")
+        return escapeJsString(content.replace(/\\(\\|")/g,"$1"))
     } else if (node.type == "word" && !hasSpecialCharacters(node.text)) {
+        // FIXME: probably doesnt handle spaces or other escaped stuff right
         return escapeJsString(node.text)
     } else if (node.type == "concatenation" && node.children.every(definitelyPureArg)) {
         return joinPureStringParts(node.children.map(pureArgToString))
@@ -579,6 +618,8 @@ function definitelyPureArg(node) {
     if (node.type == "number") {
         return true
     } else if (node.type == "raw_string") {
+        return true
+    } else if (node.type == "string" && node.children.every(each=>each.type =='"' || each.type == "string_content")) {
         return true
     } else if (node.type == "word" && !hasSpecialCharacters(node.text)) {
         return true

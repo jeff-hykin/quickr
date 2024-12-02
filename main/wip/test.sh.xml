@@ -735,4 +735,26 @@
             <heredoc_end text="HEREDOC_NAME" />
         </heredoc_redirect>
     </redirected_statement>
+    <redirected_statement>
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <string>
+                <"\"" text="\"" />
+                <string_content text="hi18" />
+                <"\"" text="\"" />
+            </string>
+        </command>
+        <file_redirect>
+            <">" text=">" />
+            <expansion>
+                <"${" text="${" />
+                <variable_name text="VAR1" />
+                <":" text=":" />
+                <number text="1" />
+                <"}" text="}" />
+            </expansion>
+        </file_redirect>
+    </redirected_statement>
 </program>
