@@ -18,6 +18,8 @@ $(echo echo hi)'' {0..$a} \${a#b} $(echo hi) "$(echo hi)\"sup" ((1 + 2 + a)) > a
 
 VAR1=10 echo hi1
 
+$could_be_command_and_args
+${could_be_command_and_args}
 echo hi2 || echo bye
 echo hi3 && echo bye
 echo hi4 | thing && echo bye > 1
@@ -25,3 +27,9 @@ echo hi5 | thing && echo bye > 1 &
 VAR1=10 VAR2+=11 echo hi6 2>&1 1>&3 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &
 VAR7=$((1 + 2 + a)) VAR2+=11 echo hi6 2>&1 1>&3 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &
 VAR8=((1 + 2 + a)) VAR2+=11 echo hi6 2>&1 1>&3 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &
+
+cat <<< "hi19"
+
+read -r -d '' VAR <<'HEREDOC_NAME'
+string contents
+HEREDOC_NAME

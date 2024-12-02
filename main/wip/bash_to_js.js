@@ -157,13 +157,11 @@ async function setup() {
         delete inital.exportedEnv["SHLVL"]
         const createScope = (prevScope, newArgs)=>{
             const scope = {
-                args: null,
+                args: newArgs,
                 env: null,
                 _localEnvObj: {},
             }
-            if (newArgs != null) {
-                scope.args = newArgs
-            } else {
+            if (newArgs == null) {
                 // no copy because shift would affect both
                 // TODO: check if this^ is always right
                 scope.args = prevScope.args
@@ -179,6 +177,8 @@ async function setup() {
                     }
                     // specials
                     switch (key) {
+                        case "@":
+                            return scope.args
                         case "&":
                             return `${shell.pidOfLastProcess}`
                         case "-":
@@ -191,8 +191,6 @@ async function setup() {
                             return `${scope.args.length}`
                         case "*":
                             return scope.args.join(" ")
-                        case "@":
-                            return scope.args
                     }
                     // grab local one first
                     if (Reflect.has(original, key)) {
@@ -241,7 +239,23 @@ async function setup() {
             // FIXME: rework everything with consideration for arrays
             getVar(name) {
                 return shell._scopeStack.slice(-1)[0].env[name]||""
-            }
+            },
+            asString(value) {
+                if (value instanceof Array) {
+                    return value.join(" ")
+                } else if (value == null) {
+                    return ""
+                } else if (typeof value == "string") {
+                    return value
+                } else {
+                    console.debug(`value:`, value)
+                    throw Error(`shell.asString() got a weird value: ${typeof value}, ${value}`, value)
+                }
+            },
+            expandArg(arg) {
+                // FIXME: should do glob expansion, and other based on shell.shellOpts
+                return arg
+            },
         }
         
         const overridableBuiltins = {
@@ -294,7 +308,10 @@ async function setup() {
             "pushd": ()=>{/*FIXME*/},
             "read": ()=>{/*FIXME*/},
             "return": ()=>{/*FIXME*/},
-            "set": ()=>{/*FIXME*/},
+            "set": ()=>{
+                /*FIXME*/
+                // this can change all the arguments for $@
+            },
             "shopt": ()=>{/*FIXME*/},
             "suspend": ()=>{/*FIXME*/},
             "trap": ()=>{/*FIXME*/},
@@ -432,34 +449,92 @@ export function parseRawEnv(node) {
 
 // NOTE: needs to return a string that, when eval'd, returns an array of strings
 function commandArgs2Code(node) {
+    // assume worst case: every arg needs expanding, and unknown number of args
+    let chunks = [
+        `await (async ()=>{`,
+        `const args = []`,
+    ]
     // the number of args passed to a command is not always known at parse time
-    for (const each of node.children) {
-        if (node.type == "number") {
-            return escapeJsString(node.text)
-        } else if (node.type == "raw_string") {
-            return escapeJsString(node.text.slice(1,-1))
-        } else if (node.type == "concatenation") {
-            let chunks = []
-            for (const each of node.children) {
-                const chunk = expansionOfEnvAssignment2Code(each)
-                // this is a visual optimization to combine multiple backtick strings into one
-                if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
-                    chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
-                } else {
-                    chunks.push(chunk)
-                }
-            }
-            return chunks.join("+")
-        } else if (node.type == "word") {
-            // FIXME: this is wrong (ignores expansions)
-            return escapeJsString(node.text)
-        } else {
-            console.warn(`not yet implemented: expansionOfEnvAssignment2Code() does not support type: ${node.type}`)
-
-            // FIXME: this needs to handle strings and sub-shell expansions (recursive with compoundCommand2Code)
-            return escapeJsString(node.text.slice(1,-1))
+    for (let each of noComments(node.children)) {
+        if (each.type == "variable_assignment" || each.type == "file_redirect" || each.type == "heredoc_redirect" || each.type == "herestring_redirect") {
+            continue
         }
+        // ignore the command name wrapper
+        if (each.type == "command_name") {
+            each = each.children[0]
+        }
+
+        // can be any of: (incomplete list)
+            // <simple_expansion>
+            // <expansion>
+            // <concatenation>
+            // <command_substitution>
+            // <arithmetic_expansion>
+            // <string>
+            // <raw_string>
+            // <word>
+            // <number>
+        const pureArg = tryPureArg2Code(each)
+        if (pureArg != null) {
+            chunks.push(`args.push(${pureArg})`)
+            continue
+        } else {
+            const type = each.type
+            if (type == "simple_expansion") {
+                if (each.text == "$@") {
+                    chunks.push(`args.push(...shell.env["@"])`)
+                }
+                // FIXME: edgecase of $@'s weird behavior
+                chunks.push(`args.push(shell.getVar(${JSON.stringify(each.text.slice(1))}))`)
+            } else if (type == "expansion") {
+                // FIXME: edgecase of $@'s weird behavior
+                chunks.push(`args.push(shell.getVar(${JSON.stringify(each.text.slice(1))}))`)
+            // concatenations are never nested
+            } else if (type == "concatenation") {
+                // FIXME
+            }
+        }
+        
+        // FIXME: edgecase of $@'s weird behavior
     }
+}
+
+function tryPureArg2Code(node) {
+    if (!definitelyPureArg(node)) {
+        return null
+    }
+    if (node.type == "number") {
+        return escapeJsString(node.text)
+    } else if (node.type == "raw_string") {
+        return escapeJsString(node.text.slice(1,-1))
+    } else if (node.type == "word" && !hasSpecialCharacters(node.text)) {
+        return escapeJsString(node.text)
+    } else if (node.type == "concatenation" && node.children.every(definitelyPureArg)) {
+        let chunks = []
+        for (const each of node.children) {
+            const chunk = pureArgToString(each)
+            // this is a visual optimization to combine multiple backtick strings into one
+            if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
+                chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
+            } else {
+                chunks.push(chunk)
+            }
+        }
+        return chunks.join("+")
+    }
+}
+const hasSpecialCharacters = text=>text.match(/[\\*{\\?@\\[]/)
+function definitelyPureArg(node) {
+    if (node.type == "number") {
+        return true
+    } else if (node.type == "raw_string") {
+        return true
+    } else if (node.type == "word" && !hasSpecialCharacters(node.text)) {
+        return true
+    } else if (node.type == "concatenation") {
+        return node.children.every(pureArg)
+    }
+    return false
 }
 
 // NOTE: sometimes this will return `await (stuff)`
@@ -471,313 +546,23 @@ function expansionOfEnvAssignment2Code(node) {
         // <word>
         // <raw_string>
         // <arithmetic_expansion>
-    if (node.type == "number") {
-        return escapeJsString(node.text)
-    } else if (node.type == "raw_string") {
-        return escapeJsString(node.text.slice(1,-1))
-    } else if (node.type == "concatenation") {
-        let chunks = []
-        for (const each of node.children) {
-            const chunk = expansionOfEnvAssignment2Code(each)
-            // this is a visual optimization to combine multiple backtick strings into one
-            if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
-                chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
-            } else {
-                chunks.push(chunk)
-            }
-        }
-        return chunks.join("+")
-    } else if (node.type == "word") {
-        // FIXME: this is wrong (ignores expansions)
-        return escapeJsString(node.text)
+    const output = tryPureArg2Code(node)
+    if (typeof output == 'string') {
+        return output
+    }
+    
+    if (node.type == "word") {
+        // FIXME: this is slightly wrong, I think there are edgecases where argument expansion is different than env assignment expansion
+        //      "$@" is probably one of the edgecases (and it might already be handled)
+        return `shell.asString(await shell.expandArg(${escapeJsString(node.text)}))`
     } else {
         console.warn(`not yet implemented: expansionOfEnvAssignment2Code() does not support type: ${node.type}`)
-
         // FIXME: this needs to handle strings and sub-shell expansions (recursive with compoundCommand2Code)
         return escapeJsString(node.text.slice(1,-1))
     }
 }
 
 function bashToJs(text) {
-    let javascript = `
-        import $ from "https://deno.land/x/dax@0.39.2/mod.ts"
-        const $$ = (...args)=>$(...args).noThrow()
-        const reservedCharMap = {
-            "&": "\\\\x26",
-            "!": "\\\\x21",
-            "#": "\\\\x23",
-            "$": "\\\\$",
-            "%": "\\\\x25",
-            "*": "\\\\*",
-            "+": "\\\\+",
-            ",": "\\\\x2c",
-            ".": "\\\\.",
-            ":": "\\\\x3a",
-            ";": "\\\\x3b",
-            "<": "\\\\x3c",
-            "=": "\\\\x3d",
-            ">": "\\\\x3e",
-            "?": "\\\\?",
-            "@": "\\\\x40",
-            "^": "\\\\^",
-            "\`": "\\\\x60",
-            "~": "\\\\x7e",
-            "(": "\\\\(",
-            ")": "\\\\)",
-            "[": "\\\\[",
-            "]": "\\\\]",
-            "{": "\\\\{",
-            "}": "\\\\}",
-            "/": "\\\\/",
-            "-": "\\\\x2d",
-            "\\\\": "\\\\\\\\",
-            "|": "\\\\|",
-        }
-
-        const RX_REGEXP_ESCAPE = new RegExp(
-            \`[\${Object.values(reservedCharMap).join("")}]\`,
-            "gu",
-        )
-
-        function escapeRegexMatch(str) {
-            return str.replaceAll(
-                RX_REGEXP_ESCAPE,
-                (m) => reservedCharMap[m],
-            )
-        }
-        
-        function makeShell(args=[], stdin=Deno.stdin, stdout=Deno.stdout, stderr=Deno.stderr, env=Deno.env.toObject(), nonExportedEnv={}) {
-            const exportedEnv = {
-                ...env,
-            }
-            let shellOpts = "himBH"
-            let shoptOpts = {
-                "cdable_vars":             false,
-                "cdspell":                 false,
-                "checkhash":               false,
-                "checkwinsize":            false,
-                "cmdhist":                 true,
-                "compat31":                false,
-                "dotglob":                 false,
-                "execfail":                false,
-                "expand_aliases":          true,
-                "extdebug":                false,
-                "extglob":                 false,
-                "extquote":                true,
-                "failglob":                false,
-                "force_fignore":           true,
-                "gnu_errfmt":              false,
-                "histappend":              false,
-                "histreedit":              false,
-                "histverify":              false,
-                "hostcomplete":            true,
-                "huponexit":               false,
-                "interactive_comments":    true,
-                "lithist":                 false,
-                "login_shell":             false,
-                "mailwarn":                false,
-                "no_empty_cmd_completion": false,
-                "nocaseglob":              false,
-                "nocasematch":             false,
-                "nullglob":                false,
-                "progcomp":                true,
-                "promptvars":              true,
-                "restricted_shell":        false,
-                "shift_verbose":           false,
-                "sourcepath":              true,
-                "xpg_echo":                false,
-            }
-            let pidOfLastProcess = Deno.pid
-            delete exportedEnv["SHLVL"]
-            const envBase = {
-                "$": Deno.pid,
-                "@": Deno.args,
-                "0": decodeURIComponent(new URL(Deno.mainModule).pathname.replace(/%(?![0-9A-Fa-f]{2})/g, "%25")),
-                "#": args.length,
-                "*": args.join(" "),
-                "@": args,
-                "?": Deno.lastStatus?.code,
-                "!": Deno.lastStatus?.signal,
-                "$-": shellOpts, // options: https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
-                "SHLVL": \`\${(Deno.env.get("SHLVL") || "0")-0+1}\`,
-                ...nonExportedEnv,
-            }
-            Object.setPrototypeOf(envBase, exportedEnv)
-            const env = new Proxy(envBase, {
-                ownKeys(target, ...args) { return Reflect.ownKeys(target, ...args) },
-                get(original, key, ...args) {
-                    if (key-0>0) {
-                        return args[key]||""
-                    }
-                    if (key == "&") {
-                        return pidOfLastProcess
-                    }
-                    return Reflect.get(original, key, ...args)
-                },
-                set(original, key, ...args) {
-                    return Reflect.set(original, key, ...args)
-                },
-                has: Reflect.has,
-                deleteProperty: Reflect.deleteProperty,
-                isExtensible: Reflect.isExtensible,
-                preventExtensions: Reflect.preventExtensions,
-                setPrototypeOf: Reflect.setPrototypeOf,
-                defineProperty: Reflect.defineProperty,
-                getPrototypeOf: Reflect.getPrototypeOf,
-                getOwnPropertyDescriptor: Reflect.getOwnPropertyDescriptor,
-            })
-            const envStack = [env]
-            const newScope = ()=>{
-                const newEnv = {}
-                Object.setPrototypeOf(newEnv, envStack.slice(-1)[0])
-                envStack.push(newEnv)
-                return newEnv
-            }
-            const popScope = ()=>{
-                envStack.pop()
-            }
-            let jobs = []
-            let aliases = {}
-            let functions = {}
-            let overridableBuiltins = {
-                "help": ()=>{/*FIXME*/},
-                "builtin": ()=>{/*FIXME*/},
-                "alias": ()=>{/*FIXME*/},
-                ".": ()=>{/*FIXME*/},
-                "bind": ()=>{/*FIXME*/},
-                "command": ()=>{/*FIXME*/},
-                "complete": ()=>{/*FIXME*/},
-                "declare": ()=>{/*FIXME*/},
-                "disown": ()=>{/*FIXME*/},
-                "enable": ()=>{/*FIXME*/},
-                "exec": ()=>{/*FIXME*/},
-                "export": ()=>{/*FIXME*/},
-                "fc": ()=>{/*FIXME*/},
-                "hash": ()=>{/*FIXME*/},
-                "history": ()=>{/*FIXME*/},
-                "jobs": ()=>{/*FIXME*/},
-                "let": ()=>{/*FIXME*/},
-                "logout": ()=>{/*FIXME*/},
-                "printf": ()=>{/*FIXME*/},
-                "pwd": ()=>{/*FIXME*/},
-                "readonly": ()=>{/*FIXME*/},
-                "shift": ()=>{/*FIXME*/},
-                "source": ()=>{/*FIXME*/},
-                "test": ()=>{/*FIXME*/},
-                "times": ()=>{/*FIXME*/},
-                "true": ()=>{/*FIXME*/},
-                "typeset": ()=>{/*FIXME*/},
-                "umask": ()=>{/*FIXME*/},
-                "unset": ()=>{/*FIXME*/},
-                ":": ()=>{/*FIXME*/},
-                "bg": ()=>{/*FIXME*/},
-                "break": ()=>{/*FIXME*/},
-                "caller": ()=>{/*FIXME*/},
-                "cd": ()=>{/*FIXME*/},
-                "compgen": ()=>{/*FIXME*/},
-                "continue": ()=>{/*FIXME*/},
-                "dirs": ()=>{/*FIXME*/},
-                "echo": ()=>{/*FIXME*/},
-                "eval": ()=>{/*FIXME*/},
-                "exit": ()=>{/*FIXME*/},
-                "false": ()=>{/*FIXME*/},
-                "fg": ()=>{/*FIXME*/},
-                "getopts": ()=>{/*FIXME*/},
-                "kill": ()=>{/*FIXME*/},
-                "local": ()=>{/*FIXME*/},
-                "popd": ()=>{/*FIXME*/},
-                "pushd": ()=>{/*FIXME*/},
-                "read": ()=>{/*FIXME*/},
-                "return": ()=>{/*FIXME*/},
-                "set": ()=>{/*FIXME*/},
-                "shopt": ()=>{/*FIXME*/},
-                "suspend": ()=>{/*FIXME*/},
-                "trap": ()=>{/*FIXME*/},
-                "type": ()=>{/*FIXME*/},
-                "ulimit": ()=>{/*FIXME*/},
-                "unalias": ()=>{/*FIXME*/},
-                "wait": ()=>{/*FIXME*/},
-            }
-            let cannotBeFunctionNames = {
-                "if": ()=>{ /*FIXME*/ },
-                "for": ()=>{ /*FIXME*/ },
-                "case": ()=>{ /*FIXME*/ },
-                "function": ()=>{ /*FIXME*/ },
-                "select": ()=>{ /*FIXME*/ },
-                "while": ()=>{ /*FIXME*/ },
-                "[[": ()=>{ /*FIXME*/ },
-                "time": ()=>{ /*FIXME*/ },
-                "until": ()=>{ /*FIXME*/ },
-            }
-            let cannotBeAliasOrFunctionName = {
-                "((": ()=>{ /*FIXME*/ },
-            }
-            
-            const glob = (jsonedAndStars)=>{
-                const regex = new RegExp(jsonedAndStars.map(each=>each.startsWith('"')?escapeRegexMatch(JSON.parse(each)):".*"))
-                // FIXME: handle the ? 
-                // FIXME: handle the []'s
-                // FIXME: check glob options (e.g. including "." and ".." and hidden or not)
-                let names = [...Deno.readDirSync(".")].map(each=>each.name)
-                const matches = names.filter(eachName=>eachName.match(regex))
-                if (matches.length == 0) {
-                    return [ jsonedAndStars.map(each=>each.startsWith('"')?JSON.parse(each):each).join("") ]
-                }
-                return matches
-            }
-            const hasSpecialCharacters = text=>text.match(/[\\*{\\?@\\[]/)
-            // const assignmentValue = async (argument)=>{
-            //     // NOTE: for some reason, globs do not activate in assignments
-
-            //     if (argument.type == "number" || argument.type == "word" && (!argument.text.includes("{") || !argument.text.includes("}"))) {
-            //         return JSON.stringify(argument.text)
-            //     } else if (argument.type == "raw_string") {
-            //         return JSON.stringify(argument.text.slice(1,-1))
-            //     // brace expansion: range 
-            //     } else if (argument.text.match(/\\{\\d+\\.\\.\\d+\\}/)) {
-            //         // this: echo start{1..5}{10..12}
-            //         // creates this: start110 start111 start112 start210 start211 start212 start310 start311 start312 start410 start411 start412 start510 start511 start512
-                    
-            //         // then, in assignment only, the output is just the last value in the range
-
-            //         // FIXME
-                    
-            //     // brace expansion: commas
-            //     // FIXME: ... this is valid: {ucb/{ex,edit},lib/{ex?.?*,how_ex}}
-            //     } else if (argument.text.match(/\\{\\}/)) {
-            //         // this: start{{1..5},{10..12}}
-            //         // creates this: start1 start2 start3 start4 start5 start10 start11 start12
-
-            //         // comma can be backslash escaped
-            //         // double quotes are valid
-            //         // variable expansion is valid
-            //         // pipe and redirect are at least invalid
-            //         // FIXME
-
-            //     } else if (argument.type == "string") {
-            //         // deal with command substitution
-            //         // FIXME
-                    
-            //     } else if (argument.type == "simple_expansion") {
-
-            //     } else if (argument.type == "command_substitution") {
-            //     } else if (argument.type == "concatenation") {
-            //         // not as simple as joining things because of parameter expansion
-            //         // FIXME
-            //     }
-            // }
-            return {
-                exportEnv,
-                shellOpts,
-                shoptOpts,
-                aliases,
-                functions,
-                env,
-            }
-        }
-        const shell = makeShell()
-    `
-        
         // function handleCommand(statement, {returnStringOfStdout=false}={}) {
         //     const children = noComments(statement.children)
         //     if (

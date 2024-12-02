@@ -355,6 +355,23 @@
         </command_name>
         <word text="hi1" />
     </command>
+    <command>
+        <command_name>
+            <simple_expansion>
+                <"$" text="$" />
+                <variable_name text="could_be_command_and_args" />
+            </simple_expansion>
+        </command_name>
+    </command>
+    <command>
+        <command_name>
+            <expansion>
+                <"${" text="${" />
+                <variable_name text="could_be_command_and_args" />
+                <"}" text="}" />
+            </expansion>
+        </command_name>
+    </command>
     <list>
         <command>
             <command_name>
@@ -678,4 +695,34 @@
         </file_redirect>
     </redirected_statement>
     <"&" text="&" />
+    <command>
+        <command_name>
+            <word text="cat" />
+        </command_name>
+        <herestring_redirect>
+            <"<<<" text="<<<" />
+            <string>
+                <"\"" text="\"" />
+                <string_content text="hi19" />
+                <"\"" text="\"" />
+            </string>
+        </herestring_redirect>
+    </command>
+    <redirected_statement>
+        <command>
+            <command_name>
+                <word text="read" />
+            </command_name>
+            <word text="-r" />
+            <word text="-d" />
+            <raw_string text="''" />
+            <word text="VAR" />
+        </command>
+        <heredoc_redirect>
+            <"<<" text="<<" />
+            <heredoc_start text="'HEREDOC_NAME'" />
+            <heredoc_body text="string contents\n" />
+            <heredoc_end text="HEREDOC_NAME" />
+        </heredoc_redirect>
+    </redirected_statement>
 </program>
