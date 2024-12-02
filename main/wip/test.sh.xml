@@ -1,0 +1,167 @@
+<program>
+    <command>
+        <variable_assignment>
+            <variable_name text="VAR1" />
+            <"=" text="=" />
+            <number text="10" />
+        </variable_assignment>
+        <command_name>
+            <word text="echo" />
+        </command_name>
+        <word text="hi1" />
+    </command>
+    <list>
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <word text="hi2" />
+        </command>
+        <"||" text="||" />
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <word text="bye" />
+        </command>
+    </list>
+    <list>
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <word text="hi3" />
+        </command>
+        <"&&" text="&&" />
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <word text="bye" />
+        </command>
+    </list>
+    <redirected_statement>
+        <list>
+            <pipeline>
+                <command>
+                    <command_name>
+                        <word text="echo" />
+                    </command_name>
+                    <word text="hi4" />
+                </command>
+                <"|" text="|" />
+                <command>
+                    <command_name>
+                        <word text="thing" />
+                    </command_name>
+                </command>
+            </pipeline>
+            <"&&" text="&&" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="bye" />
+            </command>
+        </list>
+        <file_redirect>
+            <">" text=">" />
+            <number text="1" />
+        </file_redirect>
+    </redirected_statement>
+    <redirected_statement>
+        <list>
+            <pipeline>
+                <command>
+                    <command_name>
+                        <word text="echo" />
+                    </command_name>
+                    <word text="hi5" />
+                </command>
+                <"|" text="|" />
+                <command>
+                    <command_name>
+                        <word text="thing" />
+                    </command_name>
+                </command>
+            </pipeline>
+            <"&&" text="&&" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="bye" />
+            </command>
+        </list>
+        <file_redirect>
+            <">" text=">" />
+            <number text="1" />
+        </file_redirect>
+    </redirected_statement>
+    <"&" text="&" />
+    <redirected_statement>
+        <list>
+            <list>
+                <redirected_statement>
+                    <command>
+                        <variable_assignment>
+                            <variable_name text="VAR1" />
+                            <"=" text="=" />
+                            <number text="10" />
+                        </variable_assignment>
+                        <variable_assignment>
+                            <variable_name text="VAR2" />
+                            <"+=" text="+=" />
+                            <number text="11" />
+                        </variable_assignment>
+                        <command_name>
+                            <word text="echo" />
+                        </command_name>
+                        <word text="hi6" />
+                    </command>
+                    <file_redirect>
+                        <file_descriptor text="2" />
+                        <">&" text=">&" />
+                        <number text="1" />
+                    </file_redirect>
+                </redirected_statement>
+                <"||" text="||" />
+                <pipeline>
+                    <command>
+                        <variable_assignment>
+                            <variable_name text="VAR5" />
+                            <"=" text="=" />
+                            <number text="10" />
+                        </variable_assignment>
+                        <variable_assignment>
+                            <variable_name text="VAR6" />
+                            <"=" text="=" />
+                            <number text="11" />
+                        </variable_assignment>
+                        <command_name>
+                            <word text="thing2" />
+                        </command_name>
+                    </command>
+                    <"|" text="|" />
+                    <command>
+                        <command_name>
+                            <word text="thing" />
+                        </command_name>
+                    </command>
+                </pipeline>
+            </list>
+            <"&&" text="&&" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="bye" />
+            </command>
+        </list>
+        <file_redirect>
+            <">" text=">" />
+            <number text="1" />
+        </file_redirect>
+    </redirected_statement>
+    <"&" text="&" />
+</program>
