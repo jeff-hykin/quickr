@@ -354,7 +354,21 @@ async function setup() {
         $$,
     }
 }
-function compoundCommand2Code(node, {isTopLevel=true}={}) {
+/**
+ * step1 prefixed env vars
+ *
+ * @example
+ * ```js
+ * import { Parser, parserFromWasm, xmlStylePreview } from "https://deno.land/x/deno_tree_sitter@0.2.6.0/main.js"
+ * import bash from "https://github.com/jeff-hykin/common_tree_sitter_languages/raw/676ffa3b93768b8ac628fd5c61656f7dc41ba413/main/bash.js" 
+ * const root = (await parserFromWasm(bash)).parse(`VAR1=10 VAR2+=11 echo hi6`).rootNode
+ * 
+ * console.log(compoundCommand2Code(
+ *     root.quickQueryFirst("(command)")
+ * ))
+ * ```
+ */
+export function compoundCommand2Code(node, {isTopLevel=true}={}) {
     // will be one of:
         // <command>
         // <redirected_statement>
@@ -363,8 +377,8 @@ function compoundCommand2Code(node, {isTopLevel=true}={}) {
     let topLevel
     const { type, children } = node
     if (type == "command") {
-        const envCode = prefixedVariableAssignment2Code(commandNode)
-        const argsCode = commandArgs2Code(commandNode)
+        const envCode = prefixedVariableAssignment2Code(node)
+        const argsCode = commandArgs2Code(node)
         // FIXME: <herestring_redirect> can appear in a normal command
         return "$$`${"+argsCode+"}`.env("+envCode+")"
     } else if (type == "redirected_statement") {
