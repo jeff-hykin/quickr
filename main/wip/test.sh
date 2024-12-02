@@ -13,7 +13,7 @@ fi
 
 $(echo echo hi)'' {0..$a} \${a#b} $(echo hi) "$(echo hi)\"sup" ((1 + 2 + a)) > a || THING=10 echo "$(echo "c" 1>&2)"
 
-"hi"a*'c'# && echo ((1+2+a)) && echo '1' > b && echo '2' | c && echo '5' 1>&2 2>/dev/null && ls doesnotexist || ls a && ls b && ls c && ls d && ls e;
+"hi0"a*'c'# && echo ((1+2+a)) && echo '1' > b && echo '2' | c && echo '5' 1>&2 2>/dev/null && ls doesnotexist || ls a && ls b && ls c && ls d && ls e;
 
 
 VAR1=10 echo hi1
@@ -22,5 +22,6 @@ echo hi2 || echo bye
 echo hi3 && echo bye
 echo hi4 | thing && echo bye > 1
 echo hi5 | thing && echo bye > 1 &
-VAR1=10 VAR2+=11 echo hi6 2>&1 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &
-
+VAR1=10 VAR2+=11 echo hi6 2>&1 1>&3 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &
+VAR7=$((1 + 2 + a)) VAR2+=11 echo hi6 2>&1 1>&3 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &
+VAR8=((1 + 2 + a)) VAR2+=11 echo hi6 2>&1 1>&3 || VAR5=10 VAR6=11 thing2 | thing && echo bye > 1 &

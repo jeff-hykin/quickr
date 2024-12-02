@@ -1,4 +1,349 @@
 <program>
+    <if_statement>
+        <if text="if" />
+        <test_command>
+            <"[" text="[" />
+            <binary_expression>
+                <simple_expansion>
+                    <"$" text="$" />
+                    <special_variable_name text="?" />
+                </simple_expansion>
+                <test_operator text="-eq" />
+                <number text="0" />
+            </binary_expression>
+            <"]" text="]" />
+        </test_command>
+        <";" text=";" />
+        <then text="then" />
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <string>
+                <"\"" text="\"" />
+                <string_content text="success" />
+                <"\"" text="\"" />
+            </string>
+        </command>
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <string>
+                <"\"" text="\"" />
+                <string_content text="success2" />
+                <"\"" text="\"" />
+            </string>
+        </command>
+        <else_clause>
+            <else text="else" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="not" />
+                <word text="true" />
+            </command>
+        </else_clause>
+        <fi text="fi" />
+    </if_statement>
+    <if_statement>
+        <if text="if" />
+        <list>
+            <command>
+                <command_name>
+                    <word text="true" />
+                </command_name>
+            </command>
+            <"||" text="||" />
+            <command>
+                <command_name>
+                    <word text="false" />
+                </command_name>
+            </command>
+        </list>
+        <";" text=";" />
+        <then text="then" />
+        <command>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <string>
+                <"\"" text="\"" />
+                <string_content text="success" />
+                <"\"" text="\"" />
+            </string>
+        </command>
+        <else_clause>
+            <else text="else" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="not" />
+                <word text="true" />
+            </command>
+        </else_clause>
+        <fi text="fi" />
+    </if_statement>
+    <list>
+        <redirected_statement>
+            <command>
+                <command_name>
+                    <concatenation>
+                        <command_substitution>
+                            <"$(" text="$(" />
+                            <command>
+                                <command_name>
+                                    <word text="echo" />
+                                </command_name>
+                                <word text="echo" />
+                                <word text="hi" />
+                            </command>
+                            <")" text=")" />
+                        </command_substitution>
+                        <raw_string text="''" />
+                    </concatenation>
+                </command_name>
+                <concatenation>
+                    <word text="{" />
+                    <word text="0.." />
+                    <simple_expansion>
+                        <"$" text="$" />
+                        <variable_name text="a" />
+                    </simple_expansion>
+                    <word text="}" />
+                </concatenation>
+                <concatenation>
+                    <word text="\\$" />
+                    <word text="{" />
+                    <word text="a#b" />
+                    <word text="}" />
+                </concatenation>
+                <command_substitution>
+                    <"$(" text="$(" />
+                    <command>
+                        <command_name>
+                            <word text="echo" />
+                        </command_name>
+                        <word text="hi" />
+                    </command>
+                    <")" text=")" />
+                </command_substitution>
+                <string>
+                    <"\"" text="\"" />
+                    <command_substitution>
+                        <"$(" text="$(" />
+                        <command>
+                            <command_name>
+                                <word text="echo" />
+                            </command_name>
+                            <word text="hi" />
+                        </command>
+                        <")" text=")" />
+                    </command_substitution>
+                    <string_content text="\\\"sup" />
+                    <"\"" text="\"" />
+                </string>
+                <arithmetic_expansion>
+                    <"((" text="((" />
+                    <binary_expression>
+                        <binary_expression>
+                            <number text="1" />
+                            <"+" text="+" />
+                            <number text="2" />
+                        </binary_expression>
+                        <"+" text="+" />
+                        <variable_name text="a" />
+                    </binary_expression>
+                    <"))" text="))" />
+                </arithmetic_expansion>
+            </command>
+            <file_redirect>
+                <">" text=">" />
+                <word text="a" />
+            </file_redirect>
+        </redirected_statement>
+        <"||" text="||" />
+        <command>
+            <variable_assignment>
+                <variable_name text="THING" />
+                <"=" text="=" />
+                <number text="10" />
+            </variable_assignment>
+            <command_name>
+                <word text="echo" />
+            </command_name>
+            <string>
+                <"\"" text="\"" />
+                <command_substitution>
+                    <"$(" text="$(" />
+                    <redirected_statement>
+                        <command>
+                            <command_name>
+                                <word text="echo" />
+                            </command_name>
+                            <string>
+                                <"\"" text="\"" />
+                                <string_content text="c" />
+                                <"\"" text="\"" />
+                            </string>
+                        </command>
+                        <file_redirect>
+                            <file_descriptor text="1" />
+                            <">&" text=">&" />
+                            <number text="2" />
+                        </file_redirect>
+                    </redirected_statement>
+                    <")" text=")" />
+                </command_substitution>
+                <"\"" text="\"" />
+            </string>
+        </command>
+    </list>
+    <list>
+        <list>
+            <list>
+                <list>
+                    <list>
+                        <list>
+                            <redirected_statement>
+                                <list>
+                                    <list>
+                                        <redirected_statement>
+                                            <list>
+                                                <list>
+                                                    <command>
+                                                        <command_name>
+                                                            <concatenation>
+                                                                <string>
+                                                                    <"\"" text="\"" />
+                                                                    <string_content text="hi0" />
+                                                                    <"\"" text="\"" />
+                                                                </string>
+                                                                <word text="a*" />
+                                                                <raw_string text="'c'" />
+                                                                <word text="#" />
+                                                            </concatenation>
+                                                        </command_name>
+                                                    </command>
+                                                    <"&&" text="&&" />
+                                                    <command>
+                                                        <command_name>
+                                                            <word text="echo" />
+                                                        </command_name>
+                                                        <arithmetic_expansion>
+                                                            <"((" text="((" />
+                                                            <binary_expression>
+                                                                <binary_expression>
+                                                                    <number text="1" />
+                                                                    <"+" text="+" />
+                                                                    <number text="2" />
+                                                                </binary_expression>
+                                                                <"+" text="+" />
+                                                                <variable_name text="a" />
+                                                            </binary_expression>
+                                                            <"))" text="))" />
+                                                        </arithmetic_expansion>
+                                                    </command>
+                                                </list>
+                                                <"&&" text="&&" />
+                                                <command>
+                                                    <command_name>
+                                                        <word text="echo" />
+                                                    </command_name>
+                                                    <raw_string text="'1'" />
+                                                </command>
+                                            </list>
+                                            <file_redirect>
+                                                <">" text=">" />
+                                                <word text="b" />
+                                            </file_redirect>
+                                        </redirected_statement>
+                                        <"&&" text="&&" />
+                                        <pipeline>
+                                            <command>
+                                                <command_name>
+                                                    <word text="echo" />
+                                                </command_name>
+                                                <raw_string text="'2'" />
+                                            </command>
+                                            <"|" text="|" />
+                                            <command>
+                                                <command_name>
+                                                    <word text="c" />
+                                                </command_name>
+                                            </command>
+                                        </pipeline>
+                                    </list>
+                                    <"&&" text="&&" />
+                                    <command>
+                                        <command_name>
+                                            <word text="echo" />
+                                        </command_name>
+                                        <raw_string text="'5'" />
+                                    </command>
+                                </list>
+                                <file_redirect>
+                                    <file_descriptor text="1" />
+                                    <">&" text=">&" />
+                                    <number text="2" />
+                                </file_redirect>
+                                <file_redirect>
+                                    <file_descriptor text="2" />
+                                    <">" text=">" />
+                                    <word text="/dev/null" />
+                                </file_redirect>
+                            </redirected_statement>
+                            <"&&" text="&&" />
+                            <command>
+                                <command_name>
+                                    <word text="ls" />
+                                </command_name>
+                                <word text="doesnotexist" />
+                            </command>
+                        </list>
+                        <"||" text="||" />
+                        <command>
+                            <command_name>
+                                <word text="ls" />
+                            </command_name>
+                            <word text="a" />
+                        </command>
+                    </list>
+                    <"&&" text="&&" />
+                    <command>
+                        <command_name>
+                            <word text="ls" />
+                        </command_name>
+                        <word text="b" />
+                    </command>
+                </list>
+                <"&&" text="&&" />
+                <command>
+                    <command_name>
+                        <word text="ls" />
+                    </command_name>
+                    <word text="c" />
+                </command>
+            </list>
+            <"&&" text="&&" />
+            <command>
+                <command_name>
+                    <word text="ls" />
+                </command_name>
+                <word text="d" />
+            </command>
+        </list>
+        <"&&" text="&&" />
+        <command>
+            <command_name>
+                <word text="ls" />
+            </command_name>
+            <word text="e" />
+        </command>
+    </list>
+    <";" text=";" />
     <command>
         <variable_assignment>
             <variable_name text="VAR1" />
@@ -123,6 +468,175 @@
                         <file_descriptor text="2" />
                         <">&" text=">&" />
                         <number text="1" />
+                    </file_redirect>
+                    <file_redirect>
+                        <file_descriptor text="1" />
+                        <">&" text=">&" />
+                        <number text="3" />
+                    </file_redirect>
+                </redirected_statement>
+                <"||" text="||" />
+                <pipeline>
+                    <command>
+                        <variable_assignment>
+                            <variable_name text="VAR5" />
+                            <"=" text="=" />
+                            <number text="10" />
+                        </variable_assignment>
+                        <variable_assignment>
+                            <variable_name text="VAR6" />
+                            <"=" text="=" />
+                            <number text="11" />
+                        </variable_assignment>
+                        <command_name>
+                            <word text="thing2" />
+                        </command_name>
+                    </command>
+                    <"|" text="|" />
+                    <command>
+                        <command_name>
+                            <word text="thing" />
+                        </command_name>
+                    </command>
+                </pipeline>
+            </list>
+            <"&&" text="&&" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="bye" />
+            </command>
+        </list>
+        <file_redirect>
+            <">" text=">" />
+            <number text="1" />
+        </file_redirect>
+    </redirected_statement>
+    <"&" text="&" />
+    <redirected_statement>
+        <list>
+            <list>
+                <redirected_statement>
+                    <command>
+                        <variable_assignment>
+                            <variable_name text="VAR7" />
+                            <"=" text="=" />
+                            <arithmetic_expansion>
+                                <"$((" text="$((" />
+                                <binary_expression>
+                                    <binary_expression>
+                                        <number text="1" />
+                                        <"+" text="+" />
+                                        <number text="2" />
+                                    </binary_expression>
+                                    <"+" text="+" />
+                                    <variable_name text="a" />
+                                </binary_expression>
+                                <"))" text="))" />
+                            </arithmetic_expansion>
+                        </variable_assignment>
+                        <variable_assignment>
+                            <variable_name text="VAR2" />
+                            <"+=" text="+=" />
+                            <number text="11" />
+                        </variable_assignment>
+                        <command_name>
+                            <word text="echo" />
+                        </command_name>
+                        <word text="hi6" />
+                    </command>
+                    <file_redirect>
+                        <file_descriptor text="2" />
+                        <">&" text=">&" />
+                        <number text="1" />
+                    </file_redirect>
+                    <file_redirect>
+                        <file_descriptor text="1" />
+                        <">&" text=">&" />
+                        <number text="3" />
+                    </file_redirect>
+                </redirected_statement>
+                <"||" text="||" />
+                <pipeline>
+                    <command>
+                        <variable_assignment>
+                            <variable_name text="VAR5" />
+                            <"=" text="=" />
+                            <number text="10" />
+                        </variable_assignment>
+                        <variable_assignment>
+                            <variable_name text="VAR6" />
+                            <"=" text="=" />
+                            <number text="11" />
+                        </variable_assignment>
+                        <command_name>
+                            <word text="thing2" />
+                        </command_name>
+                    </command>
+                    <"|" text="|" />
+                    <command>
+                        <command_name>
+                            <word text="thing" />
+                        </command_name>
+                    </command>
+                </pipeline>
+            </list>
+            <"&&" text="&&" />
+            <command>
+                <command_name>
+                    <word text="echo" />
+                </command_name>
+                <word text="bye" />
+            </command>
+        </list>
+        <file_redirect>
+            <">" text=">" />
+            <number text="1" />
+        </file_redirect>
+    </redirected_statement>
+    <"&" text="&" />
+    <redirected_statement>
+        <list>
+            <list>
+                <redirected_statement>
+                    <command>
+                        <variable_assignment>
+                            <variable_name text="VAR8" />
+                            <"=" text="=" />
+                            <arithmetic_expansion>
+                                <"((" text="((" />
+                                <binary_expression>
+                                    <binary_expression>
+                                        <number text="1" />
+                                        <"+" text="+" />
+                                        <number text="2" />
+                                    </binary_expression>
+                                    <"+" text="+" />
+                                    <variable_name text="a" />
+                                </binary_expression>
+                                <"))" text="))" />
+                            </arithmetic_expansion>
+                        </variable_assignment>
+                        <variable_assignment>
+                            <variable_name text="VAR2" />
+                            <"+=" text="+=" />
+                            <number text="11" />
+                        </variable_assignment>
+                        <command_name>
+                            <word text="echo" />
+                        </command_name>
+                        <word text="hi6" />
+                    </command>
+                    <file_redirect>
+                        <file_descriptor text="2" />
+                        <">&" text=">&" />
+                        <number text="1" />
+                    </file_redirect>
+                    <file_redirect>
+                        <file_descriptor text="1" />
+                        <">&" text=">&" />
+                        <number text="3" />
                     </file_redirect>
                 </redirected_statement>
                 <"||" text="||" />

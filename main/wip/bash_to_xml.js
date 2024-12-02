@@ -13,9 +13,9 @@ const parser = await parserFromWasm(bash)
 const tree = parser.parse(await Deno.readTextFile(`${FileSystem.thisFolder}/test.sh`))
 const root = tree.rootNode
 
-parseRawEnv(
-    root.quickQuery("(command)")
-)
+// parseRawEnv(
+//     root.quickQueryFirst("(command)")
+// )
 let indent = ""
 // for (const [ parents, node, direction ] of tree.rootNode.traverse()) {
 //     // general logic

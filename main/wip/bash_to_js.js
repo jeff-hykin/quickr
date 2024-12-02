@@ -104,7 +104,7 @@ async function setup() {
             stderr,
             pid,
             pidOfLastProcess,
-            lastStatus,
+            lastStatus, // FIXME: as of writing, this var never gets updated
             jobs: [],
             aliases: {},
             functions: {},
@@ -148,16 +148,9 @@ async function setup() {
             exportedEnvNames: new Set([...exportedEnvNames]),
             env: {
                 "$": pid,
-                "@": args,
                 // possible TODO: change this path to be the path of the caller, not the path to where this code is
                 "0": decodeURIComponent(new URL(import.meta.url).pathname.replace(/%(?![0-9A-Fa-f]{2})/g, "%25")), //TODO: check that this replace is still needed
-                "#": args.length,
-                "*": args.join(" "),
-                "@": args,
-                "?": lastStatus?.code,
-                "!": lastStatus?.signal,
-                "$-": initial.shellOpts, // options: https://www.gnu.org/software/bash/manual/bash.html#The-Set-Builtin
-                "SHLVL": `${(env["SHLVL"] || "0")-0+1}`,
+                "SHLVL": env["SHLVL"] || "0",
                 ...env,
             },
         }
@@ -184,9 +177,22 @@ async function setup() {
                     if (key-0>0) {
                         return scope.args[key]||""
                     }
-                    // this is shell-global (not tied to scope)
-                    if (key == "&") {
-                        return shell.pidOfLastProcess
+                    // specials
+                    switch (key) {
+                        case "&":
+                            return `${shell.pidOfLastProcess}`
+                        case "-":
+                            return shell.shellOpts
+                        case "?":
+                            return `${shell.lastStatus?.code||0}`
+                        case "!":
+                            return `${shell.lastStatus?.signal||0}`
+                        case "#":
+                            return `${scope.args.length}`
+                        case "*":
+                            return scope.args.join(" ")
+                        case "@":
+                            return scope.args
                     }
                     // grab local one first
                     if (Reflect.has(original, key)) {
@@ -232,6 +238,7 @@ async function setup() {
             get env() {
                 return shell._scopeStack.slice(-1)[0].env
             },
+            // FIXME: rework everything with consideration for arrays
             getVar(name) {
                 return shell._scopeStack.slice(-1)[0].env[name]||""
             }
@@ -322,17 +329,39 @@ async function setup() {
 }
 function compoundCommand2Code(node) {
     // will be one of:
-        // redirected_statement
-        // list
-        // command
+        // <redirected_statement>
+        // <pipeline>
+        // <list> // which is for &&, ||
+        // <command>
     let topLevel
     // FIXME
 }
 function exec2Code(node) {
-    // will be one of:
+    // node will be one of:
         // redirected_statement
         // command
-    // FIXME
+    // and redirected_statement will always have a command as its first child (no compound commands)
+    
+    let commandNode = node
+    if (node.type == "redirected_statement") {
+        commandNode = node.children[0]
+    }
+    const envCode = prefixedVariableAssignment2Code(commandNode)
+    
+    // FIXME: handle args/cmd name
+    // FIXME: handle redirections
+        // - redirects also need arg parsing/expansion
+        // - HEREDOCS
+        // manually need to handle:
+            // - stdin <<<
+            // - multiple redirects (swapping stdout and stderr, or feeding them to different sources)
+        // auto handling:
+            // single redirect for: 
+                // - append
+                // - stdout to stderr
+                // - stderr to stderr
+
+    
 }
 
 /**
@@ -350,11 +379,13 @@ function exec2Code(node) {
  * ```
  */
 export function prefixedVariableAssignment2Code(node) {
+    // node should always be <command>
+
     // keys=var names
     const rawEnv = parseRawEnv(node)
     
     let chunks = []
-    let envCode = "shell.exportedEnv"
+    let output = "shell.exportedEnv"
     if (Object.values(rawEnv).length > 0) {
         chunks.push(`{ ...shell.exportedEnv, `)
         for (const [key, { operation, node }] of Object.entries(rawEnv)) {
@@ -366,9 +397,9 @@ export function prefixedVariableAssignment2Code(node) {
             }
         }
         chunks.push(`}`)
-        envCode = chunks.join("")
+        output = chunks.join("")
     }
-    return envCode
+    return output
 }
 
 /**
@@ -399,15 +430,71 @@ export function parseRawEnv(node) {
     return env
 }
 
+// NOTE: needs to return a string that, when eval'd, returns an array of strings
+function commandArgs2Code(node) {
+    // the number of args passed to a command is not always known at parse time
+    for (const each of node.children) {
+        if (node.type == "number") {
+            return escapeJsString(node.text)
+        } else if (node.type == "raw_string") {
+            return escapeJsString(node.text.slice(1,-1))
+        } else if (node.type == "concatenation") {
+            let chunks = []
+            for (const each of node.children) {
+                const chunk = expansionOfEnvAssignment2Code(each)
+                // this is a visual optimization to combine multiple backtick strings into one
+                if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
+                    chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
+                } else {
+                    chunks.push(chunk)
+                }
+            }
+            return chunks.join("+")
+        } else if (node.type == "word") {
+            // FIXME: this is wrong (ignores expansions)
+            return escapeJsString(node.text)
+        } else {
+            console.warn(`not yet implemented: expansionOfEnvAssignment2Code() does not support type: ${node.type}`)
+
+            // FIXME: this needs to handle strings and sub-shell expansions (recursive with compoundCommand2Code)
+            return escapeJsString(node.text.slice(1,-1))
+        }
+    }
+}
+
 // NOTE: sometimes this will return `await (stuff)`
 function expansionOfEnvAssignment2Code(node) {
+    // node is often one of:
+        // <number>
+        // <concatenation>
+        // <string>
+        // <word>
+        // <raw_string>
+        // <arithmetic_expansion>
     if (node.type == "number") {
-        return JSON.stringify(node.text)
+        return escapeJsString(node.text)
+    } else if (node.type == "raw_string") {
+        return escapeJsString(node.text.slice(1,-1))
+    } else if (node.type == "concatenation") {
+        let chunks = []
+        for (const each of node.children) {
+            const chunk = expansionOfEnvAssignment2Code(each)
+            // this is a visual optimization to combine multiple backtick strings into one
+            if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
+                chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
+            } else {
+                chunks.push(chunk)
+            }
+        }
+        return chunks.join("+")
     } else if (node.type == "word") {
-        return node.text
+        // FIXME: this is wrong (ignores expansions)
+        return escapeJsString(node.text)
     } else {
         console.warn(`not yet implemented: expansionOfEnvAssignment2Code() does not support type: ${node.type}`)
-        return JSON.stringify(node.text.slice(1,-1))
+
+        // FIXME: this needs to handle strings and sub-shell expansions (recursive with compoundCommand2Code)
+        return escapeJsString(node.text.slice(1,-1))
     }
 }
 
