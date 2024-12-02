@@ -245,7 +245,7 @@ export async function setup() {
                 return this.asString(this.env[name])
             },
             split(value) {
-                // FIXME: the split might need to have a dynamic split character
+                // FIXME: the split might need to have a dynamic split character (instead of always being /\s+/g)
                 return this.asString(value).split(/\s+/g).filter(each=>each!="")
                 // NOTE: the filtering of empty strings seems to match bash behavior
                 //       but I'm not sure about the spec
@@ -353,8 +353,9 @@ export async function setup() {
 
     return {
         makeShell,
-        $,
-        $$,
+        $: $$,
+        and: (command)=>(result)=>result.code==0 && command(),
+        or: (command)=>(result)=>result.code==0 || command(),
     }
 }
 
@@ -368,7 +369,7 @@ function _getSetupCode() {
         
         return `"data:text/javascript;base64,${btoa(replaceNonAsciiWithUnicode(codeString))}"`
     }
-    return makeImport(setup.toString() + "\nexport const {makeShell, $, $$} = await setup()")
+    return makeImport(setup.toString() + "\nexport const {makeShell, $} = await setup()")
 }
 
 // NOTE: this is just a hack to test the system 
@@ -376,10 +377,10 @@ async function _createAndRun(stringCommand) {
     const root = parser.parse(stringCommand).rootNode
     const code = root.children.map(each=>`await ${compoundCommand2Code(each)}`).join("\n")
     await FileSystem.write({
-        data: `import { makeShell, $, $$ } from ${_getSetupCode()}\nconst shell = makeShell()\n\n${code}\n`,
+        data: `import { makeShell, $, and, or } from ${_getSetupCode()}\nconst shell = makeShell()\n\n${code}\n`,
         path: FileSystem.thisFile+".out.js",
     })
-    let output = eval(`((async ()=>{\n\nconst {makeShell, $, $$} = await import(${_getSetupCode()})\nconst shell = makeShell()\nreturn ${code}\n\n})())`)
+    let output = eval(`((async ()=>{\n\nconst {makeShell, $, and, or } = await import(${_getSetupCode()})\nconst shell = makeShell()\nreturn ${code}\n\n})())`)
     return await output
 }
 
@@ -388,7 +389,7 @@ async function _createAndRun(stringCommand) {
  *
  * @example
  * ```js
- * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi\necho hi > hi.txt`)
+ * console.log(await _run`VAR1=10 VAR2+=11 echo hi6\necho hi\necho hi > hi.txt\necho hi && echo bye`)
  * ```
  */
 export async function _run(maybeStrings, ...args){
@@ -453,10 +454,10 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
         // shortcut for command with simple args
         //
         if (argsCode.match(/^\[(\`[a-zA-Z0-9_]+\`,)+\]/)) {
-            return "$$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+"`"+envCode
+            return "$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+"`"+envCode
         }
 
-        return "$$`${"+argsCode+"}`"+envCode
+        return "$`${"+argsCode+"}`"+envCode
     } else if (type == "redirected_statement") {
         let innerCode
         
@@ -488,18 +489,18 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
                         envCode = ""
                     }
 
-                    let execCode = "$$`${"+argsCode+"} "+codeToInject+"`"+envCode
+                    let execCode = "$`${"+argsCode+"} "+codeToInject+"`"+envCode
 
                     //
                     // shortcut for command with simple args
                     //
                     if (argsCode.match(/^\[(\`[a-zA-Z0-9_]+\`,)+\]/)) {
-                        execCode = "$$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+" "+codeToInject+"`"+envCode
+                        execCode = "$`"+argsCode.slice(1,-1).replaceAll(/\`([a-zA-Z0-9_]+)\`,/g,"$1 ").slice(0,-1)+" "+codeToInject+"`"+envCode
                     }
                     return execCode
                 }
             }
-            innerCode = "$$`${"+argsCode+"}`.env("+envCode+")"
+            innerCode = "$`${"+argsCode+"}`.env("+envCode+")"
         } else {
             innerCode = compoundCommand2Code(children[0])
         }
@@ -522,9 +523,17 @@ export function compoundCommand2Code(node, {isTopLevel=true}={}) {
         console.warn(`got a redirect I was unable to handle`)
         return innerCode
     } else if (type == "list") {
-        throw Error(`Currently unable to handle &&, ||`)
+        const [ firstThing, operator, secondThing ] = node.children
+        if (operator.type == "&&") {
+            return `${compoundCommand2Code(firstThing)}.then(and(()=>\n    ${compoundCommand2Code(secondThing)}\n))`
+        } else if (operator.type == "||") {
+            return `${compoundCommand2Code(firstThing)}.then(or(()=>\n    ${compoundCommand2Code(secondThing)}\n))`
+        } else {
+            throw Error(`Currently unable to handle <list> with ${operator}`)
+        }
     } else if (type == "pipeline") {
-        throw Error(`Currently unable to handle pipes`)
+        const [ firstThing, operator, secondThing ] = node.children
+        return `${compoundCommand2Code(firstThing)}.pipe(${compoundCommand2Code(secondThing)})`
     } else {
         throw Error(`Currently unable to command of type: ${type}`)
     }
