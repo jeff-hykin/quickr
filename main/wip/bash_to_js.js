@@ -6,6 +6,7 @@ import { escapeJsString } from "https://deno.land/x/good@1.13.2.0/flattened/esca
 
 const parser = await parserFromWasm(bash) // path or Uint8Array 
 
+// TODO: test {}'s for command groups
 // every command (by definition) has:
     // - return code
     // - stdin
@@ -238,7 +239,14 @@ async function setup() {
             },
             // FIXME: rework everything with consideration for arrays
             getVar(name) {
-                return shell._scopeStack.slice(-1)[0].env[name]||""
+                return this.asString(this.env[name])
+            },
+            split(value) {
+                // FIXME: the split might need to have a dynamic split character
+                return this.asString(value).split(/\s+/g).filter(each=>each!="")
+                // NOTE: the filtering of empty strings seems to match bash behavior
+                //       but I'm not sure about the spec
+                // it IS a notable edgecase, since it makes empty args impossible sometimes
             },
             asString(value) {
                 if (value instanceof Array) {
@@ -252,8 +260,10 @@ async function setup() {
                     throw Error(`shell.asString() got a weird value: ${typeof value}, ${value}`, value)
                 }
             },
-            expandArg(arg) {
-                // FIXME: should do glob expansion, and other based on shell.shellOpts
+            async argExpansionPass(arg) {
+                // NOTE: this sometimes returns an array, and sometimes a string
+                // this needs to handle ${varName#a} and **/*, ~, etc based on shell.shellOpts
+                // NOTE: ${@:1} and ${*:1} are both treated like arrays, not strings
                 return arg
             },
         }
@@ -364,8 +374,8 @@ function exec2Code(node) {
         commandNode = node.children[0]
     }
     const envCode = prefixedVariableAssignment2Code(commandNode)
+    const argsCode = commandArgs2Code(commandNode)
     
-    // FIXME: handle args/cmd name
     // FIXME: handle redirections
         // - redirects also need arg parsing/expansion
         // - HEREDOCS
@@ -377,8 +387,8 @@ function exec2Code(node) {
                 // - append
                 // - stdout to stderr
                 // - stderr to stderr
-
     
+    return "$$`${"+argsCode+"}`.env("+envCode+")"
 }
 
 /**
@@ -449,13 +459,14 @@ export function parseRawEnv(node) {
 
 // NOTE: needs to return a string that, when eval'd, returns an array of strings
 function commandArgs2Code(node) {
+    const children = noComments(node.children)
+
     // assume worst case: every arg needs expanding, and unknown number of args
     let chunks = [
-        `await (async ()=>{`,
-        `const args = []`,
+        `[`
     ]
     // the number of args passed to a command is not always known at parse time
-    for (let each of noComments(node.children)) {
+    for (let each of children) {
         if (each.type == "variable_assignment" || each.type == "file_redirect" || each.type == "heredoc_redirect" || each.type == "herestring_redirect") {
             continue
         }
@@ -471,34 +482,84 @@ function commandArgs2Code(node) {
             // <command_substitution>
             // <arithmetic_expansion>
             // <string>
-            // <raw_string>
             // <word>
+            // <raw_string>
             // <number>
-        const pureArg = tryPureArg2Code(each)
-        if (pureArg != null) {
-            chunks.push(`args.push(${pureArg})`)
-            continue
-        } else {
-            const type = each.type
-            if (type == "simple_expansion") {
-                if (each.text == "$@") {
-                    chunks.push(`args.push(...shell.env["@"])`)
-                }
-                // FIXME: edgecase of $@'s weird behavior
-                chunks.push(`args.push(shell.getVar(${JSON.stringify(each.text.slice(1))}))`)
-            } else if (type == "expansion") {
-                // FIXME: edgecase of $@'s weird behavior
-                chunks.push(`args.push(shell.getVar(${JSON.stringify(each.text.slice(1))}))`)
-            // concatenations are never nested
-            } else if (type == "concatenation") {
-                // FIXME
+        chunks.push(argInArray2Code(each))
+    }
+    chunks.push("]")
+    return chunks.join("")
+}
+
+function argInArray2Code(node, directlyInsideDoubleQuotes=false) {
+    // can be any of: (probably incomplete list)
+        // <number>
+        // <raw_string>
+        // <simple_expansion>
+        // <expansion>
+        // <command_substitution>
+        // <string>
+        // <word>
+        // <arithmetic_expansion>
+        // <concatenation>
+    
+    const each = node
+    const pureArg = tryPureArg2Code(each)
+    // all raw_string, number, and some concatenation are handled here
+    if (pureArg != null) {
+        return `${pureArg},`
+    } else {
+        if (type == "simple_expansion" || (type == "expansion" && each.children[1].type == "variable_name" && each.text == `\${${each.children[1].text}}`)) {
+            const name = each.children.find(each=>each.type=="variable_name")
+            if (directlyInsideDoubleQuotes && name == "@") {
+                return `...shell.env["@"],`
             }
+            // TODO: will probably need to change this when adding array support
+            return `...shell.split(shell.env[${JSON.stringify(name)}]),`
+            // for the edgecase of $@ with no quotes, the above should still be equivlent to:
+            // return `args.push(...shell.env["@"].map(each=>shell.split(each)).flat(Infinity))`
+        } else if (type == "expansion" || type == "word") {
+            return `...await shell.argExpansionPass(${escapeJsString(each.text)}),`
+        } else if (type == "command_substitution") {
+            return `${compoundCommand2Code(each.children[1])},`
+        } else if (type == "string") {
+            let parts = ["["]
+            for (const eachPart of each.children) {
+                if (eachPart.type == '"') {
+                    continue
+                } else if (eachPart.type == "string_content") {
+                    // AFAIK: only \ and " need un-escaping (there will never be $ in here)
+                    parts.push(`${escapeJsString(eachPart.text.replace(/\\(\\|")/g,"$1"))},`)
+                } else { 
+                    // should only ever be <command_substitution>, <simple_expansion>, <expansion>, <arithmetic_expansion>
+                    const directlyInsideDoubleQuotes = true // this is needed for the edgecase of $@
+                    parts.push(argInArray2Code(eachPart, directlyInsideDoubleQuotes))
+                }
+            }
+            parts.push("].join('')")
+            return parts.join("")
+        } else if (type == "concatenation") {
+            return `[${each.children.map(argInArray2Code).join("")}]).join(""),`
+        } else if (type == "arithmetic_expansion") {
+            throw Error(`arithmetic expansion is not yet supported: ${each.text}`)
+        } else {
+            throw Error(`${type} is not yet supported as an argument: ${each.text}`)
         }
-        
-        // FIXME: edgecase of $@'s weird behavior
     }
 }
 
+function joinPureStringParts(parts) {
+    let chunks = []
+    for (const chunk of parts) {
+        // this is a visual optimization to combine multiple backtick strings into one
+        if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
+            chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
+        } else {
+            chunks.push(chunk)
+        }
+    }
+    return chunks.join("+")
+}
 function tryPureArg2Code(node) {
     if (!definitelyPureArg(node)) {
         return null
@@ -510,17 +571,7 @@ function tryPureArg2Code(node) {
     } else if (node.type == "word" && !hasSpecialCharacters(node.text)) {
         return escapeJsString(node.text)
     } else if (node.type == "concatenation" && node.children.every(definitelyPureArg)) {
-        let chunks = []
-        for (const each of node.children) {
-            const chunk = pureArgToString(each)
-            // this is a visual optimization to combine multiple backtick strings into one
-            if (chunk.startsWith('`') && chunks.length > 0 && chunks[chunks.length-1].endsWith('`')) {
-                chunks[chunks.length-1] = chunks[chunks.length-1].slice(0,-1) + chunk.slice(1,)
-            } else {
-                chunks.push(chunk)
-            }
-        }
-        return chunks.join("+")
+        return joinPureStringParts(node.children.map(pureArgToString))
     }
 }
 const hasSpecialCharacters = text=>text.match(/[\\*{\\?@\\[]/)
@@ -554,7 +605,7 @@ function expansionOfEnvAssignment2Code(node) {
     if (node.type == "word") {
         // FIXME: this is slightly wrong, I think there are edgecases where argument expansion is different than env assignment expansion
         //      "$@" is probably one of the edgecases (and it might already be handled)
-        return `shell.asString(await shell.expandArg(${escapeJsString(node.text)}))`
+        return `shell.asString(await shell.argExpansionPass(${escapeJsString(node.text)}))`
     } else {
         console.warn(`not yet implemented: expansionOfEnvAssignment2Code() does not support type: ${node.type}`)
         // FIXME: this needs to handle strings and sub-shell expansions (recursive with compoundCommand2Code)

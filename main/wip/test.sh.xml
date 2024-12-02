@@ -138,11 +138,21 @@
                             <command_name>
                                 <word text="echo" />
                             </command_name>
-                            <word text="hi" />
+                            <word text="hi13" />
                         </command>
                         <")" text=")" />
                     </command_substitution>
-                    <string_content text="\\\"sup" />
+                    <string_content text="\\\"" />
+                    <simple_expansion>
+                        <"$" text="$" />
+                        <variable_name text="hi" />
+                    </simple_expansion>
+                    <expansion>
+                        <"${" text=" ${" />
+                        <variable_name text="stuff" />
+                        <"}" text="}" />
+                    </expansion>
+                    <string_content text="\\b\\n\\1\\#{}|.*&Y&sup" />
                     <"\"" text="\"" />
                 </string>
                 <arithmetic_expansion>

@@ -11,7 +11,7 @@ else
     echo not true
 fi
 
-$(echo echo hi)'' {0..$a} \${a#b} $(echo hi) "$(echo hi)\"sup" ((1 + 2 + a)) > a || THING=10 echo "$(echo "c" 1>&2)"
+$(echo echo hi)'' {0..$a} \${a#b} $(echo hi) "$(echo hi13)\"$hi ${stuff}\b\n\1\#{}|.*&Y&sup" ((1 + 2 + a)) > a || THING=10 echo "$(echo "c" 1>&2)"
 
 "hi0"a*'c'# && echo ((1+2+a)) && echo '1' > b && echo '2' | c && echo '5' 1>&2 2>/dev/null && ls doesnotexist || ls a && ls b && ls c && ls d && ls e;
 
