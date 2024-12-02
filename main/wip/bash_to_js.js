@@ -60,6 +60,8 @@ export async function setup() {
         "g",
     )
 
+    
+
     function escapeRegexMatch(str) {
         return str.replaceAll(
             RX_REGEXP_ESCAPE,
@@ -152,7 +154,6 @@ export async function setup() {
             env: {
                 "$": pid,
                 // possible TODO: change this path to be the path of the caller, not the path to where this code is
-                // FIXME: get rid of FileSystem.thisFile
                 "0": source||FileSystem.thisFile, // decodeURIComponent(new URL(import.meta.url).pathname.replace(/%(?![0-9A-Fa-f]{2})/g, "%25")), //TODO: check that this replace is still needed
                 "SHLVL": env["SHLVL"] || "0",
                 ...env,
@@ -357,16 +358,28 @@ export async function setup() {
     }
 }
 
+function _getSetupCode() {
+    function makeImport(codeString) {
+        function replaceNonAsciiWithUnicode(str) {
+            return str.replace(/[^\0-~](?<!\n|\r|\t|\0)/g, (char) => {
+                return '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+            })
+        }
+        
+        return `"data:text/javascript;base64,${btoa(replaceNonAsciiWithUnicode(codeString))}"`
+    }
+    return makeImport(setup.toString() + "\nexport const {makeShell, $, $$} = await setup()")
+}
+
 // NOTE: this is just a hack to test the system 
 async function _createAndRun(stringCommand) {
     const root = parser.parse(stringCommand).rootNode
     const code = compoundCommand2Code(root.children[0])
-    const finalCode = `((async ()=>{\n${setup.toString()}\nconst {makeShell, $, $$} = await setup()\nconst shell = makeShell()\nreturn ${code}\n})())`
     await FileSystem.write({
-        data: finalCode,
+        data: `import { makeShell, $, $$ } from ${_getSetupCode()}\nconst shell = makeShell()\n\nawait ${code}\n`,
         path: FileSystem.thisFile+".out.js",
     })
-    let output = eval(`((async ()=>{\n${setup.toString()}\nconst {makeShell, $, $$} = await setup()\nconst shell = makeShell()\nreturn ${code}\n})())`)
+    let output = eval(`((async ()=>{\n\nconst {makeShell, $, $$} = await import(${_getSetupCode()})\nconst shell = makeShell()\nreturn ${code}\n\n})())`)
     return await output
 }
 
