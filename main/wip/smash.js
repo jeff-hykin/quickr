@@ -1,9 +1,9 @@
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
-import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@0.7.8/array.js"
-import { capitalize, indent, toCamelCase, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@0.7.8/string.js"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@1.13.4.0/events.js"
+import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@1.13.4.0/array.js"
+import { capitalize, indent, toCamelCase, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@1.13.4.0/string.js"
 import { OperatingSystem } from "../operating_system.js"
-import { intersection, subtract } from "https://deno.land/x/good@0.7.8/set.js"
-import { allKeys } from "https://deno.land/x/good@0.7.8/object.js"
+import { intersection, subtract } from "https://deno.land/x/good@1.13.4.0/set.js"
+import { allKeys } from "https://deno.land/x/good@1.13.4.0/object.js"
 import { FlowingString, toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "../stream_tools.js"
 
 const notGiven = Symbol()

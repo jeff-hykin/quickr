@@ -5,9 +5,8 @@ import { readableStreamFromReader, writableStreamFromWriter } from "https://deno
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
-import { debugValueAsString } from "https://deno.land/x/good@0.7.8/debug.js"
-import { deepCopy, deepCopySymbol, allKeyDescriptions, deepSortObject, shallowSortObject, isGeneratorType,isAsyncIterable, isSyncIterable, isTechnicallyIterable, isSyncIterableObjectOrContainer, allKeys } from "https://deno.land/x/good@1.5.1.0/value.js"
-import { deferredPromise, recursivePromiseAll } from "https://deno.land/x/good@1.5.1.0/async.js"
+import { toRepresentation as debugValueAsString } from "https://deno.land/x/good@1.13.4.0/flattened/to_representation.js"
+import { deferredPromise } from "https://deno.land/x/good@1.13.4.0/async.js"
 
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")
@@ -496,7 +495,7 @@ export const run = (maybeStrings, ...args) => {
                             value = openFiles[path]
                         }
                         
-                        if (value instanceof Deno.File) {
+                        if (value instanceof (Deno.File||class {})) {
                             // clear the file
                             value.truncate()
                         } else {
@@ -518,7 +517,7 @@ export const run = (maybeStrings, ...args) => {
                             // FIXME: this file never gets closed! it needs to be, but only if it was opened here
                         }
                         
-                        if (value instanceof Deno.File) {
+                        if (value instanceof (Deno.File||class {})) {
                             // go to the end of a file (meaning everthing will be appended)
                             await Deno.seek(value.rid, 0, Deno.SeekMode.End)
                         } else {
@@ -549,7 +548,7 @@ export const run = (maybeStrings, ...args) => {
                 key = JSON.stringify(eachArg.map(each=>{
                     if (typeof each == "symbol") {
                         return each.toString()
-                    } else if (each instanceof Deno.File) {
+                    } else if (each instanceof (Deno.File||class {})) {
                         if (ridToPath[each.id]) {
                             return FileSystem.makeAbsolutePath(ridToPath[each.id])
                         }

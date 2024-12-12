@@ -1,6 +1,6 @@
 import { OperatingSystem } from "./operating_system.js"
-import { toString, indent } from "https://deno.land/x/good@1.3.0.4/string.js"
-import { zip } from "https://deno.land/x/good@1.3.0.4/iterable.js"
+import { toString, indent } from "https://deno.land/x/good@1.13.4.0/string.js"
+import { zip } from "https://deno.land/x/good@1.13.4.0/iterable.js"
 
 const realConsole = globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'

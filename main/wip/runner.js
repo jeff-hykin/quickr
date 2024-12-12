@@ -62,7 +62,7 @@ import { FileSystem } from "../file_system.js"
             !(
                 value === null ||
                 value instanceof FileStreamClass ||
-                value instanceof Deno.File ||
+                value instanceof (Deno.File||class {}) ||
                 isWritable(value)
             )
         ) {
@@ -598,7 +598,7 @@ import { FileSystem } from "../file_system.js"
                             } else if (eachTarget === Deno.stderr) {
                                 // don't close stderr, just write
                                 listener.write = (chunk)=>writeAllSync(Deno.stderr, chunk)
-                            } else if (eachTarget instanceof Deno.File) {
+                            } else if (eachTarget instanceof (Deno.File||class {})) {
                                 // don't auto-close deno file objects (the whole point would be using an already-open file)
                                 listener.write = eachTarget.write
                             } else {

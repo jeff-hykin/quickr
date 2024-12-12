@@ -1,10 +1,10 @@
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async/mod.ts"
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@0.7.8/events.js"
-import { toRepresentation } from "https://deno.land/x/good@0.7.8/string.js"
-import { allKeys } from "https://deno.land/x/good@1.6.0.0/value.js"
-import { zip } from "https://deno.land/x/good@1.6.0.0/iterable.js"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@1.13.4.0/events.js"
+import { toRepresentation } from "https://deno.land/x/good@1.13.4.0/string.js"
+import { allKeys } from "https://deno.land/x/good@1.13.4.0/value.js"
+import { zip } from "https://deno.land/x/good@1.13.4.0/iterable.js"
 
 
 
@@ -76,7 +76,7 @@ export function toWritableStream(value, overwrite=true) {
                 value = Deno.openSync(value, {write: true, truncate: true, create: true})
             }
 
-            if (value instanceof Deno.File) {
+            if (value instanceof (Deno.File||class {})) {
                 // clear the file
                 value.truncate()
             } else {
@@ -91,7 +91,7 @@ export function toWritableStream(value, overwrite=true) {
                 // FIXME: this file never gets closed! its hard to close because if it was opened outside of this library, then closing after the command would close it early and cause an error. Need a way to check on it
             }
             
-            if (value instanceof Deno.File) {
+            if (value instanceof (Deno.File||class {})) {
                 // go to the end of a file (meaning everthing will be appended)
                 Deno.seekSync(value.rid, 0, Deno.SeekMode.End)
             } else {
