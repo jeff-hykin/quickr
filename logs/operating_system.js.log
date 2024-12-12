@@ -6,5 +6,6 @@
   versionArray: [Getter],
   username: [Getter],
   home: [Getter],
-  idForUsername: [AsyncFunction: idForUsername]
+  idForUsername: [AsyncFunction: idForUsername],
+  openUrl: [AsyncFunction: openUrl]
 }
