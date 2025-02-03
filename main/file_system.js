@@ -1741,9 +1741,19 @@ export const FileSystem = {
             }
             return basicCopySync(from, to, {force, preserveTimestamps: true})
         },
+        *iterateBasenamesIn(pathOrFileInfo){
+            const info = pathOrFileInfo instanceof PathInfo ? pathOrFileInfo : FileSystem.sync.info(pathOrFileInfo)
+            // if file or doesnt exist
+            if (info.isFolder) {
+                for (const dirEntry of Deno.readDirSync(info.path)) {
+                    yield dirEntry.name
+                }
+            }
+        },
+        listBasenamesIn(pathOrFileInfo) {
+            return [...FileSystem.sync.iterateBasenamesIn(pathOrFileInfo)]
+        },
         // sync TODO:
-            // iterateBasenamesIn
-            // iteratePathsIn
             // iterateItemsIn
             // listItemsIn
             // listFileItemsIn

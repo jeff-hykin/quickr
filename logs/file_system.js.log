@@ -1,9 +1,9 @@
-Download https://deno.land/x/good@1.13.4.0/set.js
-Download https://deno.land/x/good@1.13.4.0/flattened/set_subtract.js
-Download https://deno.land/x/good@1.13.4.0/flattened/intersection.js
 FileSystem.thisFile is: /Users/jeffhykin/repos/quickr/main/file_system.js
 FileSystem.thisFolder is: /Users/jeffhykin/repos/quickr/main
 FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
+# 
+# listFileItemsIn
+# 
 [
   Path {
     path: "../main/stream_tools.js",
@@ -11,13 +11,14 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 16172,
-      mtime: 2024-12-12T00:19:42.353Z,
-      atime: 2024-12-12T00:19:43.576Z,
+      size: 16196,
+      mtime: 2024-12-12T00:24:31.253Z,
+      atime: 2024-12-12T00:24:32.380Z,
       birthtime: 2022-11-27T00:46:17.958Z,
-      dev: 16777233,
-      ino: 8186842,
+      ctime: 2024-12-12T00:24:31.000Z,
+      dev: 16777234,
       mode: 33188,
+      ino: 8186842,
       nlink: 1,
       uid: 501,
       gid: 20,
@@ -39,11 +40,12 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isSymlink: false,
       size: 26622,
       mtime: 2024-12-12T00:12:46.332Z,
-      atime: 2024-12-12T00:15:53.999Z,
+      atime: 2024-12-12T00:21:40.427Z,
       birthtime: 2023-11-16T23:50:40.077Z,
-      dev: 16777233,
-      ino: 51396631,
+      ctime: 2024-12-12T00:12:46.000Z,
+      dev: 16777234,
       mode: 33188,
+      ino: 51396631,
       nlink: 1,
       uid: 501,
       gid: 20,
@@ -63,13 +65,14 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 37306,
-      mtime: 2024-12-12T00:18:35.804Z,
-      atime: 2024-12-12T00:18:36.957Z,
+      size: 37342,
+      mtime: 2024-12-12T00:24:20.623Z,
+      atime: 2024-12-12T00:25:31.471Z,
       birthtime: 2023-09-02T21:15:20.179Z,
-      dev: 16777233,
-      ino: 40800423,
+      ctime: 2024-12-12T00:24:20.000Z,
+      dev: 16777234,
       mode: 33188,
+      ino: 40800423,
       nlink: 1,
       uid: 501,
       gid: 20,
@@ -89,13 +92,14 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 82030,
-      mtime: 2024-12-12T00:15:49.295Z,
-      atime: 2024-12-12T00:15:50.182Z,
+      size: 82480,
+      mtime: 2025-02-03T14:39:55.432Z,
+      atime: 2025-02-03T14:39:57.118Z,
       birthtime: 2023-08-20T14:27:58.024Z,
-      dev: 16777233,
-      ino: 40021316,
+      ctime: 2025-02-03T14:39:55.000Z,
+      dev: 16777234,
       mode: 33188,
+      ino: 40021316,
       nlink: 1,
       uid: 501,
       gid: 20,
@@ -119,9 +123,10 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2024-07-09T19:03:58.243Z,
       atime: 2024-07-09T19:03:59.383Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      dev: 16777233,
-      ino: 2917675,
+      ctime: 2024-07-09T19:03:58.000Z,
+      dev: 16777234,
       mode: 33188,
+      ino: 2917675,
       nlink: 1,
       uid: 501,
       gid: 20,
@@ -145,9 +150,10 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T18:40:58.703Z,
       atime: 2022-11-06T18:40:59.129Z,
       birthtime: 2022-11-06T18:27:31.934Z,
-      dev: 16777233,
-      ino: 6675855,
+      ctime: 2022-11-06T18:40:58.000Z,
+      dev: 16777234,
       mode: 33188,
+      ino: 6675855,
       nlink: 1,
       uid: 501,
       gid: 20,
@@ -161,6 +167,16 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   }
+]
+[
+  "flat",
+  "stream_tools.js",
+  "console.js",
+  "run.js",
+  "file_system.js",
+  "operating_system.js",
+  "wip",
+  "test.ignore.js"
 ]
 # 
 # breadthFirstSearch

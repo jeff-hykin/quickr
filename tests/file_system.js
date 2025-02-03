@@ -8,7 +8,11 @@ console.log(`FileSystem.workingDirectory is:`,FileSystem.workingDirectory)
 
 await FileSystem.clearAPathFor(`${FileSystem.thisFolder}/run.errors.log`)
 
+console.log("# ")
+console.log("# listFileItemsIn")
+console.log("# ")
 console.log(await FileSystem.listFileItemsIn(`../main/`))
+console.log(await FileSystem.sync.listBasenamesIn(`../main/`))
 
 console.log("# ")
 console.log("# breadthFirstSearch")
