@@ -1,11 +1,12 @@
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy, copySync as basicCopySync } from "https://deno.land/std@0.133.0/fs/mod.ts"
-import { findAll } from "https://deno.land/x/good@1.13.4.0/string.js"
-import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.13.4.0/iterable.js"
+import { findAll } from "https://deno.land/x/good@1.14.3.0/string.js"
+import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.14.3.0/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.214.0/path/glob.ts";
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
-import { isGeneratorObject as isGeneratorType } from "https://deno.land/x/good@1.13.4.0/flattened/is_generator_object.js"
-import { typedArrayClasses } from "https://deno.land/x/good@1.13.4.0/flattened/typed_array_classes.js"
+import { isGeneratorObject as isGeneratorType } from "https://deno.land/x/good@1.14.3.0/flattened/is_generator_object.js"
+import { typedArrayClasses } from "https://deno.land/x/good@1.14.3.0/flattened/typed_array_classes.js"
+import { pathPureName } from "https://deno.land/x/good@1.14.3.0/flattened/path_pure_name.js"
 
 import { pathStandardize } from "./flat/_path_standardize.js"
 import { makeAbsolutePath } from "./flat/make_absolute_path.js"
@@ -68,6 +69,7 @@ export const FileSystem = {
     parentPath: Path.dirname,
     dirname: Path.dirname,
     basename: Path.basename,
+    pureNameOf: pathPureName,
     extname: Path.extname,
     join: Path.join,
     normalize: normalizePath,

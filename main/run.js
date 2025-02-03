@@ -5,8 +5,8 @@ import { readableStreamFromReader, writableStreamFromWriter } from "https://deno
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { StringReader } from "https://deno.land/std@0.128.0/io/mod.ts"
 import * as Path from "https://deno.land/std@0.117.0/path/mod.ts"
-import { toRepresentation as debugValueAsString } from "https://deno.land/x/good@1.13.4.0/flattened/to_representation.js"
-import { deferredPromise } from "https://deno.land/x/good@1.13.4.0/async.js"
+import { toRepresentation as debugValueAsString } from "https://deno.land/x/good@1.14.3.0/flattened/to_representation.js"
+import { deferredPromise } from "https://deno.land/x/good@1.14.3.0/async.js"
 
 const timeoutSymbol      = Symbol("timeout")
 const envSymbol          = Symbol("env")

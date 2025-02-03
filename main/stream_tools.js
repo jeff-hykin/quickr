@@ -1,10 +1,10 @@
 import { readableStreamFromReader, writableStreamFromWriter } from "https://deno.land/std@0.121.0/streams/conversion.ts"
 import { zipReadableStreams, mergeReadableStreams } from "https://deno.land/std@0.121.0/streams/merge.ts"
 import { deferred as deferredPromise } from "https://deno.land/std@0.161.0/async/mod.ts"
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@1.13.4.0/events.js"
-import { toRepresentation } from "https://deno.land/x/good@1.13.4.0/string.js"
-import { allKeys } from "https://deno.land/x/good@1.13.4.0/value.js"
-import { zip } from "https://deno.land/x/good@1.13.4.0/iterable.js"
+import { Event, trigger, everyTime, once } from "https://deno.land/x/good@1.14.3.0/events.js"
+import { toRepresentation } from "https://deno.land/x/good@1.14.3.0/string.js"
+import { allKeys } from "https://deno.land/x/good@1.14.3.0/value.js"
+import { zip } from "https://deno.land/x/good@1.14.3.0/iterable.js"
 
 
 

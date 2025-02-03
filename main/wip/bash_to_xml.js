@@ -5,7 +5,7 @@ import { FileSystem, glob } from "https://deno.land/x/quickr@0.6.72/main/file_sy
 import { run, hasCommand, throwIfFails, zipInto, mergeInto, returnAsString, Timeout, Env, Cwd, Stdin, Stdout, Stderr, Out, Overwrite, AppendTo, } from "https://deno.land/x/quickr@0.6.72/main/run.js"
 import { Console, clearAnsiStylesFrom, black, white, red, green, blue, yellow, cyan, magenta, lightBlack, lightWhite, lightRed, lightGreen, lightBlue, lightYellow, lightMagenta, lightCyan, blackBackground, whiteBackground, redBackground, greenBackground, blueBackground, yellowBackground, magentaBackground, cyanBackground, lightBlackBackground, lightRedBackground, lightGreenBackground, lightYellowBackground, lightBlueBackground, lightMagentaBackground, lightCyanBackground, lightWhiteBackground, bold, reset, dim, italic, underline, inverse, strikethrough, gray, grey, lightGray, lightGrey, grayBackground, greyBackground, lightGrayBackground, lightGreyBackground, } from "https://deno.land/x/quickr@0.6.72/main/console.js"
 
-import { deepCopy, deepCopySymbol, allKeyDescriptions, deepSortObject, shallowSortObject,isAsyncIterable, isSyncIterable, allKeys } from "https://deno.land/x/good@1.13.4.0/value.js"
+import { deepCopy, deepCopySymbol, allKeyDescriptions, deepSortObject, shallowSortObject,isAsyncIterable, isSyncIterable, allKeys } from "https://deno.land/x/good@1.14.3.0/value.js"
 
 import { parseRawEnv } from "./bash_to_js.js"
 

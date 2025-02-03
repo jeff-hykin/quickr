@@ -1,6 +1,6 @@
 #!/usr/bin/env -S deno run --allow-all
 const { FileSystem } = await import(`../main/file_system.js`)
-import { intersection, subtract } from "https://deno.land/x/good@1.13.4.0/set.js"
+import { intersection, subtract } from "https://deno.land/x/good@1.14.3.0/set.js"
 
 console.log(`FileSystem.thisFile is:`,FileSystem.thisFile)
 console.log(`FileSystem.thisFolder is:`,FileSystem.thisFolder)
