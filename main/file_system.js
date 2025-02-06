@@ -1961,12 +1961,11 @@ export const FileSystem = {
             }
         },
         listItemsIn(pathOrFileInfo, options) {
-            const outputPromises = []
-            // loop+push so that the info lookup can happen in parallel instead of sequentially
+            const output = []
             for (const eachPath of FileSystem.sync.iteratePathsIn(pathOrFileInfo, options)) {
-                outputPromises.push(FileSystem.sync.info(eachPath))
+                output.push(FileSystem.sync.info(eachPath))
             }
-            return Promise.all(outputPromises)
+            return output
         },
         // includes symlinks if they link to files and pipes
         listFileItemsIn(pathOrFileInfo, options={treatAllSymlinksAsFiles:false}) {
