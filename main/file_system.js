@@ -1236,6 +1236,22 @@ export const FileSystem = {
             Deno.env.set("PWD",originalPwdEnvVar)
         }
     },
+    parentOfAllPaths(paths) {
+        let parentPaths = []
+        if (!paths.every(FileSystem.isRelativePath)) {
+            paths = paths.map(FileSystem.makeAbsolutePath)
+        }
+        for (let eachPath of paths) {
+            const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(eachPath)
+            parentPaths.push(folders.join("/")+"/") // standardizes windows/unix
+        }
+        let possiblyBrokenPath = commonPrefix(parentPaths)
+        // edgecase: /b/aaa/ and /b/aaab/ both have common prefix "/b/aaa" but the parent of both are "/b/"
+        if (!possiblyBrokenPath.endsWith("/")) {
+            possiblyBrokenPath = possiblyBrokenPath.split("/").slice(0,-1).join("/")+"/"
+        }
+        return FileSystem.normalizePath(possiblyBrokenPath)
+    },
     sync: {
         // things that are already sync
         get parentPath()        { return FileSystem.parentPath       },
