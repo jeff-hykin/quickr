@@ -81,3 +81,8 @@ FileSystem.sync.rename({
 })
 console.log(`hardlinkPath+".renamed" is:`)
 console.log(FileSystem.sync.read(hardlinkPath+".renamed"))
+
+
+// console.debug(`FileSystem.isFileOrSymlinkToNormalFile(hardlinkPath+".renamed") is:`,await FileSystem.isFileOrSymlinkToNormalFile(hardlinkPath+".renamed"))
+// console.debug(`FileSystem.isFileOrSymlinkToNormalFile(hardlinkPath+".renamed").and.isAbsolutePath is:`,await FileSystem.isFileHardlink(hardlinkPath+".renamed").and.isAbsolutePath)
+// console.debug(`FileSystem.isFileOrSymlinkToNormalFile(hardlinkPath+".renamed").and.isSymlink is:`,await FileSystem.isFileHardlink(hardlinkPath+".renamed").and.isSymlink)

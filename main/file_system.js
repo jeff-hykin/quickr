@@ -63,6 +63,33 @@ const grabPathLock = async (path)=> {
     }
     locker[path] = true
 }
+
+const booleanCheckNames = [
+    "isRelativePath",
+    "isAbsolutePath",
+    "exists",
+    "isSymlink",
+    "isFileOrSymlinkToNormalFile",
+    "isFolderOrSymlinkToFolder",
+    "isFileHardlink",
+    "isFolderHardlink",
+    "isWeirdItem",
+]
+// NOTE: feature is disabled for now (is tested and works)
+const logicalExtensionWrapper = (promise, path)=> {
+    // Object.defineProperty(promise, "and", {
+    //     get() {
+    //         let andProperties = {}
+    //         for (let each of booleanCheckNames) {
+    //             andProperties[each] = {
+    //                 get: ()=>promise.then(result=>result&&FileSystem[each](path)).catch(()=>false)
+    //             }
+    //         }
+    //         return Object.defineProperties({}, andProperties)
+    //     }
+    // })
+    return promise
+}
 export const FileSystem = {
     defaultRenameExtension: ".old",
     denoExecutablePath: Deno.execPath(),
@@ -319,6 +346,30 @@ export const FileSystem = {
             delete locker[fileOrFolderPath]
         }
     },
+    exists(path) {
+        return logicalExtensionWrapper(Deno.lstat(path?.path||path).catch(()=>false), path)
+    },
+    isSymlink(path) {
+        return logicalExtensionWrapper(Deno.lstat(path?.path||path).catch(()=>false).then(item=>item.isSymlink), path)
+    },
+    isFileOrSymlinkToNormalFile(path) {
+        return logicalExtensionWrapper(Deno.stat(path?.path||path).catch(()=>false).then(item=>item.isFile), path)
+    },
+    isFolderOrSymlinkToFolder(path) {
+        return logicalExtensionWrapper(Deno.stat(path?.path||path).catch(()=>false).then(item=>item.isDirectory), path)
+    },
+    isFileHardlink(path) {
+        return logicalExtensionWrapper(Deno.lstat(path?.path||path).catch(()=>false).then(item=>item.isFile), path)
+    },
+    isFolderHardlink(path) {
+        return logicalExtensionWrapper(Deno.lstat(path?.path||path).catch(()=>false).then(item=>item.isDirectory), path)
+    },
+    isNonFolderHardlink(path) {
+        return logicalExtensionWrapper(Deno.lstat(path?.path||path).catch(()=>false).then(item=>!item.isDirectory), path)
+    },
+    isWeirdItem(path) {
+        return logicalExtensionWrapper(Deno.lstat(path?.path||path).catch(()=>false).then(item=>each.isBlockDevice || each.isCharDevice || each.isFifo || each.isSocket), path)
+    },
     async move({ path, item, newParentFolder, newName, force=true, overwrite=false, renameExtension=null }) {
         item = item||path
         // force     => will MOVE other things out of the way until the job is done
@@ -363,12 +414,20 @@ export const FileSystem = {
         if (fileOrFolder instanceof Array) {
             return Promise.all(fileOrFolder.map(FileSystem.remove))
         }
-        fileOrFolder = fileOrFolder.path || fileOrFolder
-        const pathInfo = await FileSystem.info(fileOrFolder)
-        if (pathInfo.isFile || pathInfo.isSymlink) {
-            return Deno.remove(pathInfo.path.replace(/\/+$/,""))
-        } else if (pathInfo.exists) {
-            return Deno.remove(pathInfo.path.replace(/\/+$/,""), {recursive: true})
+        let exists = false
+        let item
+        try {
+            item = await Deno.lstat(fileOrFolder)
+            exists = true
+        } catch (error) {}
+        if (exists) {
+            // this is a weird check because isFile,isDirectory,isSymlink can all be false at the same time
+            // basical all false=wierd file (pipe, socket, etc), we still want to remove it
+            if (item.isFile || item.isSymlink || !item.isDirectory)) {
+                return Deno.remove(fileOrFolder.replace(/\/+$/,""))
+            } else {
+                return Deno.remove(fileOrFolder.replace(/\/+$/,""), {recursive: true})
+            }
         }
     },
     async finalTargetOf(path, options={}) {
@@ -450,7 +509,7 @@ export const FileSystem = {
 
         path = path.path || path // if given PathInfo object
         const pathInfo = await FileSystem.info(path)
-        if (pathInfo.isFile && !pathInfo.isDirectory) { // true for symbolic links to non-directories
+        if (pathInfo.isFile && !pathInfo.isDirectory) { // true for hardlinks and symbolic links to non-wierd files (like pipes)
             return path
         } else {
             await FileSystem.write({path, data:""}) // this will clear everything out of the way
@@ -514,7 +573,7 @@ export const FileSystem = {
             const info = await FileSystem.info(eachPath)
             if (!info.exists) {
                 break
-            } else if (info.isFile) {
+            } else if (!info.isDirectory) { // directory or symlink to directory
                 if (overwrite) {
                     await FileSystem.remove(eachPath)
                 } else {
@@ -542,37 +601,51 @@ export const FileSystem = {
      * ```js
      *     import { FileSystem } from "https://deno.land/x/quickr/main/file_system.js"
      * 
+     *     // option1: single subpath
      *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git")
-     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil({
-     *         subPath:".git",
-     *         startPath: FileSystem.pwd,
-     *     })
-     *
-     *     // below will result in that^ same folder (assuming all your .git folders have config files)
      *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git/config")
-     * 
-     *     // below will result in the same folder, but only if theres a local master branch
-     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(".git/refs/heads/master")
+     *     // option2: multiple subpaths
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil([".git/config", ".git/refs/heads/master"])
+     *     // option3: function checker
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil(path=>FileSystem.exists(`${path}/.git`))
+     *
+     *     // change the startPath with a subPath
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil({startPath: FileSystem.pwd, subPath:".git"})
+     *     // change the startPath with a function checker
+     *     var gitParentFolderOrNull = await FileSystem.walkUpUntil({startPath: FileSystem.pwd}, path=>FileSystem.exists(`${path}/.git`))
      *```
      */
     async walkUpUntil(subPath, startPath=null) {
-        subPath = subPath instanceof PathInfo ? subPath.path : subPath
-        // named arguments
-        if (subPath instanceof Object) {
+        // real args
+        var func, subPathStrs, startPath
+        // 
+        // arg processing
+        // 
+        if (subPath instanceof Function) {
+            func = subPath
+            subPathStrs = []
+        } else if (subPath instanceof Object) {
+            func = startPath
             var {subPath, startPath} = subPath
-        }
-        let here
-        if (!startPath) {
-            here = Deno.cwd()
-        } else if (Path.isAbsolute(startPath)) {
-            here = startPath
+            subPathStrs = [subPath]
         } else {
-            here = Path.join(here, startPath)
+            subPathStrs = [subPath]
         }
+        subPathStrs = subPathStrs.map(each=>each instanceof PathInfo ? each.path : each)
+        if (!startPath) {
+            startPath = Deno.cwd()
+        } else if (Path.isAbsolute(startPath)) {
+            startPath = startPath
+        } else {
+            startPath = Path.join(here, startPath)
+        }
+        // 
+        // actual loop
+        // 
+        let here = startPath
         while (1) {
-            let checkPath = Path.join(here, subPath)
-            const pathInfo = await Deno.lstat(checkPath).catch(()=>({doesntExist: true}))
-            if (!pathInfo.doesntExist) {
+            const check = func ? await func(here) : (await Promise.all(subPathStrs.map((each)=>Deno.lstat(Path.join(here, each)).catch(()=>false)))).some(each=>each)
+            if (check) {
                 return here
             }
             // reached the top
@@ -760,7 +833,9 @@ export const FileSystem = {
                             // 
                             
                             // skip files
-                            if (entry.isFile) {
+                            const isNormalFileHardlink = entry.isFile
+                            const isWeirdItem = !entry.isDirectory && !isNormalFileHardlink && !entry.isSymlink
+                            if (isNormalFileHardlink || isWeirdItem) {
                                 continue
                             }
                             // skip symlink-ed files (but not symlinked folders)
@@ -889,7 +964,7 @@ export const FileSystem = {
         const { treatAllSymlinksAsFiles } = {treatAllSymlinksAsFiles:false, ...options}
         const items = await FileSystem.listItemsIn(pathOrFileInfo, options)
         if (treatAllSymlinksAsFiles) {
-            return items.filter(eachItem=>(eachItem.isFile || (treatAllSymlinksAsFiles && eachItem.isSymlink)))
+            return items.filter(eachItem=>(eachItem.isFile || eachItem.isSymlink))
         } else {
             return items.filter(eachItem=>eachItem.isFile)
         }
@@ -1092,9 +1167,13 @@ export const FileSystem = {
         // actually set the permissions
         // 
         if (
-            recursively == false
-            || (fileInfo instanceof Object && fileInfo.isFile) // if already computed, dont make a 2nd system call
-            || (!(fileInfo instanceof Object) && (await FileSystem.info(path)).isFile)
+            !recursively
+            || (
+                // init fileInfo if doesnt exist
+                (fileInfo || (fileInfo=await FileSystem.info(path)))
+                && 
+                !fileInfo.isDirectory
+            )
         ) {
             return Deno.chmod(path?.path || path, permissionNumber)
         } else {
@@ -1506,10 +1585,10 @@ export const FileSystem = {
             return hardPath
         },
         remove(fileOrFolder) {
+            fileOrFolder = pathStandardize(fileOrFolder)
             if (fileOrFolder instanceof Array) {
                 return fileOrFolder.map(FileSystem.sync.remove)
             }
-            fileOrFolder = fileOrFolder.path || fileOrFolder
             let exists = false
             let item
             try {
@@ -1517,7 +1596,9 @@ export const FileSystem = {
                 exists = true
             } catch (error) {}
             if (exists) {
-                if (item.isFile || item.isSymlink) {
+                // this is a weird check because isFile,isDirectory,isSymlink can all be false at the same time
+                // basical all false=wierd file (pipe, socket, etc), we still want to remove it
+                if (item.isFile || item.isSymlink || !item.isDirectory)) {
                     return Deno.removeSync(fileOrFolder.replace(/\/+$/,""))
                 } else {
                     return Deno.removeSync(fileOrFolder.replace(/\/+$/,""), {recursive: true})
@@ -1860,7 +1941,9 @@ export const FileSystem = {
                                 // 
                                 
                                 // skip files
-                                if (entry.isFile) {
+                                const isNormalFileHardlink = entry.isFile
+                                const isWeirdItem = !entry.isDirectory && !isNormalFileHardlink && !entry.isSymlink
+                                if (isNormalFileHardlink || isWeirdItem) {
                                     continue
                                 }
                                 // skip symlink-ed files (but not symlinked folders)
@@ -1988,7 +2071,7 @@ export const FileSystem = {
             const { treatAllSymlinksAsFiles } = {treatAllSymlinksAsFiles:false, ...options}
             const items = FileSystem.sync.listItemsIn(pathOrFileInfo, options)
             if (treatAllSymlinksAsFiles) {
-                return items.filter(eachItem=>(eachItem.isFile || (treatAllSymlinksAsFiles && eachItem.isSymlink)))
+                return items.filter(eachItem=>(eachItem.isFile || eachItem.isSymlink))
             } else {
                 return items.filter(eachItem=>eachItem.isFile)
             }
