@@ -625,6 +625,8 @@ export const FileSystem = {
         if (subPath instanceof Function) {
             func = subPath
             subPathStrs = []
+        } else if (subPath instanceof Array) {
+            subPathStrs = subPath
         } else if (subPath instanceof Object) {
             func = startPath
             var {subPath, startPath} = subPath
