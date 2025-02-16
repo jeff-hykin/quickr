@@ -13,6 +13,7 @@ import { makeAbsolutePath } from "./flat/make_absolute_path.js"
 import { normalizePath } from "./flat/normalize_path.js"
 import { Path as PathInfo } from "./flat/path.js"
 import { escapeGlob } from "./flat/escape_glob.js"
+import { commonPrefix } from "https://esm.sh/gh/jeff-hykin/good-js@1.14.3.0/source/flattened/common_prefix.js"
 
 // DONE when:
     // import Deno api's
