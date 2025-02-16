@@ -423,7 +423,7 @@ export const FileSystem = {
         if (exists) {
             // this is a weird check because isFile,isDirectory,isSymlink can all be false at the same time
             // basical all false=wierd file (pipe, socket, etc), we still want to remove it
-            if (item.isFile || item.isSymlink || !item.isDirectory)) {
+            if (item.isFile || item.isSymlink || !item.isDirectory) {
                 return Deno.remove(fileOrFolder.replace(/\/+$/,""))
             } else {
                 return Deno.remove(fileOrFolder.replace(/\/+$/,""), {recursive: true})
@@ -1598,7 +1598,7 @@ export const FileSystem = {
             if (exists) {
                 // this is a weird check because isFile,isDirectory,isSymlink can all be false at the same time
                 // basical all false=wierd file (pipe, socket, etc), we still want to remove it
-                if (item.isFile || item.isSymlink || !item.isDirectory)) {
+                if (item.isFile || item.isSymlink || !item.isDirectory) {
                     return Deno.removeSync(fileOrFolder.replace(/\/+$/,""))
                 } else {
                     return Deno.removeSync(fileOrFolder.replace(/\/+$/,""), {recursive: true})
