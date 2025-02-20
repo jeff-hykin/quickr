@@ -1,0 +1,38 @@
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/stat.js
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/stat.js$7-11.js
+running 0 tests from ./main/pieces/stat.js
+running 1 test from ./main/pieces/stat.js$7-11.js
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/stat.js$7-11.js ...
+------- post-test output -------
+{
+  isFile: false,
+  isDirectory: true,
+  isSymlink: false,
+  size: 1088,
+  mtime: 2025-02-20T21:29:20.178Z,
+  atime: 2025-02-20T21:29:20.619Z,
+  birthtime: 2025-02-20T14:07:48.708Z,
+  ctime: 2025-02-20T21:29:20.000Z,
+  dev: 16777234,
+  mode: 16877,
+  ino: 113602277,
+  nlink: 34,
+  uid: 501,
+  gid: 20,
+  rdev: 0,
+  blksize: 4096,
+  blocks: 0,
+  isBlockDevice: false,
+  isCharDevice: false,
+  isFifo: false,
+  isSocket: false
+}
+{
+  path: "/Users/jeffhykin/repos/quickr/neo/main/pieces/stat.js$7-11.js",
+  exists: false
+}
+----- post-test output end -----
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/stat.js$7-11.js ... ok (2ms)
+
+ok | 1 passed | 0 failed (16ms)
+
