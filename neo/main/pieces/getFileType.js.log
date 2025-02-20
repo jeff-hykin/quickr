@@ -1,0 +1,13 @@
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js$8-12.js
+running 0 tests from ./main/pieces/getFileType.js
+running 1 test from ./main/pieces/getFileType.js$8-12.js
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js$8-12.js ...
+------- post-test output -------
+directory
+nonexistent
+----- post-test output end -----
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js$8-12.js ... ok (19ms)
+
+ok | 1 passed | 0 failed (33ms)
+
