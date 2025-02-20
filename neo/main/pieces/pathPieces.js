@@ -1,9 +1,11 @@
+import { pathStandardize } from "./_pathStandardize.js"
 import { parse, basename, dirname, } from "https://deno.land/std@0.128.0/path/mod.ts"
 const Path = { parse, basename, dirname, }
 
 /**
  * @example
  * ```js
+ * const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(import.meta.filename)
  * console.log(pathPieces("file.thing.txt"))
  * console.log(pathPieces("file..thing.txt"))
  * console.log(pathPieces("/some/where/file..thing.txt"))
@@ -12,8 +14,7 @@ const Path = { parse, basename, dirname, }
  * ```
  */
 export function pathPieces(path) {
-    // const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(path)
-    path = (path.path || path) // if given PathInfo object
+    path = pathStandardize(path)
     const result = Path.parse(path)
     const folderList = []
     let dirname = result.dir

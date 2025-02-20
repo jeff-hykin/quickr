@@ -1,0 +1,16 @@
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/pathPieces.js
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/pathPieces.js$6-13.js
+running 0 tests from ./main/pieces/pathPieces.js
+running 1 test from ./main/pieces/pathPieces.js$6-13.js
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/pathPieces.js$6-13.js ...
+------- post-test output -------
+[ [ ".", "" ], "file.thing", ".txt" ]
+[ [ ".", "" ], "file..thing", ".txt" ]
+[ [ "", "some", "where" ], "file..thing", ".txt" ]
+[ [ "." ], "file", ".txt" ]
+[ [ ".", ".." ], "file", ".txt" ]
+----- post-test output end -----
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/pathPieces.js$6-13.js ... ok (1ms)
+
+ok | 1 passed | 0 failed (15ms)
+

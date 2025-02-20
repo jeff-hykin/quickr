@@ -1,0 +1,14 @@
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/isDirectoryLink.js
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/isDirectoryLink.js$7-12.js
+running 0 tests from ./main/pieces/isDirectoryLink.js
+running 1 test from ./main/pieces/isDirectoryLink.js$7-12.js
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/isDirectoryLink.js$7-12.js ...
+------- post-test output -------
+true
+false
+false
+----- post-test output end -----
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/isDirectoryLink.js$7-12.js ... ok (17ms)
+
+ok | 1 passed | 0 failed (34ms)
+

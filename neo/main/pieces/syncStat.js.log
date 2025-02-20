@@ -1,22 +1,22 @@
-Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/statSync.js
-Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/statSync.js$7-11.js
-running 0 tests from ./main/pieces/statSync.js
-running 1 test from ./main/pieces/statSync.js$7-11.js
-file:///Users/jeffhykin/repos/quickr/neo/main/pieces/statSync.js$7-11.js ...
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/syncStat.js
+Check file:///Users/jeffhykin/repos/quickr/neo/main/pieces/syncStat.js$7-11.js
+running 0 tests from ./main/pieces/syncStat.js
+running 1 test from ./main/pieces/syncStat.js$7-11.js
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/syncStat.js$7-11.js ...
 ------- post-test output -------
 {
   isFile: false,
   isDirectory: true,
   isSymlink: false,
-  size: 1120,
-  mtime: 2025-02-20T21:41:47.241Z,
-  atime: 2025-02-20T21:41:48.316Z,
+  size: 1408,
+  mtime: 2025-02-20T22:23:19.898Z,
+  atime: 2025-02-20T22:23:22.152Z,
   birthtime: 2025-02-20T14:07:48.708Z,
-  ctime: 2025-02-20T21:41:47.000Z,
+  ctime: 2025-02-20T22:23:19.000Z,
   dev: 16777234,
   ino: 113602277,
   mode: 16877,
-  nlink: 35,
+  nlink: 44,
   uid: 501,
   gid: 20,
   rdev: 0,
@@ -28,11 +28,11 @@ file:///Users/jeffhykin/repos/quickr/neo/main/pieces/statSync.js$7-11.js ...
   isSocket: false
 }
 {
-  path: "/Users/jeffhykin/repos/quickr/neo/main/pieces/statSync.js$7-11.js",
+  path: "/Users/jeffhykin/repos/quickr/neo/main/pieces/syncStat.js$7-11.js",
   exists: false
 }
 ----- post-test output end -----
-file:///Users/jeffhykin/repos/quickr/neo/main/pieces/statSync.js$7-11.js ... ok (1ms)
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/syncStat.js$7-11.js ... ok (2ms)
 
 ok | 1 passed | 0 failed (16ms)
 

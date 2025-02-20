@@ -15,8 +15,8 @@ const Deno = { lstat }
 export async function syncGetFileType(path) {
     let _stat, _lstat
     if (path.path) {
-        _stat = path.stat
-        _lstat = path.lstat
+        _stat = path._stat
+        _lstat = path._lstat
     }
     path = pathStandardize(path)
     if (!_lstat) {

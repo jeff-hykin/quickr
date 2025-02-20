@@ -5,8 +5,8 @@ const Deno = { statSync: denoStatSync, lstatSync }
 /**
  * @example
  * ```js
- * console.log(statSync(import.meta.dirname))
- * console.log(statSync(import.meta.filename))
+ * console.log(syncStat(import.meta.dirname))
+ * console.log(syncStat(import.meta.filename))
  * ```
  */
 export function syncStat(path) {
