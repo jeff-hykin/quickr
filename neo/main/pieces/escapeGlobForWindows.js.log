@@ -1,0 +1,10 @@
+running 0 tests from ./main/pieces/escapeGlobForWindows.js
+running 1 test from ./main/pieces/escapeGlobForWindows.js$3-6.js
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/escapeGlobForWindows.js$3-6.js ...
+------- post-test output -------
+`[1]`@`*.js
+----- post-test output end -----
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/escapeGlobForWindows.js$3-6.js ... ok (0ms)
+
+ok | 1 passed | 0 failed (13ms)
+
