@@ -9,7 +9,7 @@ const Deno = { statSync: denoStatSync, lstatSync }
  * console.log(statSync(import.meta.filename))
  * ```
  */
-export function statSync(path) {
+export function syncStat(path) {
     path = pathStandardize(path)
     let _statSync
     try {

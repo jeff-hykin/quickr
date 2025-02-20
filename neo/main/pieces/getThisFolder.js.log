@@ -4,7 +4,7 @@ running 0 tests from ./main/pieces/getThisFolder.js
 running 1 test from ./main/pieces/getThisFolder.js$9-13.js
 file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getThisFolder.js$9-13.js ...
 ------- post-test output -------
-here
+/Users/jeffhykin/repos/quickr/neo
 /Users/jeffhykin/repos/quickr/neo
 ----- post-test output end -----
 file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getThisFolder.js$9-13.js ... ok (0ms)

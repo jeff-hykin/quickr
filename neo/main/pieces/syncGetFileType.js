@@ -1,18 +1,18 @@
 import { pathStandardize } from "./_pathStandardize.js"
-import { stat } from "./stat.js"
 import { lstat } from "https://deno.land/x/deno_deno@1.42.1.7/main.js"
+import { stat } from "./stat.js"
 const Deno = { lstat }
 
 /**
  * @example
  * ```js
- * console.log(await getFileType(import.meta.dirname))
- * console.log(await getFileType("/home/user/file.txt"))
+ * console.log(await syncGetFileType(import.meta.dirname))
+ * console.log(await syncGetFileType("/home/user/file.txt"))
  * ```
  * @returns {"nonexistent"|"directory"|"normalFile"|"blockDevice"|"charDevice"|"fifo"|"socket"|"symlinkLoop"|"symlinkBroken"|"symlinkToBlockDevice"|"symlinkToCharDevice"|"symlinkToFifo"|"symlinkToSocket"|"symlinkToNormalFile"|"symlinkToUnknown"} output - description
  *
  */
-export async function getFileType(path) {
+export async function syncGetFileType(path) {
     let _stat, _lstat
     if (path.path) {
         _stat = path.stat

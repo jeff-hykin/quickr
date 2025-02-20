@@ -7,7 +7,7 @@ file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js$8-12.js ...
 directory
 nonexistent
 ----- post-test output end -----
-file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js$8-12.js ... ok (19ms)
+file:///Users/jeffhykin/repos/quickr/neo/main/pieces/getFileType.js$8-12.js ... ok (16ms)
 
-ok | 1 passed | 0 failed (33ms)
+ok | 1 passed | 0 failed (31ms)
 
