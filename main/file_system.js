@@ -304,7 +304,7 @@ export const FileSystem = {
             try {
                 yield* readLines(file)
             } finally {
-                Deno.close(file.rid)
+                Deno?.close?.(file.rid)
             }
         } finally {
             delete locker[path]
@@ -1223,7 +1223,7 @@ export const FileSystem = {
                     await Deno.write(file.rid, packet)
                 }
             } finally {
-                Deno.close(file.rid)
+                Deno?.close?.(file.rid)
             }
         }
         delete locker[path]
@@ -1421,7 +1421,7 @@ export const FileSystem = {
             try {
                 yield* readLines(file)
             } finally {
-                Deno.close(file.rid)
+                Deno?.close?.(file.rid)
             }
         },
         /**
@@ -1746,7 +1746,7 @@ export const FileSystem = {
                         Deno.writeSync(file.rid, packet)
                     }
                 } finally {
-                    Deno.close(file.rid)
+                    Deno?.close?.(file.rid)
                 }
             }
             return output
