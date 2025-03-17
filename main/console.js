@@ -14,6 +14,17 @@ let env = null
 const originalThing = realConsole
 const proxySymbol = Symbol.for('Proxy')
 const thisProxySymbol = Symbol('thisProxy')
+const originalLog = realConsole.log.bind(realConsole)
+const patchedLog = (...args)=>{
+    args = args.map(each=>{
+        if (each instanceof Object && each[symbolForConsoleLog] instanceof Function) {
+            return each[symbolForConsoleLog]()
+        }
+        return each
+    })
+    return originalLog(...args)
+}
+patchedLog.isPatched = true
 globalThis.console = new Proxy(originalThing, {
     defineProperty: Reflect.defineProperty,
     getPrototypeOf: Reflect.getPrototypeOf,
@@ -27,14 +38,7 @@ globalThis.console = new Proxy(originalThing, {
         if (key == proxySymbol||key == thisProxySymbol) {return true}
         // if logging, then 
         if (key == "log") {
-            return (...args)=>original.log(
-                    ...args.map(each=>{
-                        if (each instanceof Object && each[symbolForConsoleLog] instanceof Function) {
-                            return each[symbolForConsoleLog]()
-                        }
-                        return each
-                    })
-                )
+            return patchedLog
         }
         return Reflect.get(original, key, ...args)
     },
