@@ -2,7 +2,8 @@ import { OperatingSystem } from "./operating_system.js"
 import { toString, indent } from "https://deno.land/x/good@1.14.3.0/string.js"
 import { zip } from "https://deno.land/x/good@1.14.3.0/iterable.js"
 
-const realConsole = globalThis.console
+const symbolForConsoleLog = Symbol.for("console.log")
+const realConsole = globalThis[symbolForConsoleLog] = globalThis[symbolForConsoleLog] || globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
 
 let env = null
@@ -11,7 +12,6 @@ let env = null
 // allow custom logging 
 // 
 const originalThing = realConsole
-const symbolForConsoleLog = Symbol.for("console.log")
 const proxySymbol = Symbol.for('Proxy')
 const thisProxySymbol = Symbol('thisProxy')
 globalThis.console = new Proxy(originalThing, {
@@ -27,8 +27,7 @@ globalThis.console = new Proxy(originalThing, {
         if (key == proxySymbol||key == thisProxySymbol) {return true}
         // if logging, then 
         if (key == "log") {
-            return (...args)=>{
-                realConsole.log(
+            return (...args)=>original.log(
                     ...args.map(each=>{
                         if (each instanceof Object && each[symbolForConsoleLog] instanceof Function) {
                             return each[symbolForConsoleLog]()
@@ -36,7 +35,6 @@ globalThis.console = new Proxy(originalThing, {
                         return each
                     })
                 )
-            }
         }
         return Reflect.get(original, key, ...args)
     },
