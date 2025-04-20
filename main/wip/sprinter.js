@@ -1,4 +1,4 @@
-import { zip } from "https://deno.land/x/good@1.14.3.0/array.js"
+import { zip } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/array.js"
 
 // 
 // examples

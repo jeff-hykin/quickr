@@ -1,4 +1,4 @@
-import { findAll } from "https://deno.land/x/good@1.14.3.0/string.js"
+import { findAll } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/string.js"
 const GoodJs = { findAll }
 import { dirname } from "https://deno.land/std@0.128.0/path/mod.ts"
 const PathTools = { dirname }

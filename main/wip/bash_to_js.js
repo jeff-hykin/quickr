@@ -1,8 +1,8 @@
 import { Parser, parserFromWasm, xmlStylePreview, flatNodeList } from "https://deno.land/x/deno_tree_sitter@0.2.6.0/main.js"
 import bash from "https://github.com/jeff-hykin/common_tree_sitter_languages/raw/676ffa3b93768b8ac628fd5c61656f7dc41ba413/main/bash.js" 
 import { FileSystem, glob } from "https://deno.land/x/quickr@0.6.72/main/file_system.js"
-import { zipShort } from "https://deno.land/x/good@1.14.3.0/flattened/zip_short.js"
-import { escapeJsString } from "https://deno.land/x/good@1.14.3.0/flattened/escape_js_string.js"
+import { zipShort } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/zip_short.js"
+import { escapeJsString } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/escape_js_string.js"
 
 const parser = await parserFromWasm(bash) // path or Uint8Array 
 

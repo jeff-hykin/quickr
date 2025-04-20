@@ -28,7 +28,12 @@ for (const each of await FileSystem.recursivelyListItemsIn(testsFolder)) {
         await FileSystem.clearAPathFor(logPath, {overwrite: true})
         Deno.stdout.write((new TextEncoder()).encode(`    ${gray`Running`}: ${yellow`${relativePart}`}\r`))
         try {
-            var { success } = await run(each.path, Out(Overwrite(logPath)), Env({NO_COLOR:"true"}))
+            if (each.path.endsWith(".js")) {
+                var { success } = await run(Deno.execPath(), "run", "--no-lock", "-A", each.path, Out(Overwrite(logPath)), Env({NO_COLOR:"true"}))
+            } else {
+                var { success } = await run(each.path, Out(Overwrite(logPath)), Env({NO_COLOR:"true"}))
+            }
+            // var { success } = await run(each.path, Out(Overwrite(logPath)), Env({NO_COLOR:"true"}))
         } catch (error) {
             console.log(bold.lightRed`    Error with test: `.yellow`${relativePart}:`.blue` ${error.message}`)
             continue

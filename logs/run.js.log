@@ -13,20 +13,9 @@ pathToGrep is: "/usr/bin/grep\n"
 miscOutput is: hi1
 bye
 
-error: Uncaught (in promise) Error: 
-When running command:
-    ["which","grep"]
-it was given one of:
-    Stdout(Overwrite(arg))
-    Stdin(Overwrite(arg))
-    Out(Overwrite(arg))
-However the given arg was not a string path or a file object.
-Here's what I know about the argument:new FsFile({
-    close: (function(){/*name: "bound ", native function*/}}),
-})
-
-
-    at convertReturnStreamArg (file:///Users/jeffhykin/repos/quickr/main/run.js:502:35)
-    at eventLoopTick (ext:core/01_core.js:175:7)
-    at async Promise.all (index 0)
-    at async asyncPart (file:///Users/jeffhykin/repos/quickr/main/run.js:574:33)
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: false
+process.isDone? is: true

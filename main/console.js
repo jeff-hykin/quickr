@@ -1,6 +1,6 @@
 import { OperatingSystem } from "./operating_system.js"
-import { toString, indent } from "https://deno.land/x/good@1.14.3.0/string.js"
-import { zip } from "https://deno.land/x/good@1.14.3.0/iterable.js"
+import { toString, indent } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/string.js"
+import { zip } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/iterable.js"
 
 const symbolForConsoleLog = Symbol.for("console.log")
 const realConsole = globalThis[symbolForConsoleLog] = globalThis[symbolForConsoleLog] || globalThis.console

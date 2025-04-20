@@ -1,19 +1,23 @@
 import * as Path from "https://deno.land/std@0.128.0/path/mod.ts"
 import { move as moveAndRename, moveSync as moveAndRenameSync, copy as basicCopy, copySync as basicCopySync } from "https://deno.land/std@0.133.0/fs/mod.ts"
-import { findAll } from "https://deno.land/x/good@1.14.3.0/string.js"
-import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://deno.land/x/good@1.14.3.0/iterable.js"
+import { findAll } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/string.js"
+import { makeIterable, asyncIteratorToList, concurrentlyTransform } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/iterable.js"
 import { globToRegExp } from "https://deno.land/std@0.214.0/path/glob.ts";
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
-import { isGeneratorObject as isGeneratorType } from "https://deno.land/x/good@1.14.3.0/flattened/is_generator_object.js"
-import { typedArrayClasses } from "https://deno.land/x/good@1.14.3.0/flattened/typed_array_classes.js"
-import { pathPureName } from "https://deno.land/x/good@1.14.3.0/flattened/path_pure_name.js"
+import { isGeneratorObject as isGeneratorType } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/is_generator_object.js"
+import { typedArrayClasses } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/typed_array_classes.js"
+import { pathPureName } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/path_pure_name.js"
 
 import { pathStandardize } from "./flat/_path_standardize.js"
 import { makeAbsolutePath } from "./flat/make_absolute_path.js"
 import { normalizePath } from "./flat/normalize_path.js"
 import { Path as PathInfo } from "./flat/path.js"
 import { escapeGlob } from "./flat/escape_glob.js"
-import { commonPrefix } from "https://esm.sh/gh/jeff-hykin/good-js@1.14.3.0/source/flattened/common_prefix.js"
+import { commonPrefix } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/common_prefix.js"
+import { getTracePaths } from 'https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/get_trace_paths.js'
+import { dirname as posixDirname } from 'https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/support/posix.js'
+import { pathPieces } from 'https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/flattened/path_pieces.js'
+
 
 // DONE when:
     // import Deno api's
@@ -119,23 +123,7 @@ export const FileSystem = {
         }
         return count+1
     },
-    pathPieces(path) {
-        // const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(path)
-        path = (path.path || path) // if given PathInfo object
-        const result = Path.parse(path)
-        const folderList = []
-        let dirname = result.dir
-        while (true) {
-            folderList.push(Path.basename(dirname))
-            // if at the top 
-            if (dirname == Path.dirname(dirname)) {
-                break
-            }
-            dirname = Path.dirname(dirname)
-        }
-        folderList.reverse()
-        return [ folderList, result.name, result.ext ]
-    },
+    pathPieces,
     /**
      * add to name, preserve file extension
      *
@@ -239,40 +227,106 @@ export const FileSystem = {
         Deno.chdir(path)
     },
     get thisFile() {
-        const err = new Error()
-        const filePaths = [...err.stack.matchAll(/^.+(file:\/\/\/[\w\W]*?):/gm)].map(each=>each[1]&&Path.fromFileUrl(each[1]))
-        
-        // if valid file
-        // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-        const firstPath = filePaths[0]
-        if (firstPath) {
-            try {
-                if (Deno.statSync(firstPath).isFile) {
-                    return firstPath
+        try {
+            const paths = getTracePaths().slice(1) // first element is this path (file_system.js)
+            // we only want real file paths
+            const urlLikes = paths.filter(each=>each.match(/^(file|ftp|ipfs|https?):\/\//))
+            for (let each of urlLikes) {
+                // if url, then return basename
+                if (!each.startsWith("file://")) {
+                    try {
+                        return (new URL(each)).pathname
+                    } catch (error) {
+                        // this shouldn't ever happen, but just in case
+                        return each
+                    }
+                // if file://
+                } else {
+                    // NOTE: even though these look like URL's they are not
+                    // Deno (at least as of 2.2.11) doesnt escape any characters, like hashes or spaces or newlines in this URL-looking path
+                    each = each.slice(7) // remove "file://"
+                    // NOTE: a hash postfix can be present at the end, and its impossible to know if its part of the file name
+                    // so we assume it is, and check if the file exists
+                    // ex: as an import the # needs to be escaped as %23,
+                    // for example: import "./quickr/test%23a/file%23thing.js#thing"
+                    // but it will be outputed here as: "file:///Users/username/repos/quickr/test#a/file#thing.js#thing"
+                    // same with ?
+                    // that said, we know the path needs to end with .js/.ts
+                    // so, if it doesn't, we can be confident the # is a query system
+                    // NOTE: this system is not (cannot be) bulletproof
+                    const [ folders, itemName, itemExtensionWithDot ] = FileSystem.pathPieces(each)
+                    const parentPath = Path.join(...folders)
+                    let name = itemName+itemExtensionWithDot
+                    while (name.match(/#|\?/)) {
+                        const isDefinitelyExtra = name.match(/(#|\?)[^#\?]*$(?<!\.(js|ts|jsx|tsx|mjs|wasm|json|jsonc|cjs))/)
+                        if (!isDefinitelyExtra) {
+                            name = name.slice(0,isDefinitelyExtra.index)
+                            continue
+                        }
+                        const actualPath = `${parentPath}/${name}`
+                        try {
+                            if (Deno.statSync(actualPath).isFile) {
+                                return actualPath
+                            }
+                        } catch (error) {}
+                        // shave off one at the end
+                        name = name.split(/(?=#|\?)/g).slice(0,-1).join("")
+                    }
+                    // final check (all #'s removed)
+                    const actualPath = `${parentPath}/${name}`
+                    try {
+                        if (Deno.statSync(actualPath).isFile) {
+                            return actualPath
+                        }
+                    } catch (error) {}
                 }
-            } catch (error) {
             }
+            // none of them worked, fallback on first entry
+            if (paths.length>0) {
+                return paths[0]
+            }
+            // none of them worked
+            return "<unknown>"
+        } catch (error) {
+            return "<unknown>"
         }
-        // if in an interpreter
-        return ':<interpreter>:'
     },
-    get thisFolder() { // FIXME: fails inside of libraries that are pulled from URL's
-        const err = new Error()
-        const filePaths = [...err.stack.matchAll(/^.+(file:\/\/\/[\w\W]*?):/gm)].map(each=>each[1]&&Path.fromFileUrl(each[1]))
-        
-        // if valid file
-        // FIXME: make sure this works inside of anonymous functions (not sure if error stack handles that well)
-        const firstPath = filePaths[0]
-        if (firstPath) {
-            try {
-                if (Deno.statSync(firstPath).isFile) {
-                    return Path.dirname(firstPath)
+    get thisFolder() {
+        try {
+            const paths = getTracePaths().slice(1) // first element is this path (file_system.js)
+            // we only want real file paths
+            const urlLikes = paths.filter(each=>each.match(/^(file|ftp|ipfs|https?):\/\//))
+            for (let each of urlLikes) {
+                // if url, then return basename
+                if (!each.startsWith("file://")) {
+                    try {
+                        return posixDirname((new URL(each)).pathname)
+                    } catch (error) {
+                        // this shouldn't ever happen, but just in case
+                        try {
+                            return posixDirname(each)
+                        } catch (error) {
+                            return each
+                        }
+                    }
+                // if file://
+                } else {
+                    // NOTE: even though these look like URL's they are not
+                    // Deno (at least as of 2.2.11) doesnt escape any characters, like hashes or spaces or newlines in this URL-looking path
+                    each = each.slice(7) // remove "file://"
+                    const folderPath = Path.dirname(each)
+                    try {
+                        if (Deno.statSync(folderPath).isDirectory) {
+                            return folderPath
+                        }
+                    } catch (error) {}
                 }
-            } catch (error) {
             }
+            // none of them worked, fallback on cwd
+            return Deno.cwd()
+        } catch (error) {
+            return Deno.cwd()
         }
-        // if in an interpreter
-        return Deno.cwd()
     },
     async read(path) {
         path = pathStandardize(path)

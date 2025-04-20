@@ -1,5 +1,5 @@
-FileSystem.thisFile is: /Users/jeffhykin/repos/quickr/main/file_system.js
-FileSystem.thisFolder is: /Users/jeffhykin/repos/quickr/main
+FileSystem.thisFile is: /Users/jeffhykin/repos/quickr/tests/file_system.js
+FileSystem.thisFolder is: /Users/jeffhykin/repos/quickr/tests
 FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 # 
 # listFileItemsIn
@@ -11,24 +11,19 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 16196,
-      mtime: 2025-02-03T15:47:19.197Z,
-      atime: 2025-02-03T15:47:19.322Z,
+      size: 16272,
+      mtime: 2025-04-20T16:23:49.563Z,
+      atime: 2025-04-20T16:23:49.597Z,
       birthtime: 2022-11-27T00:46:17.958Z,
-      ctime: 2025-02-03T15:47:19.000Z,
       dev: 16777234,
-      mode: 33188,
       ino: 8186842,
+      mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 32,
-      isBlockDevice: false,
-      isCharDevice: false,
-      isFifo: false,
-      isSocket: false
+      blocks: 32
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -38,24 +33,19 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 26622,
-      mtime: 2025-02-03T15:47:19.241Z,
-      atime: 2025-02-03T15:47:19.359Z,
+      size: 26718,
+      mtime: 2025-04-20T16:22:56.768Z,
+      atime: 2025-04-20T16:23:00.625Z,
       birthtime: 2023-11-16T23:50:40.077Z,
-      ctime: 2025-02-03T15:47:19.000Z,
       dev: 16777234,
-      mode: 33188,
       ino: 51396631,
+      mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 56,
-      isBlockDevice: false,
-      isCharDevice: false,
-      isFifo: false,
-      isSocket: false
+      blocks: 56
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -65,24 +55,19 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 37342,
-      mtime: 2025-02-03T15:47:19.197Z,
-      atime: 2025-02-03T15:48:10.635Z,
+      size: 37380,
+      mtime: 2025-04-20T16:31:36.482Z,
+      atime: 2025-04-20T16:31:36.514Z,
       birthtime: 2023-09-02T21:15:20.179Z,
-      ctime: 2025-02-03T15:47:19.000Z,
       dev: 16777234,
-      mode: 33188,
       ino: 40800423,
+      mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 80,
-      isBlockDevice: false,
-      isCharDevice: false,
-      isFifo: false,
-      isSocket: false
+      blocks: 80
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -92,24 +77,19 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       isFile: true,
       isDirectory: false,
       isSymlink: false,
-      size: 103854,
-      mtime: 2025-02-16T19:35:40.125Z,
-      atime: 2025-02-16T19:35:40.454Z,
+      size: 107336,
+      mtime: 2025-04-20T16:26:10.164Z,
+      atime: 2025-04-20T16:26:10.273Z,
       birthtime: 2023-08-20T14:27:58.024Z,
-      ctime: 2025-02-16T19:35:40.000Z,
       dev: 16777234,
-      mode: 33188,
       ino: 40021316,
+      mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 208,
-      isBlockDevice: false,
-      isCharDevice: false,
-      isFifo: false,
-      isSocket: false
+      blocks: 216
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -123,20 +103,15 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2024-07-09T19:03:58.243Z,
       atime: 2024-07-09T19:03:59.383Z,
       birthtime: 2022-10-11T21:47:14.123Z,
-      ctime: 2024-07-09T19:03:58.000Z,
       dev: 16777234,
-      mode: 33188,
       ino: 2917675,
+      mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 16,
-      isBlockDevice: false,
-      isCharDevice: false,
-      isFifo: false,
-      isSocket: false
+      blocks: 16
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   },
@@ -150,20 +125,15 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
       mtime: 2022-11-06T18:40:58.703Z,
       atime: 2022-11-06T18:40:59.129Z,
       birthtime: 2022-11-06T18:27:31.934Z,
-      ctime: 2022-11-06T18:40:58.000Z,
       dev: 16777234,
-      mode: 33188,
       ino: 6675855,
+      mode: 33188,
       nlink: 1,
       uid: 501,
       gid: 20,
       rdev: 0,
       blksize: 4096,
-      blocks: 8,
-      isBlockDevice: false,
-      isCharDevice: false,
-      isFifo: false,
-      isSocket: false
+      blocks: 8
     },
     _data: { isBrokenLink: false, isLoopOfLinks: false }
   }
@@ -183,6 +153,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
 # 
 [
   "../.DS_Store",
+  "../neo",
   "../tests",
   "../dependencies",
   "../text.ignore.txt",
@@ -192,11 +163,15 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../readme.md",
   "../logs",
   "../.gitignore",
+  "../hi.link",
   "../run",
   "../output.ignore",
   "../.vscode",
   "../main",
   "../reference",
+  "../neo/test.txt",
+  "../neo/run",
+  "../neo/main",
   "../tests/flat",
   "../tests/console.js",
   "../tests/run.js",
@@ -208,7 +183,6 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../logs/operating_system.js.log",
   "../logs/flat",
   "../logs/file_system.js.log",
-  "../logs/dummy_hardlink.txt",
   "../logs/console.js.log",
   "../logs/tests",
   "../logs/dummy_relative.txt",
@@ -231,6 +205,11 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../main/test.ignore.js",
   "../reference/readable.ps1",
   "../reference/portable.ps1",
+  "../neo/run/tests",
+  "../neo/run/tests.ps1",
+  "../neo/main/main.js.log",
+  "../neo/main/pieces",
+  "../neo/main/main.js",
   "../tests/flat/iterate_items_in.js",
   "../logs/flat/iterate_items_in.js.log",
   "../logs/tests/run.errors.log",
@@ -241,6 +220,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../main/flat/escape_glob_for_windows.js",
   "../main/flat/escape_glob.js",
   "../main/flat/normalize_path.js",
+  "../main/flat/has_command.js",
   "../main/flat/path.js",
   "../main/flat/get_this_folder.js",
   "../main/flat/make_absolute_path.js",
@@ -262,13 +242,76 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../main/wip/bash_to_js.js",
   "../main/wip/test.sh",
   "../main/wip/bad exe.sh",
-  "../main/wip/bash_to_xml.js"
+  "../main/wip/bash_to_xml.js",
+  "../neo/main/pieces/getThisFolder.js.log",
+  "../neo/main/pieces/escapeGlobForWindows.js.log",
+  "../neo/main/pieces/stat.js.log",
+  "../neo/main/pieces/syncStat.js",
+  "../neo/main/pieces/escapeGlobForWindows.js",
+  "../neo/main/pieces/getFileType.js.log",
+  "../neo/main/pieces/syncIterateItemsIn_.js",
+  "../neo/main/pieces/isFileLink.js.log",
+  "../neo/main/pieces/syncIterateItemsIn.js.log",
+  ... 35 more items
 ]
 # 
 # depthFirstSearch
 # 
 [
   "../.DS_Store",
+  "../neo",
+  "../neo/test.txt",
+  "../neo/run",
+  "../neo/run/tests",
+  "../neo/run/tests.ps1",
+  "../neo/main",
+  "../neo/main/main.js.log",
+  "../neo/main/pieces",
+  "../neo/main/pieces/getThisFolder.js.log",
+  "../neo/main/pieces/escapeGlobForWindows.js.log",
+  "../neo/main/pieces/stat.js.log",
+  "../neo/main/pieces/syncStat.js",
+  "../neo/main/pieces/escapeGlobForWindows.js",
+  "../neo/main/pieces/getFileType.js.log",
+  "../neo/main/pieces/syncIterateItemsIn_.js",
+  "../neo/main/pieces/isFileLink.js.log",
+  "../neo/main/pieces/syncIterateItemsIn.js.log",
+  "../neo/main/pieces/isFileLink.js",
+  "../neo/main/pieces/syncGetFileType.js.log",
+  "../neo/main/pieces/escapeGlobForPosix.js",
+  "../neo/main/pieces/_defaultRenameExtension.js.log",
+  "../neo/main/pieces/syncIterateItemsIn_.js.log",
+  "../neo/main/pieces/exists.js",
+  "../neo/main/pieces/pathPieces.js.log",
+  "../neo/main/pieces/syncExists.js",
+  "../neo/main/pieces/normalizePath.js",
+  "../neo/main/pieces/isNonDirectoryLink.js.log",
+  "../neo/main/pieces/_grabPathLock.js.ignore.log",
+  "../neo/main/pieces/normalizePath.js.log",
+  "../neo/main/pieces/syncStat.js.log",
+  "../neo/main/pieces/_pathStandardize.js",
+  "../neo/main/pieces/escapeGlob.js.log",
+  "../neo/main/pieces/_pathStandardize.js.log",
+  "../neo/main/pieces/getThisFolder.js",
+  "../neo/main/pieces/syncGetFileType.js",
+  "../neo/main/pieces/_defaultRenameExtension.js",
+  "../neo/main/pieces/isDirectoryLink.js",
+  "../neo/main/pieces/escapeGlob.js",
+  "../neo/main/pieces/Path.js",
+  "../neo/main/pieces/getFileType.js",
+  "../neo/main/pieces/_grabPathLock.ignore.js",
+  "../neo/main/pieces/isDirectoryLink.js.log",
+  "../neo/main/pieces/isNonDirectoryLink.js",
+  "../neo/main/pieces/_grabPathLock.ignore.js.log",
+  "../neo/main/pieces/pathPieces.js",
+  "../neo/main/pieces/makeAbsolutePath.js",
+  "../neo/main/pieces/escapeGlobForPosix.js.log",
+  "../neo/main/pieces/exists.js.log",
+  "../neo/main/pieces/getPermissions.js",
+  "../neo/main/pieces/makeAbsolutePath.js.log",
+  "../neo/main/pieces/syncGetPermissions.js",
+  "../neo/main/pieces/stat.js",
+  "../neo/main/main.js",
   "../tests",
   "../tests/flat",
   "../tests/flat/iterate_items_in.js",
@@ -290,7 +333,6 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../logs/flat",
   "../logs/flat/iterate_items_in.js.log",
   "../logs/file_system.js.log",
-  "../logs/dummy_hardlink.txt",
   "../logs/console.js.log",
   "../logs/tests",
   "../logs/tests/run.errors.log",
@@ -302,6 +344,7 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../logs/dummy_hardlink.txt.renamed",
   "../logs/run.js.log",
   "../.gitignore",
+  "../hi.link",
   "../run",
   "../run/make_babel_bundle",
   "../run/tests",
@@ -315,47 +358,12 @@ FileSystem.workingDirectory is: /Users/jeffhykin/repos/quickr/logs
   "../main",
   "../main/flat",
   "../main/flat/escape_glob_for_posix.js",
-  "../main/flat/_path_standardize.js",
-  "../main/flat/escape_glob_for_windows.js",
-  "../main/flat/escape_glob.js",
-  "../main/flat/normalize_path.js",
-  "../main/flat/path.js",
-  "../main/flat/get_this_folder.js",
-  "../main/flat/make_absolute_path.js",
-  "../main/flat/path_pieces.js",
-  "../main/flat/iterate_items_in.js",
-  "../main/flat/path_info.js",
-  "../main/stream_tools.js",
-  "../main/console.js",
-  "../main/run.js",
-  "../main/file_system.js",
-  "../main/operating_system.js",
-  "../main/wip",
-  "../main/wip/lg2.wasm.binaryified.js",
-  "../main/wip/_convert.js",
-  "../main/wip/sprinter.js",
-  "../main/wip/smash.js",
-  "../main/wip/test.sh.xml",
-  "../main/wip/git.js",
-  "../main/wip/runner.js",
-  "../main/wip/bash_to_js.js.out.js",
-  "../main/wip/fs_merge.js",
-  "../main/wip/at_bash_runtime.js",
-  "../main/wip/git_wrapper.js",
-  "../main/wip/base_run.js",
-  "../main/wip/bash_to_js.js",
-  "../main/wip/test.sh",
-  "../main/wip/bad exe.sh",
-  "../main/wip/bash_to_xml.js",
-  "../main/test.ignore.js",
-  "../reference",
-  "../reference/readable.ps1",
-  "../reference/portable.ps1"
+  ... 37 more items
 ]
-shouldntExplore uniquely has: Set(2) { "../run/made-with-webassembly/.git", "../.git" }
-shouldntInclude uniquely has: Set(0) {}
+shouldntExplore uniquely has: Set { "../run/made-with-webassembly/.git", "../.git" }
+shouldntInclude uniquely has: Set {}
 # 
-# All parent paths of /Users/jeffhykin/repos/quickr/main/run.errors.log
+# All parent paths of /Users/jeffhykin/repos/quickr/tests/run.errors.log
 # 
 [
   "/",
@@ -363,12 +371,12 @@ shouldntInclude uniquely has: Set(0) {}
   "/Users/jeffhykin",
   "/Users/jeffhykin/repos",
   "/Users/jeffhykin/repos/quickr",
-  "/Users/jeffhykin/repos/quickr/main"
+  "/Users/jeffhykin/repos/quickr/tests"
 ]
 # 
-# All parent paths of ../main/run.errors.log
+# All parent paths of ../tests/run.errors.log
 # 
-[ "..", "../main" ]
+[ "..", "../tests" ]
 
 # FileSystem.pathOfCaller
 /Users/jeffhykin/repos/quickr/tests/file_system.js
@@ -376,7 +384,7 @@ shouldntInclude uniquely has: Set(0) {}
 # FileSystem.walkUpImport
 Howdy!
 Howdy! im red true undefined null im blue im not
-[Module: null prototype] {  }
+Module {}
 
 # await FileSystem.glob('*.log')
 [
@@ -395,11 +403,33 @@ Howdy! im red true undefined null im blue im not
   "logs/file_system.js.log",
   "logs/console.js.log",
   "logs/run.js.log",
+  "neo/main/main.js.log",
   "logs/flat/iterate_items_in.js.log",
-  "logs/tests/run.errors.log"
+  "logs/tests/run.errors.log",
+  "neo/main/pieces/getThisFolder.js.log",
+  "neo/main/pieces/escapeGlobForWindows.js.log",
+  "neo/main/pieces/stat.js.log",
+  "neo/main/pieces/getFileType.js.log",
+  "neo/main/pieces/isFileLink.js.log",
+  "neo/main/pieces/syncIterateItemsIn.js.log",
+  "neo/main/pieces/syncGetFileType.js.log",
+  "neo/main/pieces/_defaultRenameExtension.js.log",
+  "neo/main/pieces/syncIterateItemsIn_.js.log",
+  "neo/main/pieces/pathPieces.js.log",
+  "neo/main/pieces/isNonDirectoryLink.js.log",
+  "neo/main/pieces/_grabPathLock.js.ignore.log",
+  "neo/main/pieces/normalizePath.js.log",
+  "neo/main/pieces/syncStat.js.log",
+  "neo/main/pieces/escapeGlob.js.log",
+  "neo/main/pieces/_pathStandardize.js.log",
+  "neo/main/pieces/isDirectoryLink.js.log",
+  "neo/main/pieces/_grabPathLock.ignore.js.log",
+  "neo/main/pieces/escapeGlobForPosix.js.log",
+  "neo/main/pieces/exists.js.log",
+  "neo/main/pieces/makeAbsolutePath.js.log"
 ]
 appending hello2 to /Users/jeffhykin/repos/quickr/logs/dummy_hardlink.txt
-hardlinkPath contents hellohello2
-exampleFile contents hellohello2
+hardlinkPath contents hello2
+exampleFile contents hello
 hardlinkPath+".renamed" is:
-hellohello2
+hello

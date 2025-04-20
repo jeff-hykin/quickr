@@ -1,9 +1,9 @@
-import { Event, trigger, everyTime, once } from "https://deno.land/x/good@1.14.3.0/events.js"
-import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://deno.land/x/good@1.14.3.0/array.js"
-import { capitalize, indent, toCamelCase, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://deno.land/x/good@1.14.3.0/string.js"
+import { Event, trigger, everyTime, once } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/events.js"
+import { zip, enumerate, count, permute, combinations, wrapAroundGet } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/array.js"
+import { capitalize, indent, toCamelCase, toPascalCase, toKebabCase, toSnakeCase, toScreamingtoKebabCase, toScreamingtoSnakeCase, toRepresentation, toString } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/string.js"
 import { OperatingSystem } from "../operating_system.js"
-import { intersection, subtract } from "https://deno.land/x/good@1.14.3.0/set.js"
-import { allKeys } from "https://deno.land/x/good@1.14.3.0/object.js"
+import { intersection, subtract } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/set.js"
+import { allKeys } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/object.js"
 import { FlowingString, toReadableStream, toWritableStream, duplicateReadableStream, zipReadableStreams, mergeReadableStreams, readableStreamFromReader, writableStreamFromWriter } from "../stream_tools.js"
 
 const notGiven = Symbol()

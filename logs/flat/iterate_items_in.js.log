@@ -12,6 +12,7 @@
   "../../main/flat/escape_glob_for_windows.js",
   "../../main/flat/escape_glob.js",
   "../../main/flat/normalize_path.js",
+  "../../main/flat/has_command.js",
   "../../main/flat/path.js",
   "../../main/flat/get_this_folder.js",
   "../../main/flat/make_absolute_path.js",
