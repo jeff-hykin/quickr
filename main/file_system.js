@@ -434,6 +434,13 @@ export const FileSystem = {
         const oldName = FileSystem.basename(oldPath)
         const pathInfo = item instanceof Object || FileSystem.sync.info(oldPath)
         const newPath = `${newParentFolder||FileSystem.parentPath(oldPath)}/${newName || oldName}`
+        const cache = {}
+        // no move necessary (prevents race condition problem of moving a file to itself)
+        const oldHardPath = FileSystem.sync.makeHardPathTo(oldPath, { cache })
+        const newHardPath = FileSystem.sync.makeHardPathTo(newPath, { cache })
+        if (oldHardPath == newHardPath) {
+            return
+        }
 
         // if its a relative-linked item then the relative link will need to be adjusted after the move
         // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
@@ -1274,6 +1281,7 @@ export const FileSystem = {
                     if (typeof packet == 'string') {
                         packet = encode(packet)
                     }
+                    // FIXME: Deno 2 does not have .write
                     await Deno.write(file.rid, packet)
                 }
             } finally {
@@ -1859,6 +1867,13 @@ export const FileSystem = {
             const oldName = FileSystem.basename(oldPath)
             const pathInfo = item instanceof Object || FileSystem.sync.info(oldPath)
             const newPath = `${newParentFolder||FileSystem.parentPath(oldPath)}/${newName || oldName}`
+            const cache = {}
+            // no move necessary (prevents race condition problem of moving a file to itself)
+            const oldHardPath = FileSystem.sync.makeHardPathTo(oldPath, { cache })
+            const newHardPath = FileSystem.sync.makeHardPathTo(newPath, { cache })
+            if (oldHardPath == newHardPath) {
+                return
+            }
 
             // if its a relative-linked item then the relative link will need to be adjusted after the move
             // todo: consider more about the broken link case (current .FileSystem.relativeLink() only works with linking to things that exist)
