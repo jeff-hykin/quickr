@@ -1904,8 +1904,9 @@ export const FileSystem = {
             return FileSystem.sync.move({ path: from, newParentFolder: FileSystem.parentPath(to), newName: FileSystem.basename(to), force, overwrite, renameExtension })
         },
         copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
-            const existingItemDoesntExist = (Deno.statSync(from).catch(()=>({doesntExist: true}))).doesntExist
-            if (existingItemDoesntExist) {
+            try {
+                Deno.statSync(from)
+            } catch (error) {
                 throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
             }
             if (force) {
