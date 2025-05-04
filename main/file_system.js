@@ -722,6 +722,15 @@ export const FileSystem = {
         }
     },
     async copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
+        const cache = {}
+        // no move necessary (prevents race condition problem of moving a file to itself)
+        const oldHardPath = FileSystem.sync.makeHardPathTo(from, { cache })
+        const newHardPath = FileSystem.sync.makeHardPathTo(to, { cache })
+        if (oldHardPath == newHardPath) {
+            console.warn(`\nTried to copy from:${from}, to:${to}\nbut "from" and "to" were the same\n\n`)
+            return
+        }
+
         const existingItemDoesntExist = (await Deno.stat(from).catch(()=>({doesntExist: true}))).doesntExist
         if (existingItemDoesntExist) {
             throw Error(`\nTried to copy from:${from}, to:${to}\nbut "from" didn't seem to exist\n\n`)
@@ -1904,6 +1913,15 @@ export const FileSystem = {
             return FileSystem.sync.move({ path: from, newParentFolder: FileSystem.parentPath(to), newName: FileSystem.basename(to), force, overwrite, renameExtension })
         },
         copy({from, to, preserveTimestamps=true, force=true, overwrite=false, renameExtension=null}) {
+            const cache = {}
+            // no move necessary (prevents race condition problem of moving a file to itself)
+            const oldHardPath = FileSystem.sync.makeHardPathTo(from, { cache })
+            const newHardPath = FileSystem.sync.makeHardPathTo(to, { cache })
+            if (oldHardPath == newHardPath) {
+                console.warn(`\nTried to copy from:${from}, to:${to}\nbut "from" and "to" were the same\n\n`)
+                return
+            }
+
             try {
                 Deno.statSync(from)
             } catch (error) {
