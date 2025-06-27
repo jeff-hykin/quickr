@@ -351,10 +351,11 @@ export const Console = {
     askFor: {
         // in the future once Deno.setRaw is stable, add a askFor.password using: https://github.com/caspervonb/deno-prompts
         line(question) {
-            Console.write(question)
-            for await (const line of readLines(Deno.stdin)) {
-                return line
-            }
+            return prompt(question)
+            // Console.write(question)
+            // for await (const line of readLines(Deno.stdin)) {
+            //     return line
+            // }
         },
         confirmation(question) {
             console.log(question)
