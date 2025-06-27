@@ -1,6 +1,7 @@
 import { OperatingSystem } from "./operating_system.js"
 import { toString, indent } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/string.js"
 import { zip } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/iterable.js"
+import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
 
 const symbolForConsoleLog = Symbol.for("console.log")
 const realConsole = globalThis[symbolForConsoleLog] = globalThis[symbolForConsoleLog] || globalThis.console
@@ -346,10 +347,14 @@ export const Console = {
         )
     },
     disableColorIfNonIteractive: true,
+    write: (text)=>Deno.stdout.writeSync(text instanceof Uint8Array ? text : new TextEncoder().encode(text)),
     askFor: {
         // in the future once Deno.setRaw is stable, add a askFor.password using: https://github.com/caspervonb/deno-prompts
         line(question) {
-            return prompt(question)
+            Console.write(question)
+            for await (const line of readLines(Deno.stdin)) {
+                return line
+            }
         },
         confirmation(question) {
             console.log(question)
