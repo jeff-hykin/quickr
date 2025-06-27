@@ -1531,8 +1531,14 @@ export const FileSystem = {
             }
             while (1) {
                 let checkPath = Path.join(here, subPath)
-                const pathInfo = Deno.lstatSync(checkPath).catch(()=>({doesntExist: true}))
-                if (!pathInfo.doesntExist) {
+                let exists = false
+                let item
+                try {
+                    item = Deno.lstatSync(fileOrFolder)
+                    exists = true
+                } catch (error) {}
+                const pathInfo = item
+                if (exists) {
                     return here
                 }
                 // reached the top
@@ -1576,8 +1582,14 @@ export const FileSystem = {
             const { _parentsHaveBeenChecked, cache } = { _parentsHaveBeenChecked: false , cache: {}, ...options }
             const originalWasItem = path instanceof PathInfo
             path = (path.path || path) // if given PathInfo object
-            let result = Deno.lstatSync(path).catch(()=>({doesntExist: true}))
-            if (result.doesntExist) {
+            let exists = false
+            let item
+            try {
+                item = Deno.lstatSync(fileOrFolder)
+                exists = true
+            } catch (error) {}
+            let result = item
+            if (!exists) {
                 return null
             }
         
@@ -1596,9 +1608,15 @@ export const FileSystem = {
                     // relative
                     path = `${FileSystem.parentPath(path)}/${relativeOrAbsolutePath}`
                 }
-                result = Deno.lstatSync(path).catch(()=>({doesntExist: true}))
+                let exists = false
+                let item
+                try {
+                    item = Deno.lstatSync(fileOrFolder)
+                    exists = true
+                } catch (error) {}
+                result = item
                 // check if target exists
-                if (result.doesntExist) {
+                if (!exists) {
                     return null
                 }
                 // regardless of if absolute or relative, we need to re-harden
@@ -1825,10 +1843,14 @@ export const FileSystem = {
         absoluteLink({existingItem, newItem, force=true, allowNonExistingTarget=false, overwrite=false, renameExtension=null, }) {
             existingItem = (existingItem.path || existingItem).replace(/\/+$/, "") // remove trailing slash, because it can screw stuff up
             const newItemPath = FileSystem.normalizePath(newItem.path || newItem).replace(/\/+$/, "") // if given PathInfo object
-            
-            const existingItemDoesntExist = (Deno.lstatSync(existingItem).catch(()=>({doesntExist: true}))).doesntExist
+            let exists = false
+            let item
+            try {
+                item = Deno.lstatSync(fileOrFolder)
+                exists = true
+            } catch (error) {}
             // if the item doesnt exists
-            if (!allowNonExistingTarget && existingItemDoesntExist) {
+            if (!allowNonExistingTarget && !exists) {
                 throw Error(`\nTried to create a relativeLink between existingItem:${existingItem}, newItemPath:${newItemPath}\nbut existingItem didn't actually exist`)
             } else {
                 const parentOfNewItem = FileSystem.parentPath(newItemPath)
@@ -1848,9 +1870,14 @@ export const FileSystem = {
             const existingItemPath = (existingItem.path || existingItem).replace(/\/+$/, "") // the replace is to remove trailing slashes, which will cause painful nonsensical errors if not done
             const newItemPath = FileSystem.normalizePath((newItem.path || newItem).replace(/\/+$/, "")) // if given PathInfo object
             
-            const existingItemDoesntExist = (Deno.lstatSync(existingItemPath).catch(()=>({doesntExist: true}))).doesntExist
+            let exists = false
+            let item
+            try {
+                item = Deno.lstatSync(fileOrFolder)
+                exists = true
+            } catch (error) {}
             // if the item doesnt exists
-            if (!allowNonExistingTarget && existingItemDoesntExist) {
+            if (!allowNonExistingTarget && !exists) {
                 throw Error(`\nTried to create a relativeLink between existingItem:${existingItemPath}, newItem:${newItemPath}\nbut existingItem didn't actually exist`)
             } else {
                 const parentOfNewItem = FileSystem.parentPath(newItemPath)
