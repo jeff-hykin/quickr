@@ -1534,7 +1534,7 @@ export const FileSystem = {
                 let exists = false
                 let item
                 try {
-                    item = Deno.lstatSync(fileOrFolder)
+                    item = Deno.lstatSync(checkPath)
                     exists = true
                 } catch (error) {}
                 const pathInfo = item
@@ -1585,7 +1585,7 @@ export const FileSystem = {
             let exists = false
             let item
             try {
-                item = Deno.lstatSync(fileOrFolder)
+                item = Deno.lstatSync(path)
                 exists = true
             } catch (error) {}
             let result = item
@@ -1611,7 +1611,7 @@ export const FileSystem = {
                 let exists = false
                 let item
                 try {
-                    item = Deno.lstatSync(fileOrFolder)
+                    item = Deno.lstatSync(path)
                     exists = true
                 } catch (error) {}
                 result = item
@@ -1846,7 +1846,7 @@ export const FileSystem = {
             let exists = false
             let item
             try {
-                item = Deno.lstatSync(fileOrFolder)
+                item = Deno.lstatSync(existingItem)
                 exists = true
             } catch (error) {}
             // if the item doesnt exists
@@ -1873,7 +1873,7 @@ export const FileSystem = {
             let exists = false
             let item
             try {
-                item = Deno.lstatSync(fileOrFolder)
+                item = Deno.lstatSync(existingItemPath)
                 exists = true
             } catch (error) {}
             // if the item doesnt exists
