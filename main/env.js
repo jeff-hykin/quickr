@@ -1,9 +1,15 @@
 export const env = new Proxy(
     {},
     {
-        // Object.keys
-        ownKeys(target) {
+        ownKeys(original) {
             return Object.keys(Deno.env.toObject())
+        },
+        getOwnPropertyDescriptor(original, prop) {
+            return {
+                enumerable: true,
+                configurable: true,
+                value: Deno.env.get(prop),
+            }
         },
         has(original, key) {
             if (typeof key === 'symbol') {
