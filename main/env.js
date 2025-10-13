@@ -1,3 +1,4 @@
+import process from "node:process"
 export const env = new Proxy(
     {},
     {
@@ -22,6 +23,24 @@ export const env = new Proxy(
             if (typeof key === 'symbol') {
                 return original[key]
             } else {
+                if (key=='@') {
+                    return Deno.args
+                }
+                if (key=='*') {
+                    return Deno.args.join(" ")
+                }
+                if (key=='#') {
+                    return Deno.args.length
+                }
+                if (key=='$') {
+                    return Deno.pid
+                }
+                if (key.match(/^[0-9]+$/)) {
+                    if (key === "0") {
+                        return process.argv[1]
+                    }
+                    return Deno.args[key]
+                }
                 return Deno.env.get(key)||""
             }
         },
