@@ -1,0 +1,1 @@
+export const exists = (path)=>Deno.lstat(path?.path||path).catch(()=>false)
