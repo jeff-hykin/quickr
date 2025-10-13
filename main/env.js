@@ -22,7 +22,7 @@ export const env = new Proxy(
             if (typeof key === 'symbol') {
                 return original[key]
             } else {
-                return Deno.env.get(key)
+                return Deno.env.get(key)||""
             }
         },
         set(original, key, value) {
