@@ -2,6 +2,7 @@ import { OperatingSystem } from "./operating_system.js"
 import { toString, indent } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/string.js"
 import { zip } from "https://esm.sh/gh/jeff-hykin/good-js@1.17.0.0/source/iterable.js"
 import { readLines } from "https://deno.land/std@0.191.0/io/read_lines.ts"
+import { env } from "./env.js"
 
 const symbolForConsoleLog = Symbol.for("console.log")
 const realConsole = globalThis[symbolForConsoleLog] = globalThis[symbolForConsoleLog] || globalThis.console
@@ -306,46 +307,7 @@ export const Console = {
         }
         return Console
     },
-    get env() {
-        // this is a cached getter to prevent Deno.env.toObject() from getting called until necessary
-        return env = env || new Proxy(
-            Deno.env.toObject(),
-            {
-                // Object.keys
-                ownKeys(target) {
-                    return Object.keys(Deno.env.toObject())
-                },
-                has(original, key) {
-                    if (typeof key === 'symbol') {
-                        return false
-                    } else {
-                        return Deno.env.get(key) !== undefined
-                    }
-                },
-                get(original, key) {
-                    if (typeof key === 'symbol') {
-                        return original[key]
-                    } else {
-                        return Deno.env.get(key)
-                    }
-                },
-                set(original, key, value) {
-                    original[key] = value
-                    if (typeof key !== 'symbol') {
-                        Deno.env.set(key, value)
-                    }
-                    return true
-                },
-                deleteProperty(original, key) {
-                    if (typeof key === 'symbol') {
-                        return undefined
-                    } else {
-                        return Deno.env.delete(key)
-                    }
-                },
-            }
-        )
-    },
+    env,
     disableColorIfNonIteractive: true,
     write: (text)=>Deno.stdout.writeSync(text instanceof Uint8Array ? text : new TextEncoder().encode(text)),
     askFor: {
