@@ -54,7 +54,7 @@ export const env = new Proxy(
         deleteProperty(original, key) {
             if (typeof key === 'symbol') {
             } else {
-                return Deno.env.delete(key)
+                Deno.env.delete(key)
             }
             return true
         },
