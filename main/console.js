@@ -8,8 +8,6 @@ const symbolForConsoleLog = Symbol.for("console.log")
 const realConsole = globalThis[symbolForConsoleLog] = globalThis[symbolForConsoleLog] || globalThis.console
 const isBrowserContext = typeof document != 'undefined' && typeof window != 'undefined'
 
-let env = null
-
 // 
 // allow custom logging 
 // 
