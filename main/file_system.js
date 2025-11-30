@@ -829,14 +829,17 @@ export const FileSystem = {
         }
         const path = info.path
         const startingDepth = FileSystem.makeAbsolutePath(path).split("/").length-1
-        options.recursively = options.recursively == false && options.maxDepth == 1 ? false : options.recursively
+        options = { ...options }
+        if (options.maxDepth == 1) {
+            options.recursively = false
+        }
         if (options.maxDepthFromRoot == null) {
             options.maxDepthFromRoot = Infinity
         }
         if (options.maxDepth != Infinity && options.maxDepth != null) {
             options.maxDepthFromRoot = startingDepth+options.maxDepth
         }
-        options.maxDepth = null // done for recursive calles
+        options.maxDepth = null // done for recursive calls
         if (startingDepth < options.maxDepthFromRoot) {
             if (!options.recursively) {
                 // if its a file or if doesnt exist
@@ -925,14 +928,17 @@ export const FileSystem = {
                                 }
                             }
                             
-                            // then actually schedule children
-                            if (useBreadthFirstSearch) {
-                                searchAfterwords.push(eachPath)
-                            } else {
-                                // yield* doesn't seem to work for async iterators
-                                for await (const eachSubPath of FileSystem.iteratePathsIn(eachPath, options)) {
-                                    // shouldntInclude would already have been executed by ^ so dont re-check
-                                    yield eachSubPath
+                            const shouldntExploreThis = shouldntExplore && await shouldntExplore(eachPath)
+                            if (!shouldntExploreThis) {
+                                // then actually schedu`le children
+                                if (useBreadthFirstSearch) {
+                                    searchAfterwords.push(eachPath)
+                                } else {
+                                    // yield* doesn't seem to work for async iterators
+                                    for await (const eachSubPath of FileSystem.iteratePathsIn(eachPath, options)) {
+                                        // shouldntInclude would already have been executed by ^ so dont re-check
+                                        yield eachSubPath
+                                    }
                                 }
                             }
                         }
@@ -944,7 +950,10 @@ export const FileSystem = {
                             for await (const eachSubPath of FileSystem.iteratePathsIn(next, options)) {
                                 // shouldntInclude would already have been executed by ^ so dont re-check
                                 yield eachSubPath
-                                searchAfterwords.push(eachSubPath)
+                                const shouldntExploreThis = shouldntExplore && await shouldntExplore(eachSubPath)
+                                if (!shouldntExploreThis) {
+                                    searchAfterwords.push(eachSubPath)
+                                }
                             }
                         }
                     }
@@ -995,7 +1004,7 @@ export const FileSystem = {
                     // schedule children
                     // 
                     if (options.recursively) {
-                        if (eachItem.isFolder) {
+                        if (eachItem.isFolder && !(shouldntExplore && await shouldntExplore(eachItem))) {
                             if (useBreadthFirstSearch) {
                                 searchAfterwords.push(eachItem)
                             } else {
@@ -1016,7 +1025,7 @@ export const FileSystem = {
                     for await (const eachSubItem of FileSystem.iterateItemsIn(next, options)) {
                         // shouldntInclude would already have been executed by ^ so dont re-check
                         yield eachSubItem
-                        if (eachSubItem.isFolder) {
+                        if (eachSubItem.isFolder && !(shouldntExplore && await shouldntExplore(eachSubItem))) {
                             searchAfterwords.push(eachSubItem)
                         }
                     }
